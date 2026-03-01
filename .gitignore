@@ -1,0 +1,11 @@
+# Byte-compiled / virtual
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+env/
+venv/
+*.sqlite3
+/media
+/staticfiles
+/data

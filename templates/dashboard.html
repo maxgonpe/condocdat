@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Panel{% endblock %}
+
+{% block content %}
+<h1>Panel principal</h1>
+<p class="muted">Control de documentos — datacenter en construcción</p>
+
+<div class="card">
+  <h2>Bienvenido</h2>
+  <p>Desde aquí podrás desarrollar y enlazar el resto del sistema. Este es el template principal del proyecto.</p>
+  <p>
+    <a href="{% url 'admin:index' %}" class="btn">Ir al admin</a>
+    <a href="{% url 'admin:index' %}" class="btn btn-outline">Documentos</a>
+  </p>
+</div>
+
+<div class="card">
+  <h2>Accesos rápidos</h2>
+  <p>
+    <a href="{% url 'admin:documents_project_changelist' %}" class="btn btn-outline">Proyectos</a>
+    <a href="{% url 'admin:documents_document_changelist' %}" class="btn btn-outline">Documentos</a>
+    <a href="{% url 'admin:documents_executingcompany_changelist' %}" class="btn btn-outline">EECC</a>
+    <a href="{% url 'admin:documents_process_changelist' %}" class="btn btn-outline">Procesos</a>
+    <a href="{% url 'admin:documents_documenttype_changelist' %}" class="btn btn-outline">Tipos de documento</a>
+  </p>
+</div>
+
+{% block dashboard_extra %}{% endblock %}
+{% endblock %}

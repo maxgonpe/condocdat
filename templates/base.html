@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Condocdat{% endblock %} | Control de documentos</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <script>
+    (function(){
+      var k = 'condocdat-theme', t = null;
+      try { t = localStorage.getItem(k); } catch (e) {}
+      var effective = (t === 'dark' || t === 'light') ? t : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', effective);
+    })();
+  </script>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Condocdat</div>
+      <nav>
+        <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Panel</a>
+        <a href="{% url 'admin:index' %}">Administración</a>
+      </nav>
+      <div class="theme-switcher">
+        <label for="theme-buttons">Tema</label>
+        <div class="theme-switcher-buttons" id="theme-buttons" role="group" aria-label="Elegir tema">
+          <button type="button" data-theme-value="light" aria-pressed="false">Claro</button>
+          <button type="button" data-theme-value="dark" aria-pressed="false">Oscuro</button>
+          <button type="button" data-theme-value="system" aria-pressed="false">Sistema</button>
+        </div>
+      </div>
+    </aside>
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="{% static 'js/theme.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
