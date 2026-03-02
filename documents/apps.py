@@ -5,3 +5,6 @@ class DocumentsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'documents'
     verbose_name = 'Control de documentos'
+
+    def ready(self):
+        import documents.signals  # noqa: F401

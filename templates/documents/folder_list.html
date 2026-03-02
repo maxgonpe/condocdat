@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Carpetas{% endblock %}
+
+{% block content %}
+<h1>Carpetas (Transmittals)</h1>
+<p class="muted">Carpetas que agrupan documentos y archivos. Usa <a href="{% url 'search_unified' %}">Buscar</a> para encontrar por nombre o contenido dentro de los archivos.</p>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Título</th>
+          <th>Fecha</th>
+          <th>Documentos</th>
+          <th>Archivos</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in folder_list %}
+        <tr>
+          <td><a href="{% url 'folder_detail' f.pk %}">{{ f.code }}</a></td>
+          <td>{{ f.title|truncatewords:10|default:"—" }}</td>
+          <td>{{ f.date|date:"d/m/Y" }}</td>
+          <td>{{ f.documents.count }}</td>
+          <td>{{ f.folder_files.count }}</td>
+          <td><a href="{% url 'folder_detail' f.pk %}" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Ver</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="muted">No hay carpetas. Crea una desde <a href="{% url 'admin:documents_folder_add' %}">Administración</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p>
+  <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
+  <a href="{% url 'search_unified' %}" class="btn">Buscar por nombre y contenido</a>
+  <a href="{% url 'admin:documents_folder_add' %}" class="btn btn-outline">Nueva carpeta (admin)</a>
+</p>
+{% endblock %}

@@ -2,14 +2,17 @@
 URL configuration for condocdat project.
 """
 from django.contrib import admin
-from django.urls import path, re_path
+from django.urls import path, re_path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
-from documents.views import dashboard
+from documents.views import dashboard, CustomLoginView, custom_logout
 
 urlpatterns = [
     path('', dashboard, name='dashboard'),
+    path('login/', CustomLoginView.as_view(), name='login'),
+    path('logout/', custom_logout, name='logout'),
+    path('documentos/', include('documents.urls')),
     path('admin/', admin.site.urls),
 ]
 

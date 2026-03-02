@@ -6,7 +6,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN groupadd -r django && useradd -r -g django django
+# Usuario no root con UID fijo para que los volúmenes (data, media, staticfiles) tengan permisos correctos en el host
+RUN groupadd -r django -g 1000 && useradd -r -u 1000 -g django django
 
 RUN apt-get update && apt-get install -y \
     gcc \

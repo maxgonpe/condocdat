@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Buscar{% endblock %}
+
+{% block content %}
+<h1>Buscar por nombre y contenido</h1>
+<p class="muted">Busca en códigos, títulos, descripciones y en el texto extraído de los archivos (PDF, DOCX). Ej: "Juan Pérez", "ODATA-ST01", "PPT-00050".</p>
+
+<div class="card">
+  <div class="form-group" style="max-width: 500px; margin-bottom: 1rem;">
+    <label for="global-search">Buscar</label>
+    <input type="text" id="global-search" class="form-control" placeholder="Escriba un término..."
+           value="{{ query }}" autocomplete="off">
+  </div>
+  <p class="muted">Los resultados se actualizan al escribir (documentos, carpetas y archivos que coincidan).</p>
+</div>
+
+<div id="search-results">
+  <div class="card" id="results-documents">
+    <h2>Documentos</h2>
+    <div id="documents-list">
+      {% if query %}
+        {% for d in documents %}
+        <p>
+          <a href="{% url 'document_detail' d.pk %}">{{ d.code }}</a>
+          — {{ d.title|truncatewords:6|default:"—" }}
+          {% if d.folder %}(carpeta: <a href="{% url 'folder_detail' d.folder.pk %}">{{ d.folder.code }}</a>){% endif %}
+          {% if d.file %}<a href="{{ d.file.url }}" target="_blank" rel="noopener">Archivo</a>{% endif %}
+        </p>
+        {% empty %}
+        <p class="muted">Ningún documento coincide.</p>
+        {% endfor %}
+      {% else %}
+        <p class="muted">Escriba un término para buscar.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card" id="results-folders">
+    <h2>Carpetas</h2>
+    <div id="folders-list">
+      {% if query %}
+        {% for f in folders %}
+        <p><a href="{% url 'folder_detail' f.pk %}">{{ f.code }}</a> — {{ f.title|truncatewords:6|default:"" }}</p>
+        {% empty %}
+        <p class="muted">Ninguna carpeta coincide.</p>
+        {% endfor %}
+      {% else %}
+        <p class="muted">—</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card" id="results-files">
+    <h2>Archivos en carpetas</h2>
+    <div id="folder-files-list">
+      {% if query %}
+        {% for ff in folder_files %}
+        <p>
+          <a href="{{ ff.file.url }}" target="_blank" rel="noopener">{{ ff.name }}</a>
+          — carpeta: <a href="{% url 'folder_detail' ff.folder.pk %}">{{ ff.folder.code }}</a>
+        </p>
+        {% empty %}
+        <p class="muted">Ningún archivo coincide.</p>
+        {% endfor %}
+      {% else %}
+        <p class="muted">—</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var searchInput = document.getElementById('global-search');
+  var documentsList = document.getElementById('documents-list');
+  var foldersList = document.getElementById('folders-list');
+  var folderFilesList = document.getElementById('folder-files-list');
+  var debounceTimer;
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function renderDocuments(docs) {
+    if (!docs.length) return '<p class="muted">Ningún documento coincide.</p>';
+    return docs.map(function(d) {
+      var folderLink = d.folder_code
+        ? '(carpeta: <a href="/documentos/carpetas/' + d.folder_id + '/">' + escapeHtml(d.folder_code) + '</a>)'
+        : '';
+      var fileLink = d.has_file && d.file_url
+        ? ' <a href="' + escapeHtml(d.file_url) + '" target="_blank" rel="noopener">Archivo</a>'
+        : '';
+      return '<p><a href="/documentos/' + d.id + '/">' + escapeHtml(d.code) + '</a> — ' +
+        escapeHtml(d.title || '—').substring(0, 60) + ' ' + folderLink + fileLink + '</p>';
+    }).join('');
+  }
+
+  function renderFolders(folders) {
+    if (!folders.length) return '<p class="muted">Ninguna carpeta coincide.</p>';
+    return folders.map(function(f) {
+      return '<p><a href="/documentos/carpetas/' + f.id + '/">' + escapeHtml(f.code) + '</a> — ' +
+        escapeHtml(f.title || '') + '</p>';
+    }).join('');
+  }
+
+  function renderFolderFiles(files) {
+    if (!files.length) return '<p class="muted">Ningún archivo coincide.</p>';
+    return files.map(function(ff) {
+      var fileUrl = ff.file_url ? escapeHtml(ff.file_url) : '#';
+      var folderLink = '<a href="/documentos/carpetas/' + ff.folder_id + '/">' + escapeHtml(ff.folder_code || '') + '</a>';
+      return '<p><a href="' + fileUrl + '" target="_blank" rel="noopener">' + escapeHtml(ff.name) + '</a> — carpeta: ' + folderLink + '</p>';
+    }).join('');
+  }
+
+  function doSearch() {
+    var q = searchInput.value.trim();
+    if (!q) {
+      documentsList.innerHTML = '<p class="muted">Escriba un término para buscar.</p>';
+      foldersList.innerHTML = '<p class="muted">—</p>';
+      folderFilesList.innerHTML = '<p class="muted">—</p>';
+      return;
+    }
+    var url = '/documentos/buscar/?format=json&q=' + encodeURIComponent(q);
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        documentsList.innerHTML = renderDocuments(data.documents || []);
+        foldersList.innerHTML = renderFolders(data.folders || []);
+        folderFilesList.innerHTML = renderFolderFiles(data.folder_files || []);
+      })
+      .catch(function() {
+        documentsList.innerHTML = '<p class="alert alert-error">Error al buscar.</p>';
+        foldersList.innerHTML = '';
+        folderFilesList.innerHTML = '';
+      });
+  }
+
+  searchInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(doSearch, 300);
+  });
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  });
+})();
+</script>
+{% endblock %}

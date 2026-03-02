@@ -3,6 +3,27 @@ from django.db.models import F
 from django.utils import timezone
 
 
+class Folder(models.Model):
+    """
+    Carpeta / Transmittal que agrupa documentos y archivos.
+    Ej: ODATA-ST01-F5-TTAL-PPT-00050
+    """
+    code = models.CharField(max_length=128, unique=True)
+    title = models.CharField(max_length=255, blank=True, default="")
+    description = models.TextField(blank=True, default="")
+    date = models.DateField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Carpeta"
+        verbose_name_plural = "Carpetas"
+        ordering = ["-date", "-created_at"]
+
+    def __str__(self):
+        return self.code or self.title or str(self.pk)
+
+
 class Project(models.Model):
     """
     PROY: Código del proyecto (ej: ODA)
@@ -132,6 +153,13 @@ class Document(models.Model):
     # opcional: adjunto del documento
     file = models.FileField(upload_to="documents/%Y/%m/", blank=True, null=True)
 
+    # carpeta/transmittal a la que pertenece (opcional)
+    folder = models.ForeignKey(
+        Folder, on_delete=models.SET_NULL, null=True, blank=True, related_name="documents"
+    )
+    # texto extraído del archivo para búsqueda por contenido (PDF/DOCX)
+    content_extract = models.TextField(blank=True, default="")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -182,3 +210,46 @@ class Document(models.Model):
             )
 
             super().save(*args, **kwargs)
+
+
+class DocumentAttachment(models.Model):
+    """
+    Archivo adjunto adicional a un documento. Un documento puede tener
+    el archivo principal (Document.file) y varios DocumentAttachment.
+    El texto extraído se indexa para búsqueda.
+    """
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to="document_attachments/%Y/%m/")
+    extracted_text = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Adjunto de documento"
+        verbose_name_plural = "Adjuntos de documento"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.file.name} ({self.document.code})"
+
+
+class FolderFile(models.Model):
+    """
+    Archivo dentro de una carpeta (transmittal). Permite varios archivos por carpeta
+    y búsqueda por nombre y contenido extraído.
+    """
+    folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name="folder_files")
+    name = models.CharField(max_length=255)
+    file = models.FileField(upload_to="folder_files/%Y/%m/")
+    extracted_text = models.TextField(blank=True, default="")
+    document = models.ForeignKey(
+        Document, on_delete=models.SET_NULL, null=True, blank=True, related_name="folder_file_refs"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Archivo de carpeta"
+        verbose_name_plural = "Archivos de carpeta"
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.folder.code})"

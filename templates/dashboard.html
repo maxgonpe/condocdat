@@ -11,7 +11,9 @@
   <p>Desde aquí podrás desarrollar y enlazar el resto del sistema. Este es el template principal del proyecto.</p>
   <p>
     <a href="{% url 'admin:index' %}" class="btn">Ir al admin</a>
-    <a href="{% url 'admin:index' %}" class="btn btn-outline">Documentos</a>
+    <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
+    <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
+    <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
   </p>
 </div>
 
@@ -19,7 +21,9 @@
   <h2>Accesos rápidos</h2>
   <p>
     <a href="{% url 'admin:documents_project_changelist' %}" class="btn btn-outline">Proyectos</a>
-    <a href="{% url 'admin:documents_document_changelist' %}" class="btn btn-outline">Documentos</a>
+    <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
+    <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
+    <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
     <a href="{% url 'admin:documents_executingcompany_changelist' %}" class="btn btn-outline">EECC</a>
     <a href="{% url 'admin:documents_process_changelist' %}" class="btn btn-outline">Procesos</a>
     <a href="{% url 'admin:documents_documenttype_changelist' %}" class="btn btn-outline">Tipos de documento</a>
