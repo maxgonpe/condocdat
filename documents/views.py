@@ -9,6 +9,7 @@ from django.db.models import Q
 
 from .models import Document, Folder, FolderFile, DocumentAttachment
 from .search_backend import search_unified
+from .snippets import extract_snippets
 
 
 class CustomLoginView(LoginView):
@@ -57,8 +58,30 @@ def document_list(request):
             Q(doc_type__code__icontains=q)
         ).distinct()
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        # Con búsqueda por texto, pre-cargar adjuntos y calcular hits (archivo + fragmentos de contexto)
+        qs_json = qs.prefetch_related('attachments')[:500]
         docs = []
-        for d in qs[:500]:
+        for d in qs_json:
+            hits = []
+            if q and d.content_extract and (q.lower() in d.content_extract.lower()):
+                snippets = extract_snippets(d.content_extract, q, context_words=10, max_snippets=5)
+                file_name = d.file.name if d.file else 'Documento principal'
+                hits.append({
+                    'source': 'document',
+                    'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                    'file_url': d.file.url if d.file else None,
+                    'snippets': snippets,
+                })
+            for att in d.attachments.all():
+                if q and att.extracted_text and (q.lower() in att.extracted_text.lower()):
+                    snippets = extract_snippets(att.extracted_text, q, context_words=10, max_snippets=5)
+                    name = att.file.name.split('/')[-1] if att.file.name else 'Adjunto'
+                    hits.append({
+                        'source': 'attachment',
+                        'file_name': name,
+                        'file_url': att.file.url if att.file else None,
+                        'snippets': snippets,
+                    })
             docs.append({
                 'id': d.id,
                 'code': d.code,
@@ -75,6 +98,7 @@ def document_list(request):
                 'has_file': bool(d.file),
                 'folder_id': d.folder_id,
                 'folder_code': d.folder.code if d.folder else None,
+                'hits': hits,
             })
         return JsonResponse({'documents': docs})
     return render(request, 'documents/document_list.html', {'document_list': qs[:100]})

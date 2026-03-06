@@ -4,7 +4,7 @@
 
 {% block content %}
 <h1>Listado de documentos</h1>
-<p class="muted">Buscar por código, título, proyecto, empresa, proceso o tipo. En acciones puedes ver el documento y el archivo asociado, o eliminarlo.</p>
+<p class="muted">Buscar por código, título, proyecto, empresa, proceso o tipo. Si busca por contenido, podrá ver en qué archivo aparece y un fragmento con el texto encontrado y su contexto.</p>
 
 <div class="card">
   <div class="form-group" style="max-width: 400px; margin-bottom: 1rem;">
@@ -29,6 +29,7 @@
           <th>Fecha</th>
           <th>Rev.</th>
           <th>Archivo</th>
+          <th>Contexto</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -46,16 +47,27 @@
           <td>{{ doc.date|date:"d/m/Y" }}</td>
           <td>{{ doc.revision }}</td>
           <td>{% if doc.file %}<a href="{{ doc.file.url }}" target="_blank" rel="noopener">Ver</a>{% else %}—{% endif %}</td>
+          <td>—</td>
           <td>
             <a href="{% url 'document_detail' doc.pk %}" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Ver</a>
             <button type="button" class="btn btn-outline doc-delete" data-id="{{ doc.id }}" data-code="{{ doc.code }}" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Eliminar</button>
           </td>
         </tr>
         {% empty %}
-        <tr id="doc-empty"><td colspan="12" class="muted">No hay documentos. La búsqueda se actualiza al escribir.</td></tr>
+        <tr id="doc-empty"><td colspan="13" class="muted">No hay documentos. La búsqueda se actualiza al escribir.</td></tr>
         {% endfor %}
       </tbody>
     </table>
+  </div>
+</div>
+
+<div id="context-modal-wrap" class="context-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000;" aria-hidden="true" role="dialog" aria-labelledby="context-modal-title">
+  <div class="context-modal-content" style="background: var(--bg-elevated, #fff); border-radius: var(--radius-lg, 12px); max-width: 600px; max-height: 85vh; overflow: auto; box-shadow: var(--shadow-lg); padding: 1.5rem;">
+    <h2 id="context-modal-title" style="margin-top: 0; margin-bottom: 1rem;">Contexto de búsqueda</h2>
+    <div id="context-modal-body"></div>
+    <p style="margin-top: 1rem; margin-bottom: 0;">
+      <button type="button" class="btn btn-outline" id="context-modal-close">Cerrar</button>
+    </p>
   </div>
 </div>
 
@@ -82,6 +94,11 @@
     var folderHtml = d.folder_code && d.folder_id
       ? '<a href="/documentos/carpetas/' + d.folder_id + '/">' + escapeHtml(d.folder_code) + '</a>'
       : '—';
+    var hits = d.hits && d.hits.length ? d.hits : [];
+    var hitsEscaped = hits.length ? escapeAttr(JSON.stringify(hits)) : '';
+    var contextHtml = hits.length
+      ? '<button type="button" class="btn btn-outline doc-context" data-id="' + d.id + '" data-code="' + escapeHtml(d.code) + '" data-hits="' + hitsEscaped + '" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Ver contexto</button>'
+      : '—';
     return '<tr data-id="' + d.id + '">' +
       '<td><a href="/documentos/' + d.id + '/">' + escapeHtml(d.code) + '</a></td>' +
       '<td>' + escapeHtml(d.title || '').substring(0, 50) + (d.title && d.title.length > 50 ? '…' : '') + '</td>' +
@@ -94,10 +111,56 @@
       '<td>' + (d.date ? d.date.split('-').reverse().join('/') : '') + '</td>' +
       '<td>' + escapeHtml(d.revision) + '</td>' +
       '<td>' + fileHtml + '</td>' +
+      '<td>' + contextHtml + '</td>' +
       '<td>' +
         '<a href="/documentos/' + d.id + '/" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Ver</a> ' +
         '<button type="button" class="btn btn-outline doc-delete" data-id="' + d.id + '" data-code="' + escapeHtml(d.code) + '" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Eliminar</button>' +
       '</td></tr>';
+  }
+
+  function escapeAttr(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function snippetToHtml(s) {
+    var escaped = escapeHtml(s);
+    return escaped.replace(/\*\*(.+?)\*\*/g, function(_, g1) {
+      return '<strong>' + escapeHtml(g1) + '</strong>';
+    });
+  }
+
+  function openContextModal(code, hits) {
+    var wrap = document.getElementById('context-modal-wrap');
+    var titleEl = document.getElementById('context-modal-title');
+    var bodyEl = document.getElementById('context-modal-body');
+    if (!wrap || !titleEl || !bodyEl) return;
+    titleEl.textContent = 'Contexto de búsqueda — ' + code;
+    var html = '';
+    hits.forEach(function(h) {
+      var fileName = escapeHtml(h.file_name || 'Archivo');
+      var fileLink = h.file_url ? ('<a href="' + escapeHtml(h.file_url) + '" target="_blank" rel="noopener">' + fileName + '</a>') : fileName;
+      html += '<div class="context-hit" style="margin-bottom: 1rem;">';
+      html += '<div class="context-file" style="font-weight: 600; margin-bottom: 0.35rem;">' + fileLink + '</div>';
+      html += '<div class="context-snippets">';
+      (h.snippets || []).forEach(function(snip) {
+        html += '<div class="context-snippet" style="background: var(--surface-hover, #f5f5f5); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.35rem; font-size: 0.9rem;">' + snippetToHtml(snip) + '</div>';
+      });
+      html += '</div></div>';
+    });
+    bodyEl.innerHTML = html || '<p class="muted">Sin fragmentos.</p>';
+    wrap.style.display = 'flex';
+    wrap.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeContextModal() {
+    var wrap = document.getElementById('context-modal-wrap');
+    if (wrap) { wrap.style.display = 'none'; wrap.setAttribute('aria-hidden', 'true'); }
   }
 
   function escapeHtml(s) {
@@ -116,17 +179,32 @@
       .then(function(data) {
         tbody.innerHTML = '';
         if (data.documents.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="12" class="muted">No hay documentos.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="13" class="muted">No hay documentos.</td></tr>';
         } else {
           data.documents.forEach(function(d) {
             tbody.insertAdjacentHTML('beforeend', renderRow(d));
           });
           bindDeleteButtons();
+          bindContextButtons();
         }
       })
       .catch(function() {
-        tbody.innerHTML = '<tr><td colspan="12" class="alert alert-error">Error al buscar.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="alert alert-error">Error al buscar.</td></tr>';
       });
+  }
+
+  function bindContextButtons() {
+    tbody.querySelectorAll('.doc-context').forEach(function(btn) {
+      btn.onclick = function() {
+        var code = this.getAttribute('data-code');
+        var hitsRaw = this.getAttribute('data-hits');
+        if (!hitsRaw) return;
+        try {
+          var hits = JSON.parse(hitsRaw);
+          openContextModal(code, hits);
+        } catch (e) {}
+      };
+    });
   }
 
   function bindDeleteButtons() {
@@ -149,7 +227,7 @@
               var row = tbody.querySelector('tr[data-id="' + data.id + '"]');
               if (row) row.remove();
               if (tbody.querySelectorAll('tr').length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="muted">No hay documentos.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="muted">No hay documentos.</td></tr>';
               }
             }
           });
@@ -164,6 +242,11 @@
 
   searchInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  });
+
+  document.getElementById('context-modal-close').addEventListener('click', closeContextModal);
+  document.getElementById('context-modal-wrap').addEventListener('click', function(e) {
+    if (e.target === this) closeContextModal();
   });
 
   bindDeleteButtons();
