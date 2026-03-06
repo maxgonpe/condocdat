@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.views import LoginView
 from django.views.decorators.http import require_GET, require_POST
 from django.http import JsonResponse
-from django.db.models import Q
+from django.db.models import Q, Count
 
 from .models import Document, Folder, FolderFile, DocumentAttachment
 from .search_backend import search_unified
@@ -150,8 +150,16 @@ def document_upload_attachments(request, pk):
 @login_required
 @require_GET
 def folder_list(request):
-    """Listado de carpetas (transmittals)."""
-    folders = Folder.objects.prefetch_related('documents', 'folder_files').order_by('-date', '-created_at')[:500]
+    """Listado de carpetas (transmittals) con cantidad de documentos y archivos."""
+    folders = (
+        Folder.objects
+        .annotate(
+            document_count=Count('documents', distinct=True),
+            folder_file_count=Count('folder_files', distinct=True),
+            attachment_count=Count('documents__attachments', distinct=True),
+        )
+        .order_by('-date', '-created_at')[:500]
+    )
     return render(request, 'documents/folder_list.html', {'folder_list': folders})
 
 

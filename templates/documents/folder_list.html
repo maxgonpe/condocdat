@@ -25,8 +25,8 @@
           <td><a href="{% url 'folder_detail' f.pk %}">{{ f.code }}</a></td>
           <td>{{ f.title|truncatewords:10|default:"—" }}</td>
           <td>{{ f.date|date:"d/m/Y" }}</td>
-          <td>{{ f.documents.count }}</td>
-          <td>{{ f.folder_files.count }}</td>
+          <td>{{ f.document_count }}</td>
+          <td>{{ f.folder_file_count|add:f.attachment_count }}</td>
           <td><a href="{% url 'folder_detail' f.pk %}" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Ver</a></td>
         </tr>
         {% empty %}
