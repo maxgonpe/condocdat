@@ -109,6 +109,8 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   transition: background-color var(--transition), color var(--transition);
+  display: flex;
+  flex-direction: column;
 }
 
 a {
@@ -121,38 +123,115 @@ a:hover {
   text-decoration: underline;
 }
 
-/* ========== LAYOUT ========== */
-.layout {
+/* ========== LAYOUT REDISEÑADO: BARRA SUPERIOR + CUERPO ========== */
+.app-header {
+  flex-shrink: 0;
   display: flex;
-  min-height: 100vh;
-}
-
-/* ========== SIDEBAR ========== */
-.sidebar {
-  width: 260px;
+  align-items: center;
+  gap: 1rem;
+  height: 52px;
+  padding: 0 1rem;
   background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 1rem 0;
-  display: flex;
-  flex-direction: column;
-  transition: background-color var(--transition), border-color var(--transition);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
 }
 
-.sidebar .brand {
-  padding: 0 1rem 1rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1rem;
+.menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.menu-btn:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--accent-text);
+}
+
+.menu-btn-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.header-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 700px) {
+  .header-hint { display: none; }
+}
+
+.app-title {
   font-weight: 700;
   font-size: 1.15rem;
   color: var(--accent);
-  transition: color var(--transition);
 }
 
-.sidebar nav {
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-link {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.header-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.app-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: calc(100vh - 52px);
+}
+
+/* ========== SIDEBAR (SE OCULTA CON data-sidebar="closed" EN BODY) ========== */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.2s ease, min-width 0.2s ease, visibility 0.2s ease;
+}
+
+body[data-sidebar="closed"] .sidebar {
+  width: 0 !important;
+  min-width: 0 !important;
+  border-right-width: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+}
+
+.sidebar-nav {
   flex: 1;
+  padding: 0.75rem 0;
 }
 
-.sidebar nav a {
+.sidebar-nav a {
   display: block;
   padding: 0.6rem 1rem;
   color: var(--text-muted);
@@ -160,8 +239,8 @@ a:hover {
   transition: background var(--transition), color var(--transition);
 }
 
-.sidebar nav a:hover,
-.sidebar nav a.active {
+.sidebar-nav a:hover,
+.sidebar-nav a.active {
   background: var(--surface-hover);
   color: var(--text);
   text-decoration: none;
@@ -172,6 +251,7 @@ a:hover {
   padding: 1rem;
   border-top: 1px solid var(--border);
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .theme-switcher label {
@@ -217,7 +297,8 @@ a:hover {
 
 /* ========== ÁREA PRINCIPAL ========== */
 .main {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 1.5rem 2rem;
   overflow: auto;
   background: var(--bg);
