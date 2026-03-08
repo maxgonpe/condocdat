@@ -4,8 +4,9 @@ from django.contrib.auth import logout
 from django.contrib import messages
 from django.contrib.auth.views import LoginView
 from django.views.decorators.http import require_GET, require_POST
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, Count
+from django.utils import timezone
 import os
 import re
 from datetime import date
@@ -170,6 +171,37 @@ def _parse_atencion(content_extract):
     return t[start:end].strip()
 
 
+def _parse_saluda_atentamente(content_extract):
+    """
+    Extrae del extracto el bloque tras «Saluda atentamente,» hasta «PROPAMAT».
+    Corresponde a la firma: nombre y cargo (ej. Claudio Simonetti / Administrador de Contrato).
+    Sirve para cartas de respuesta donde puede firmar otra persona.
+    """
+    if not content_extract or not isinstance(content_extract, str):
+        return ""
+    t = content_extract
+    tu = t.upper()
+    idx = tu.find("SALUDA ATENTAMENTE")
+    if idx < 0:
+        return ""
+    # Empezar después de la frase (y coma si existe)
+    start = idx + len("SALUDA ATENTAMENTE")
+    while start < len(t) and t[start] in " ,\t\r\n":
+        start += 1
+    if start >= len(t):
+        return ""
+    # Buscar «PROPAMAT» como fin del bloque (nombre de empresa)
+    end_mark = tu.find("PROPAMAT", start)
+    if end_mark >= 0:
+        end = end_mark
+    else:
+        end = len(t)
+    block = t[start:end]
+    # Limpiar: quitar líneas vacías al final, normalizar espacios internos
+    lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+    return " ".join(lines) if lines else ""
+
+
 # Meses en español (clave en mayúsculas sin tildes para comparar)
 _MESES = {
     "ENERO": 1, "FEBRERO": 2, "MARZO": 3, "ABRIL": 4, "MAYO": 5, "JUNIO": 6,
@@ -204,6 +236,62 @@ def _parse_fecha_envio(content_extract):
         return date(year, month, day)
     except ValueError:
         return None
+
+
+def _normalize_car_code(nombre_archivo_or_code):
+    """
+    Extrae y normaliza el código CAR desde el nombre de archivo (ej. ODA-BUF-CC-CAR-0005.pdf).
+    Devuelve algo como ODA-BUF-CC-CAR-0005 para poder hacer match con referencias en otros extractos.
+    """
+    if not nombre_archivo_or_code:
+        return ""
+    s = os.path.splitext(nombre_archivo_or_code)[0].strip().upper()
+    # Si ya parece un código CAR (contiene CAR y dígitos), normalizar número a 4 dígitos
+    m = re.search(r"(.*-CAR-)(\d+)$", s, re.IGNORECASE)
+    if m:
+        prefix, num = m.group(1).upper(), m.group(2)
+        return prefix + num.zfill(4)
+    return s
+
+
+def _find_car_references_in_text(text):
+    """
+    Busca en el texto referencias a códigos de carta tipo ODA-BUF-CC-CAR-XXXX.
+    Devuelve set de códigos normalizados (ODA-BUF-CC-CAR-0005, etc.) a los que se hace referencia.
+    """
+    if not text:
+        return set()
+    refs = set()
+    # Coincidir ODA-BUF-CC-CAR-5, ODA-BUF-CC-CAR-0005, etc.
+    for m in re.finditer(r"ODA-BUF-CC-CAR-0*(\d+)", text, re.IGNORECASE):
+        refs.add("ODA-BUF-CC-CAR-" + m.group(1).zfill(4))
+    return refs
+
+
+def _build_respuesta_map():
+    """
+    Construye un mapa: código CAR referenciado -> extracto de la carta de respuesta.
+    Solo documentos en carpetas de la contraparte ODATA: ODATA-ST01-F5-TTAL-PPT.
+    En el extracto del adjunto se busca si referencian alguna CAR (ej. ODA-BUF-CC-CAR-0005).
+    """
+    from .models import Folder
+    folders_odata = Folder.objects.filter(code__icontains="ODATA-ST01-F5-TTAL-PPT")
+    docs_odata = (
+        Document.objects
+        .filter(folder__in=folders_odata, attachments__file__icontains="CAR")
+        .distinct()
+        .prefetch_related("attachments")
+    )
+    out = {}
+    for d in docs_odata:
+        for att in d.attachments.all():
+            if "CAR" not in (att.file.name or "").upper():
+                continue
+            extract = (att.extracted_text or "") or (d.content_extract or "")
+            for ref in _find_car_references_in_text(extract):
+                if ref not in out:
+                    out[ref] = extract
+    return out
 
 
 class CustomLoginView(LoginView):
@@ -447,15 +535,9 @@ def search_unified_view(request):
 
 # ---------- Estatus Cartas (documentos transmittal ODATA-BUF-CM-TTAL-*; info en extracto de adjuntos) ----------
 
-@login_required
-@require_GET
-def cartas_status(request):
-    """
-    Lista solo cartas: documentos transmittal (TTAL) que tengan al menos un adjunto tipo CAR
-    (nombre de archivo con «CAR»). Solo se listan esos adjuntos CAR; el resto se excluye.
-    «Requiere respuesta» se obtiene del extracto del adjunto.
-    """
-    # Documentos TTAL que tengan al menos un adjunto tipo CAR (carta)
+
+def _get_cartas_status_rows():
+    """Construye la lista de filas del listado Estatus Cartas (reutilizable para HTML y export)."""
     docs = (
         Document.objects
         .filter(code__icontains="TTAL", attachments__file__icontains="CAR")
@@ -464,36 +546,39 @@ def cartas_status(request):
         .prefetch_related("attachments")
         .order_by("-date", "-created_at")[:500]
     )
-
+    respuesta_map = _build_respuesta_map()
     rows = []
-    n_docs = 0
     for d in docs:
-        n_docs += 1
         for att in d.attachments.all():
-            # Solo listar adjuntos que son cartas (nombre con CAR)
             nombre_archivo = os.path.basename(att.file.name) if att.file else ""
             if "CAR" not in (att.file.name or "").upper():
                 continue
-            # Requiere respuesta desde el extracto del adjunto (carta), fallback al documento
             requiere = _parse_requiere_respuesta(att.extracted_text)
             if not requiere:
                 requiere = _parse_requiere_respuesta(d.content_extract)
-            # Detalle: texto que sigue a «Asunto:» en el extracto
             detalle = _parse_asunto(att.extracted_text)
             if not detalle:
                 detalle = _parse_asunto(d.content_extract)
             if not detalle:
                 detalle = d.description or ""
-            # Enviado a: texto que sigue a «Atención:» en el extracto
             enviado_a = _parse_atencion(att.extracted_text)
             if not enviado_a:
                 enviado_a = _parse_atencion(d.content_extract)
-            # Fecha envío (emisor): extraída del extracto (ej. "Santiago, 26 de FEBRERO de 2026")
             fecha_envio = _parse_fecha_envio(att.extracted_text)
             if fecha_envio is None:
                 fecha_envio = _parse_fecha_envio(d.content_extract)
             if fecha_envio is None:
                 fecha_envio = d.date
+            fecha_respuesta = None
+            respuesta = ""
+            if requiere == "SI":
+                car_key = _normalize_car_code(nombre_archivo)
+                if car_key and car_key in respuesta_map:
+                    extract_respuesta = respuesta_map[car_key]
+                    fecha_respuesta = _parse_fecha_envio(extract_respuesta)
+                    respuesta = _parse_saluda_atentamente(extract_respuesta)
+                    if not respuesta:
+                        respuesta = _parse_atencion(extract_respuesta)
             rows.append({
                 "document": d,
                 "transmittal": d.folder.code if d.folder else "",
@@ -507,16 +592,127 @@ def cartas_status(request):
                 "detalle": detalle,
                 "enviado_a": enviado_a,
                 "requiere_respuesta": requiere,
-                "respuesta": "",
-                "fecha_respuesta": "",
+                "respuesta": respuesta,
+                "fecha_respuesta": fecha_respuesta,
                 "para": "",
                 "file_url": att.file.url if att.file else None,
             })
-            print(f"[cartas_status] DOC {d.code!r} adjunto {nombre_archivo!r} → Requiere respuesta = {requiere!r}")
+    return rows
+
+
+def _cartas_status_excel_response(rows):
+    """Genera HttpResponse con el listado en Excel. Nombre: Estatus-Cartas-al-DD-MM-YYYY.xlsx"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    fecha_str = timezone.now().strftime("%d-%m-%Y")
+    filename = f"Estatus-Cartas-al-{fecha_str}.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Estatus Cartas"
+    headers = [
+        "Transmittal", "Tipo", "Descripción", "Fecha envío (emisor)", "Responsable",
+        "Documento - Archivo", "Estado", "Detalle", "Enviado a", "Requiere respuesta?",
+        "Respuesta", "Fecha respuesta", "Para", "Link",
+    ]
+    ws.append(headers)
+    for h in range(1, len(headers) + 1):
+        ws.cell(row=1, column=h).font = Font(bold=True)
+    for row in rows:
+        fe = row.get("fecha_envio")
+        fe_str = fe.strftime("%d/%m/%Y") if hasattr(fe, "strftime") else str(fe or "")
+        fr = row.get("fecha_respuesta")
+        fr_str = fr.strftime("%d/%m/%Y") if fr and hasattr(fr, "strftime") else ""
+        trans = (row.get("transmittal") or "") + (" — " + (row.get("transmittal_title") or "") if row.get("transmittal_title") else "")
+        ws.append([
+            trans,
+            row.get("tipo") or "",
+            row.get("descripcion") or "",
+            fe_str,
+            row.get("responsable") or "",
+            row.get("documento_archivo") or "",
+            row.get("estado") or "",
+            row.get("detalle") or "",
+            row.get("enviado_a") or "",
+            row.get("requiere_respuesta") or "",
+            row.get("respuesta") or "",
+            fr_str,
+            row.get("para") or "",
+            row.get("file_url") or "",
+        ])
+    from io import BytesIO
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    response = HttpResponse(buf.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _cartas_status_pdf_response(rows):
+    """Genera HttpResponse con el listado en PDF. Nombre: Estatus-Cartas-al-DD-MM-YYYY.pdf"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+    from reportlab.lib.units import cm
+    from io import BytesIO
+    fecha_str = timezone.now().strftime("%d-%m-%Y")
+    filename = f"Estatus-Cartas-al-{fecha_str}.pdf"
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=1*cm, leftMargin=1*cm, topMargin=1.5*cm, bottomMargin=1*cm)
+    headers = [
+        "Transmittal", "Tipo", "Descripción", "F.Envio", "Responsable", "Documento",
+        "Estado", "Detalle", "Enviado a", "Req.Resp", "Respuesta", "F.Resp", "Para", "Link",
+    ]
+    data = [headers]
+    for row in rows:
+        fe = row.get("fecha_envio")
+        fe_str = fe.strftime("%d/%m/%Y") if hasattr(fe, "strftime") else str(fe or "")
+        fr = row.get("fecha_respuesta")
+        fr_str = fr.strftime("%d/%m/%Y") if fr and hasattr(fr, "strftime") else ""
+        trans = (row.get("transmittal") or "") + (" " + (row.get("transmittal_title") or "")[:20] if row.get("transmittal_title") else "")
+        data.append([
+            trans[:20], row.get("tipo") or "", (row.get("descripcion") or "")[:25], fe_str,
+            (row.get("responsable") or "")[:15], (row.get("documento_archivo") or "")[:18],
+            row.get("estado") or "", (row.get("detalle") or "")[:20], (row.get("enviado_a") or "")[:15],
+            row.get("requiere_respuesta") or "", (row.get("respuesta") or "")[:15], fr_str,
+            row.get("para") or "", "",
+        ])
+    t = Table(data, colWidths=[2*cm, 1.2*cm, 3*cm, 1.8*cm, 2.2*cm, 2.5*cm, 1.5*cm, 2.5*cm, 2.2*cm, 1*cm, 2.2*cm, 1.5*cm, 1.5*cm, 1*cm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4472C4")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 7),
+        ("FONTSIZE", (0, 1), (-1, -1), 6),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#E7E6E6")]),
+    ]))
+    doc.build([t])
+    buf.seek(0)
+    response = HttpResponse(buf.read(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@require_GET
+def cartas_status(request):
+    """
+    Lista solo cartas: documentos transmittal (TTAL) que tengan al menos un adjunto tipo CAR.
+    Si ?format=excel o ?format=pdf, devuelve el archivo para descarga (Estatus-Cartas-al-DD-MM-YYYY).
+    """
+    rows = _get_cartas_status_rows()
+
+    if request.GET.get("format") == "excel":
+        return _cartas_status_excel_response(rows)
+    if request.GET.get("format") == "pdf":
+        return _cartas_status_pdf_response(rows)
 
     n_si = sum(1 for r in rows if r.get("requiere_respuesta") == "SI")
     n_no = sum(1 for r in rows if r.get("requiere_respuesta") == "NO")
     n_vacio = sum(1 for r in rows if not r.get("requiere_respuesta"))
-    print(f"[cartas_status] RESUMEN: documentos TTAL={n_docs} | filas(adjuntos)={len(rows)} | SI={n_si} | NO={n_no} | vacío={n_vacio}")
+    print(f"[cartas_status] RESUMEN: filas(adjuntos)={len(rows)} | SI={n_si} | NO={n_no} | vacío={n_vacio}")
 
     return render(request, "documents/cartas_status.html", {"rows": rows})

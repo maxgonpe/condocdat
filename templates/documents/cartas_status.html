@@ -47,7 +47,7 @@
           <td>{{ row.enviado_a|default:"" }}</td>
           <td>{{ row.requiere_respuesta|default:"" }}</td>
           <td>{{ row.respuesta|default:"" }}</td>
-          <td>{{ row.fecha_respuesta|default:"" }}</td>
+          <td>{% if row.fecha_respuesta %}{{ row.fecha_respuesta|date:"d/m/Y" }}{% else %}—{% endif %}</td>
           <td>{{ row.para|default:"" }}</td>
           <td>
             <a href="{% url 'document_detail' row.document.pk %}" target="_blank" rel="noopener">Ver</a>
@@ -69,5 +69,7 @@
   <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
   <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
   <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
+  <a href="{% url 'cartas_status' %}?format=excel" class="btn btn-outline" download>Descargar Excel</a>
+  <a href="{% url 'cartas_status' %}?format=pdf" class="btn btn-outline" download>Descargar PDF</a>
 </p>
 {% endblock %}
