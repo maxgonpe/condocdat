@@ -9,12 +9,12 @@
 [data-theme="light"] {
   /* Paleta: #21004b · #4b0082 · #7e21d4 · #7630ff · #9683ec */
 
-  /* Fondos: claros con toque lavanda para que la paleta se distinga */
-  --bg: #f5f0fc;
-  --bg-elevated: #ede5fc;
-  --surface: #ffffff;
-  --surface-hover: #e8dffa;
-  --surface-active: #d9ccf7;
+  /* Fondos: fondo principal violeta; cards/paneles con el lavanda que antes era el bg */
+  --bg: #c07ef0;
+  --bg-elevated: #f5f0fc;
+  --surface: #f5f0fc;
+  --surface-hover: #ede5fc;
+  --surface-active: #e8dffa;
 
   /* Bordes: visibles con púrpura de la paleta */
   --border: #9683ec;
@@ -372,6 +372,10 @@ body[data-sidebar="closed"] .sidebar {
   transition: color var(--transition);
 }
 
+.main p.muted {
+  font-size: 1.15rem;
+}
+
 /* ========== TARJETAS ========== */
 .card {
   background: var(--surface);
@@ -606,7 +610,7 @@ table.data-table a.btn + .btn {
 
 .page-header .muted {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1.15rem;
   max-width: 52rem;
 }
 

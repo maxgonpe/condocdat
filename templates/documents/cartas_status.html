@@ -14,7 +14,7 @@
       <thead>
         <tr>
           <th>Transmittal</th>
-          <th>Tipo</th>
+          {% comment %}<th>Tipo</th>{% endcomment %}
           <th>Descripción</th>
           <th>Fecha envío (emisor)</th>
           <th>Responsable</th>
@@ -33,7 +33,7 @@
         {% for row in rows %}
         <tr>
           <td>{{ row.transmittal|default:"" }}{% if row.transmittal_title %} — {{ row.transmittal_title|truncatewords:8 }}{% endif %}</td>
-          <td>{{ row.tipo|default:"" }}</td>
+          {% comment %}<td>{{ row.tipo|default:"" }}</td>{% endcomment %}
           <td>{{ row.descripcion|truncatewords:12|default:"" }}</td>
           <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
           <td>{{ row.responsable|default:"" }}</td>
@@ -57,7 +57,7 @@
         </tr>
         {% empty %}
         <tr class="empty-state">
-          <td colspan="13" class="muted">
+          <td colspan="12" class="muted">
             No hay cartas. Asegúrate de tener documentos TTAL con al menos un adjunto cuyo nombre contenga «CAR» (ej. ODATA-BUF-CC-CAR-001.pdf).
           </td>
         </tr>
