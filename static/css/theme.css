@@ -1,10 +1,10 @@
 /**
  * Condocdat - Estilos globales del proyecto
- * Variables de tema: modo claro y oscuro.
- * Para cambiar la apariencia del proyecto, edita las variables en cada bloque.
+ * Tres temas (variables CSS): claro, oscuro y sistema (azul celeste).
+ * Todos los templates heredan estas variables.
  */
 
-/* ========== TEMA CLARO (por defecto) ========== */
+/* ========== TEMA CLARO ========== */
 :root,
 [data-theme="light"] {
   /* Fondos */
@@ -87,6 +87,47 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+}
+
+/* ========== TEMA SISTEMA (AZUL CELESTE MÁS BRILLANTE) ========== */
+[data-theme="system"] {
+  /* Fondos: azul brillante */
+  --bg: #dbeafe;
+  --bg-elevated: #eff6ff;
+  --surface: #eff6ff;
+  --surface-hover: #dbeafe;
+  --surface-active: #93c5fd;
+
+  /* Bordes */
+  --border: #93c5fd;
+  --border-focus: #2563eb;
+
+  /* Texto: azul oscuro legible */
+  --text: #1e40af;
+  --text-secondary: #1d4ed8;
+  --text-muted: #2563eb;
+
+  /* Acento: azul brillante */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-subtle: #bfdbfe;
+  --accent-text: #ffffff;
+
+  /* Estados */
+  --success: #059669;
+  --success-bg: #d1fae5;
+  --warning: #d97706;
+  --warning-bg: #fef3c7;
+  --error: #dc2626;
+  --error-bg: #fee2e2;
+  --info: #2563eb;
+  --info-bg: #dbeafe;
+
+  /* Sombras: tinte azul brillante */
+  --shadow-sm: 0 1px 2px rgba(37, 99, 235, 0.12);
+  --shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
+  --shadow-md: 0 4px 6px -1px rgba(37, 99, 235, 0.12), 0 2px 4px -2px rgba(37, 99, 235, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(37, 99, 235, 0.15), 0 4px 6px -4px rgba(37, 99, 235, 0.1);
 }
 
 /* ========== RESET Y BASE ========== */

@@ -1,8 +1,7 @@
 /**
  * Selector de tema Condocdat
  * Persiste la preferencia en localStorage y aplica data-theme en <html>.
- * Valores guardados: 'light' | 'dark' | 'system'
- * data-theme en <html> siempre es 'light' o 'dark' (para aplicar CSS).
+ * Valores: 'light' (claro), 'dark' (oscuro), 'system' (azul celeste).
  */
 (function () {
   var STORAGE_KEY = 'condocdat-theme';
@@ -23,8 +22,7 @@
 
   function getEffectiveTheme() {
     var stored = getStored();
-    if (stored === 'light' || stored === 'dark') return stored;
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
     return 'light';
   }
 
@@ -52,12 +50,6 @@
         applyTheme();
       });
     });
-
-    if (window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
-        if (getStored() === 'system') applyTheme();
-      });
-    }
   }
 
   if (document.readyState === 'loading') {

@@ -10,7 +10,7 @@
     (function(){
       var k = 'condocdat-theme', t = null;
       try { t = localStorage.getItem(k); } catch (e) {}
-      var effective = (t === 'dark' || t === 'light') ? t : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      var effective = (t === 'dark' || t === 'light' || t === 'system') ? t : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       document.documentElement.setAttribute('data-theme', effective);
     })();
   </script>
