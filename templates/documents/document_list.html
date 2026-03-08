@@ -3,10 +3,12 @@
 {% block title %}Documentos{% endblock %}
 
 {% block content %}
-<h1>Listado de documentos</h1>
-<p class="muted">Buscar por código, título, proyecto, empresa, proceso o tipo. Si busca por contenido, podrá ver en qué archivo aparece y un fragmento con el texto encontrado y su contexto.</p>
+<header class="page-header">
+  <h1>Listado de documentos</h1>
+  <p class="muted">Buscar por código, título, proyecto, empresa, proceso o tipo. Si busca por contenido, podrá ver en qué archivo aparece y un fragmento con el texto encontrado y su contexto.</p>
+</header>
 
-<div class="card">
+<div class="card card--list">
   <div class="form-group" style="max-width: 400px; margin-bottom: 1rem;">
     <label for="doc-search">Buscar</label>
     <input type="text" id="doc-search" class="form-control" placeholder="Código, título, proyecto..."
@@ -19,11 +21,11 @@
       <thead>
         <tr>
           <th>Código</th>
-          <th>Título</th>
+          {% comment %}<th>Título</th>
           <th>Proyecto</th>
           <th>Empresa</th>
           <th>Proceso</th>
-          <th>Tipo</th>
+          <th>Tipo</th>{% endcomment %}
           <th>Carpeta</th>
           <th>Estado</th>
           <th>Fecha</th>
@@ -37,11 +39,11 @@
         {% for doc in document_list %}
         <tr data-id="{{ doc.id }}">
           <td><a href="{% url 'document_detail' doc.pk %}">{{ doc.code }}</a></td>
-          <td>{{ doc.title|truncatewords:8 }}</td>
+          {% comment %}<td>{{ doc.title|truncatewords:8 }}</td>
           <td>{{ doc.project.code }}</td>
           <td>{{ doc.company.code }}</td>
           <td>{{ doc.process.code }}</td>
-          <td>{{ doc.doc_type.code }}</td>
+          <td>{{ doc.doc_type.code }}</td>{% endcomment %}
           <td>{% if doc.folder %}<a href="{% url 'folder_detail' doc.folder.pk %}">{{ doc.folder.code }}</a>{% else %}—{% endif %}</td>
           <td>{{ doc.get_status_display }}</td>
           <td>{{ doc.date|date:"d/m/Y" }}</td>
@@ -54,7 +56,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr id="doc-empty"><td colspan="13" class="muted">No hay documentos. La búsqueda se actualiza al escribir.</td></tr>
+        <tr id="doc-empty" class="empty-state"><td colspan="8" class="muted">No hay documentos. La búsqueda se actualiza al escribir.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -101,11 +103,11 @@
       : '—';
     return '<tr data-id="' + d.id + '">' +
       '<td><a href="/documentos/' + d.id + '/">' + escapeHtml(d.code) + '</a></td>' +
-      '<td>' + escapeHtml(d.title || '').substring(0, 50) + (d.title && d.title.length > 50 ? '…' : '') + '</td>' +
+      /* '<td>' + escapeHtml(d.title || '').substring(0, 50) + (d.title && d.title.length > 50 ? '…' : '') + '</td>' +
       '<td>' + escapeHtml(d.project) + '</td>' +
       '<td>' + escapeHtml(d.company) + '</td>' +
       '<td>' + escapeHtml(d.process) + '</td>' +
-      '<td>' + escapeHtml(d.doc_type) + '</td>' +
+      '<td>' + escapeHtml(d.doc_type) + '</td>' + */
       '<td>' + folderHtml + '</td>' +
       '<td>' + escapeHtml(d.status_display) + '</td>' +
       '<td>' + (d.date ? d.date.split('-').reverse().join('/') : '') + '</td>' +
@@ -179,7 +181,7 @@
       .then(function(data) {
         tbody.innerHTML = '';
         if (data.documents.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="13" class="muted">No hay documentos.</td></tr>';
+          tbody.innerHTML = '<tr class="empty-state"><td colspan="8" class="muted">No hay documentos.</td></tr>';
         } else {
           data.documents.forEach(function(d) {
             tbody.insertAdjacentHTML('beforeend', renderRow(d));
@@ -189,7 +191,7 @@
         }
       })
       .catch(function() {
-        tbody.innerHTML = '<tr><td colspan="13" class="alert alert-error">Error al buscar.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="alert alert-error">Error al buscar.</td></tr>';
       });
   }
 
@@ -227,7 +229,7 @@
               var row = tbody.querySelector('tr[data-id="' + data.id + '"]');
               if (row) row.remove();
               if (tbody.querySelectorAll('tr').length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="muted">No hay documentos.</td></tr>';
+                tbody.innerHTML = '<tr class="empty-state"><td colspan="8" class="muted">No hay documentos.</td></tr>';
               }
             }
           });

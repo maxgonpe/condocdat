@@ -535,12 +535,25 @@ def search_unified_view(request):
 
 # ---------- Estatus Cartas (documentos transmittal ODATA-BUF-CM-TTAL-*; info en extracto de adjuntos) ----------
 
+# Solo considerar "carta" si el nombre del archivo contiene CAR o CARTAS como palabra (no "carga", etc.)
+_CARTA_FILENAME_RE = re.compile(r"(^|[-_./\\])(CAR|CARTAS)([-_./\\]|$)", re.IGNORECASE)
+
+
+def _is_carta_filename(name):
+    """True si el nombre de archivo contiene CAR o CARTAS como palabra completa (ej. -CAR- o cartas.pdf)."""
+    if not name:
+        return False
+    return bool(_CARTA_FILENAME_RE.search(name))
+
 
 def _get_cartas_status_rows():
     """Construye la lista de filas del listado Estatus Cartas (reutilizable para HTML y export)."""
+    # CAR/CARTAS como palabra en la ruta del adjunto (evita que entren "carga", "carro", etc.)
+    # Sin backslash en el patrón para compatibilidad con todos los backends de BD.
+    carta_regex = r"(^|[-_./])(CAR|CARTAS)([-_./]|$)"
     docs = (
         Document.objects
-        .filter(code__icontains="TTAL", attachments__file__icontains="CAR")
+        .filter(code__icontains="TTAL", attachments__file__iregex=carta_regex)
         .distinct()
         .select_related("project", "company", "process", "doc_type", "folder")
         .prefetch_related("attachments")
@@ -551,7 +564,7 @@ def _get_cartas_status_rows():
     for d in docs:
         for att in d.attachments.all():
             nombre_archivo = os.path.basename(att.file.name) if att.file else ""
-            if "CAR" not in (att.file.name or "").upper():
+            if not _is_carta_filename(nombre_archivo):
                 continue
             requiere = _parse_requiere_respuesta(att.extracted_text)
             if not requiere:
@@ -648,8 +661,9 @@ def _cartas_status_excel_response(rows):
     return response
 
 
-def _cartas_status_pdf_response(rows):
-    """Genera HttpResponse con el listado en PDF. Nombre: Estatus-Cartas-al-DD-MM-YYYY.pdf"""
+def _cartas_status_pdf_response(rows, inline=False):
+    """Genera HttpResponse con el listado en PDF. Nombre: Estatus-Cartas-al-DD-MM-YYYY.pdf
+    Si inline=True, Content-Disposition: inline para abrir en pestaña y guardar desde el visor."""
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
@@ -692,7 +706,10 @@ def _cartas_status_pdf_response(rows):
     doc.build([t])
     buf.seek(0)
     response = HttpResponse(buf.read(), content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    if inline:
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+    else:
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
 
 
@@ -708,7 +725,8 @@ def cartas_status(request):
     if request.GET.get("format") == "excel":
         return _cartas_status_excel_response(rows)
     if request.GET.get("format") == "pdf":
-        return _cartas_status_pdf_response(rows)
+        open_inline = request.GET.get("open") == "1"
+        return _cartas_status_pdf_response(rows, inline=open_inline)
 
     n_si = sum(1 for r in rows if r.get("requiere_respuesta") == "SI")
     n_no = sum(1 for r in rows if r.get("requiere_respuesta") == "NO")

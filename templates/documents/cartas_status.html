@@ -3,10 +3,12 @@
 {% block title %}Estatus Cartas{% endblock %}
 
 {% block content %}
-<h1>Estatus Cartas</h1>
-<p class="muted">Solo se listan cartas: documentos transmittal (TTAL) que tengan al menos un adjunto tipo CAR. Se muestran únicamente esos adjuntos CAR; «Requiere respuesta» viene del extracto del adjunto.</p>
+<header class="page-header">
+  <h1>Estatus Cartas</h1>
+  <p class="muted">Solo se listan cartas: documentos transmittal (TTAL) que tengan al menos un adjunto tipo CAR. Se muestran únicamente esos adjuntos CAR; «Requiere respuesta» viene del extracto del adjunto.</p>
+</header>
 
-<div class="card">
+<div class="card card--list">
   <div class="table-wrap">
     <table class="data-table">
       <thead>
@@ -23,7 +25,7 @@
           <th>Requiere respuesta?</th>
           <th>Respuesta</th>
           <th>Fecha respuesta</th>
-          <th>Para</th>
+          {% comment %}<th>Para</th>{% endcomment %}
           <th>Link</th>
         </tr>
       </thead>
@@ -48,14 +50,14 @@
           <td>{{ row.requiere_respuesta|default:"" }}</td>
           <td>{{ row.respuesta|default:"" }}</td>
           <td>{% if row.fecha_respuesta %}{{ row.fecha_respuesta|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-          <td>{{ row.para|default:"" }}</td>
+          {% comment %}<td>{{ row.para|default:"" }}</td>{% endcomment %}
           <td>
             <a href="{% url 'document_detail' row.document.pk %}" target="_blank" rel="noopener">Ver</a>
           </td>
         </tr>
         {% empty %}
-        <tr>
-          <td colspan="14" class="muted">
+        <tr class="empty-state">
+          <td colspan="13" class="muted">
             No hay cartas. Asegúrate de tener documentos TTAL con al menos un adjunto cuyo nombre contenga «CAR» (ej. ODATA-BUF-CC-CAR-001.pdf).
           </td>
         </tr>
@@ -65,11 +67,12 @@
   </div>
 </div>
 
-<p>
+<nav class="list-actions">
   <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
   <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
   <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
-  <a href="{% url 'cartas_status' %}?format=excel" class="btn btn-outline" download>Descargar Excel</a>
-  <a href="{% url 'cartas_status' %}?format=pdf" class="btn btn-outline" download>Descargar PDF</a>
-</p>
+  <a href="{% url 'cartas_status' %}?format=excel" class="btn btn-excel" download>Descargar Excel</a>
+  <a href="{% url 'cartas_status' %}?format=pdf&open=1" class="btn btn-pdf" target="_blank" rel="noopener">Abrir PDF</a>
+  <a href="{% url 'cartas_status' %}?format=pdf" class="btn btn-pdf" download>Descargar PDF</a>
+</nav>
 {% endblock %}

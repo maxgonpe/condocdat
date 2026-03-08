@@ -1,7 +1,7 @@
 /**
  * Selector de tema Condocdat
  * Persiste la preferencia en localStorage y aplica data-theme en <html>.
- * Valores: 'light' (claro), 'dark' (oscuro), 'system' (azul celeste).
+ * Valores: 'light' (claro = azul celeste), 'dark' (oscuro), 'system' (básico blanco y negro).
  */
 (function () {
   var STORAGE_KEY = 'condocdat-theme';

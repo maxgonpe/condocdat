@@ -1,18 +1,104 @@
 /**
  * Condocdat - Estilos globales del proyecto
- * Tres temas (variables CSS): claro, oscuro y sistema (azul celeste).
- * Todos los templates heredan estas variables.
+ * Tres temas: claro, oscuro y sistema.
+ * Colores centralizados en variables para cambiar un tema sin tocar el resto.
  */
 
-/* ========== TEMA CLARO ========== */
+/* ========== TEMA CLARO (paleta púrpura: contraste notable) ========== */
 :root,
 [data-theme="light"] {
-  /* Fondos */
-  --bg: #f0f2f5;
-  --bg-elevated: #ffffff;
+  /* Paleta: #21004b · #4b0082 · #7e21d4 · #7630ff · #9683ec */
+
+  /* Fondos: claros con toque lavanda para que la paleta se distinga */
+  --bg: #f5f0fc;
+  --bg-elevated: #ede5fc;
   --surface: #ffffff;
-  --surface-hover: #f0f2f5;
-  --surface-active: #e4e6eb;
+  --surface-hover: #e8dffa;
+  --surface-active: #d9ccf7;
+
+  /* Bordes: visibles con púrpura de la paleta */
+  --border: #9683ec;
+  --border-focus: #7630ff;
+
+  /* Texto: contraste fuerte (21004b y 4b0082) */
+  --text: #21004b;
+  --text-secondary: #4b0082;
+  --text-muted: #7e21d4;
+
+  /* Acento: violeta intenso para botones y enlaces */
+  --accent: #7630ff;
+  --accent-hover: #4b0082;
+  --accent-subtle: #e8dffa;
+  --accent-text: #ffffff;
+
+  /* Estados: coherentes con la paleta */
+  --success: #059669;
+  --success-bg: #ecfdf5;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --error: #dc2626;
+  --error-bg: #fef2f2;
+  --info: #7630ff;
+  --info-bg: #e8dffa;
+
+  /* Sombras: tinte púrpura para marcar profundidad */
+  --shadow-sm: 0 1px 2px rgba(75, 0, 130, 0.12);
+  --shadow: 0 1px 3px rgba(75, 0, 130, 0.15);
+  --shadow-md: 0 4px 6px -1px rgba(75, 0, 130, 0.14), 0 2px 4px -2px rgba(75, 0, 130, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(75, 0, 130, 0.15), 0 4px 6px -4px rgba(75, 0, 130, 0.1);
+
+  /* Radios */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+
+  /* Transiciones */
+  --transition: 0.15s ease;
+}
+
+/* ========== TEMA OSCURO ========== */
+[data-theme="dark"] {
+  --bg: #822659;
+  --bg-elevated: #943d72;
+  --surface: #9e4a7a;
+  --surface-hover: #a85a88;
+  --surface-active: #b26a96;
+
+  --border: #a85a88;
+  --border-focus: #58a6ff;
+
+  --text: #e6edf3;
+  --text-secondary: #b1bac4;
+  --text-muted: #8b949e;
+
+  --accent: #58a6ff;
+  --accent-hover: #388bfd;
+  --accent-subtle: #1e3a5c;
+  --accent-text: #ffffff;
+
+  --success: #3fb950;
+  --success-bg: #1e3d2e;
+  --warning: #d29922;
+  --warning-bg: #3d3520;
+  --error: #f85149;
+  --error-bg: #3d2424;
+  --info: #58a6ff;
+  --info-bg: #1e3a5c;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+}
+
+/* ========== TEMA SISTEMA (BÁSICO BLANCO Y NEGRO) ========== */
+[data-theme="system"] {
+  /* Fondos (un par de tonos más oscuros) */
+  --bg: #e2e4e9;
+  --bg-elevated: #f5f6f8;
+  --surface: #ffffff;
+  --surface-hover: #e8eaef;
+  --surface-active: #dce0e6;
 
   /* Bordes */
   --border: #e0e3e8;
@@ -44,90 +130,6 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-
-  /* Radios */
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
-
-  /* Transiciones */
-  --transition: 0.15s ease;
-}
-
-/* ========== TEMA OSCURO ========== */
-[data-theme="dark"] {
-  --bg: #1e2433;
-  --bg-elevated: #252d3d;
-  --surface: #2a3347;
-  --surface-hover: #343f54;
-  --surface-active: #3e4a62;
-
-  --border: #3a4558;
-  --border-focus: #58a6ff;
-
-  --text: #e6edf3;
-  --text-secondary: #b1bac4;
-  --text-muted: #8b949e;
-
-  --accent: #58a6ff;
-  --accent-hover: #388bfd;
-  --accent-subtle: #1e3a5c;
-  --accent-text: #ffffff;
-
-  --success: #3fb950;
-  --success-bg: #1e3d2e;
-  --warning: #d29922;
-  --warning-bg: #3d3520;
-  --error: #f85149;
-  --error-bg: #3d2424;
-  --info: #58a6ff;
-  --info-bg: #1e3a5c;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
-}
-
-/* ========== TEMA SISTEMA (AZUL CELESTE MÁS BRILLANTE) ========== */
-[data-theme="system"] {
-  /* Fondos: azul brillante */
-  --bg: #dbeafe;
-  --bg-elevated: #eff6ff;
-  --surface: #eff6ff;
-  --surface-hover: #dbeafe;
-  --surface-active: #93c5fd;
-
-  /* Bordes */
-  --border: #93c5fd;
-  --border-focus: #2563eb;
-
-  /* Texto: azul oscuro legible */
-  --text: #1e40af;
-  --text-secondary: #1d4ed8;
-  --text-muted: #2563eb;
-
-  /* Acento: azul brillante */
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-subtle: #bfdbfe;
-  --accent-text: #ffffff;
-
-  /* Estados */
-  --success: #059669;
-  --success-bg: #d1fae5;
-  --warning: #d97706;
-  --warning-bg: #fef3c7;
-  --error: #dc2626;
-  --error-bg: #fee2e2;
-  --info: #2563eb;
-  --info-bg: #dbeafe;
-
-  /* Sombras: tinte azul brillante */
-  --shadow-sm: 0 1px 2px rgba(37, 99, 235, 0.12);
-  --shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
-  --shadow-md: 0 4px 6px -1px rgba(37, 99, 235, 0.12), 0 2px 4px -2px rgba(37, 99, 235, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(37, 99, 235, 0.15), 0 4px 6px -4px rgba(37, 99, 235, 0.1);
 }
 
 /* ========== RESET Y BASE ========== */
@@ -445,6 +447,36 @@ a.btn + a.btn {
   margin-left: 0.5rem;
 }
 
+/* Botón Excel (verde) */
+a.btn-excel,
+.btn-excel {
+  background: #059669;
+  border-color: #059669;
+  color: #fff;
+}
+a.btn-excel:hover,
+.btn-excel:hover {
+  background: #047857;
+  border-color: #047857;
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Botón PDF (rojo) */
+a.btn-pdf,
+.btn-pdf {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+a.btn-pdf:hover,
+.btn-pdf:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+  text-decoration: none;
+}
+
 /* ========== UTILIDADES DE TEXTO ========== */
 .muted {
   color: var(--text-muted);
@@ -462,6 +494,32 @@ a.btn + a.btn {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+}
+
+/* Listados: tarjeta con tabla */
+.card.card--list {
+  padding: 1.25rem 0 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.card.card--list .table-wrap {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+}
+
+.card.card--list .form-group,
+.card.card--list .muted {
+  margin: 0 1.25rem 1rem;
+}
+
+.card.card--list .form-group:first-child {
+  margin-top: 0;
+}
+
+.card.card--list [name="csrfmiddlewaretoken"] {
+  margin: 0 1.25rem;
 }
 
 table.data-table {
@@ -483,12 +541,126 @@ table.data-table th {
   background: var(--surface-hover);
 }
 
+.card--list table.data-table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.85rem 1rem;
+  border-bottom: 2px solid var(--border);
+  background: var(--surface-active);
+  color: var(--text-secondary);
+}
+
 table.data-table tr:last-child td {
   border-bottom: none;
 }
 
-table.data-table tr:hover td {
+table.data-table tbody tr {
+  transition: background-color var(--transition);
+}
+
+table.data-table tbody tr:hover td {
   background: var(--surface-hover);
+}
+
+table.data-table td:first-child a {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+table.data-table td:first-child a:hover {
+  text-decoration: underline;
+}
+
+table.data-table tr.empty-state td {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  background: var(--surface-hover);
+  border-bottom: none;
+}
+
+.btn-sm,
+table.data-table .btn {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+table.data-table .btn + .btn,
+table.data-table .btn + a.btn,
+table.data-table a.btn + .btn {
+  margin-left: 0.35rem;
+}
+
+/* ========== ENCABEZADO DE PÁGINA DE LISTADO ========== */
+.page-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.page-header h1 {
+  margin: 0 0 0.35rem;
+}
+
+.page-header .muted {
+  margin: 0;
+  font-size: 0.9rem;
+  max-width: 52rem;
+}
+
+/* ========== BARRA DE ACCIONES DE LISTADO ========== */
+.list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.75rem 0;
+}
+
+.list-actions .btn {
+  margin-left: 0 !important;
+}
+
+/* ========== BÚSQUEDA UNIFICADA: RESULTADOS ========== */
+#search-results {
+  display: grid;
+  gap: 1rem;
+}
+
+#search-results .card {
+  border-left: 4px solid var(--accent);
+}
+
+#search-results .card h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+#search-results #documents-list p,
+#search-results #folders-list p,
+#search-results #folder-files-list p {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+#search-results #documents-list p:hover,
+#search-results #folders-list p:hover,
+#search-results #folder-files-list p:hover {
+  background: var(--surface-hover);
+}
+
+#search-results #documents-list p a,
+#search-results #folders-list p a,
+#search-results #folder-files-list p a {
+  font-weight: 500;
 }
 
 /* ========== FORMULARIOS (reutilizables en templates) ========== */
