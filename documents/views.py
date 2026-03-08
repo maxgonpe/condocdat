@@ -6,10 +6,204 @@ from django.contrib.auth.views import LoginView
 from django.views.decorators.http import require_GET, require_POST
 from django.http import JsonResponse
 from django.db.models import Q, Count
+import os
+import re
+from datetime import date
 
 from .models import Document, Folder, FolderFile, DocumentAttachment
 from .search_backend import search_unified
 from .snippets import extract_snippets
+
+
+def _parse_requiere_respuesta(content_extract):
+    """
+    Extrae «Requiere respuesta» SI o NO según la cadena 'SI  NO  X' o 'SI  X  NO' en el extracto.
+    Esa cadena puede estar al final, tras "REQUIERE RESPUESTA", o en cualquier otra posición.
+    Se consulta el extracto y se busca en todo el texto la primera zona con SI, NO y X.
+    """
+    if not content_extract or not isinstance(content_extract, str):
+        return ""
+
+    t = content_extract.upper().replace("\r\n", " ").replace("\n", " ")
+    t = t.replace("\u00CD", "I").replace("Í", "I")
+    for char in ("\u2713", "\u2714", "\u2612", "\u2611", "\u25A0"):
+        t = t.replace(char, "X")
+
+    def find_word(seg, word):
+        i = 0
+        while True:
+            p = seg.find(word, i)
+            if p < 0:
+                return -1
+            before_ok = p == 0 or not seg[p - 1].isalnum()
+            end = p + len(word)
+            after_ok = end >= len(seg) or not seg[end].isalnum()
+            if before_ok and after_ok:
+                return p
+            i = p + 1
+
+    def decide_from_segment(segment):
+        if len(segment) < 5:
+            return ""
+        pos_si = find_word(segment, "SI")
+        if pos_si < 0:
+            pos_si = find_word(segment, " SI ")
+        pos_no = find_word(segment, " NO ")
+        if pos_no < 0:
+            pos_no = find_word(segment, "NO")
+        if pos_si < 0 or pos_no < 0:
+            return ""
+        pos_x = -1
+        j = max(0, pos_si)
+        while j < len(segment):
+            x_pos = segment.find("X", j)
+            if x_pos < 0:
+                break
+            if x_pos <= pos_no + 50 or x_pos < pos_si + 120:
+                pos_x = x_pos
+                break
+            j = x_pos + 1
+        if pos_x < 0:
+            return ""
+        orden = sorted([(pos_si, "SI"), (pos_no, "NO"), (pos_x, "X")], key=lambda x: x[0])
+        secuencia = [eti for _, eti in orden]
+        if secuencia[-1] == "X":
+            return "NO"
+        if secuencia[1] == "X":
+            return "SI"
+        if secuencia[0] == "X":
+            return "SI"
+        return ""
+
+    # 1) Tras "REQUIERE RESPUESTA" si existe
+    if "REQUIERE RESPUESTA" in t:
+        idx = t.find("REQUIERE RESPUESTA")
+        r = decide_from_segment(t[idx : idx + 500])
+        if r:
+            return r
+
+    # 2) Final del documento
+    seg_end = t[-500:] if len(t) >= 500 else t
+    r = decide_from_segment(seg_end)
+    if r:
+        return r
+
+    # 3) Buscar en todo el extracto (la cadena puede estar en cualquier sitio)
+    window = 220
+    i = 0
+    while i < len(t):
+        p_si = t.find(" SI ", i)
+        p_no = t.find(" NO ", i)
+        p = -1
+        if p_si >= 0 and p_no >= 0:
+            p = min(p_si, p_no)
+        elif p_si >= 0:
+            p = p_si
+        elif p_no >= 0:
+            p = p_no
+        if p < 0:
+            break
+        start = max(0, p - 30)
+        end = min(len(t), p + window)
+        r = decide_from_segment(t[start:end])
+        if r:
+            return r
+        i = p + 1
+
+    return ""
+
+
+def _parse_asunto(content_extract):
+    """
+    Extrae del extracto el texto que sigue a «Asunto:» (ej. «Asunto: Aprobación de Profesionales PROPAMAT»).
+    Devuelve solo la parte después de «Asunto:», hasta fin de línea o un límite razonable.
+    """
+    if not content_extract or not isinstance(content_extract, str):
+        return ""
+    t = content_extract
+    idx = t.upper().find("ASUNTO:")
+    if idx < 0:
+        return ""
+    # Empezar después de "Asunto:" (y posibles espacios o dos puntos extra)
+    start = idx + 7
+    while start < len(t) and t[start] in " :\t":
+        start += 1
+    if start >= len(t):
+        return ""
+    # Hasta el siguiente salto de línea o hasta 300 caracteres
+    end = start
+    while end < len(t) and end < start + 300:
+        if t[end] in "\r\n":
+            break
+        end += 1
+    return t[start:end].strip()
+
+
+def _parse_atencion(content_extract):
+    """
+    Extrae del extracto el texto que sigue a «Atención:» (ej. «Atención: Sr. Ignacio Bravo G.»).
+    Devuelve solo la parte después de «Atención:», hasta fin de línea o un límite razonable.
+    """
+    if not content_extract or not isinstance(content_extract, str):
+        return ""
+    t = content_extract
+    tu = t.upper()
+    idx = tu.find("ATENCIÓN:")
+    if idx < 0:
+        idx = tu.find("ATENCION:")
+    if idx < 0:
+        return ""
+    # Buscar los dos puntos y empezar después
+    colon = t.find(":", idx)
+    if colon < 0:
+        return ""
+    start = colon + 1
+    while start < len(t) and t[start] in " \t":
+        start += 1
+    if start >= len(t):
+        return ""
+    end = start
+    while end < len(t) and end < start + 200:
+        if t[end] in "\r\n":
+            break
+        end += 1
+    return t[start:end].strip()
+
+
+# Meses en español (clave en mayúsculas sin tildes para comparar)
+_MESES = {
+    "ENERO": 1, "FEBRERO": 2, "MARZO": 3, "ABRIL": 4, "MAYO": 5, "JUNIO": 6,
+    "JULIO": 7, "AGOSTO": 8, "SEPTIEMBRE": 9, "OCTUBRE": 10, "NOVIEMBRE": 11, "DICIEMBRE": 12,
+}
+
+
+def _parse_fecha_envio(content_extract):
+    """
+    Extrae del extracto una fecha tipo «Santiago, 26 de FEBRERO de 2026» y la devuelve como date.
+    Busca el patrón: día (1-31) + " de " + mes (nombre) + " de " + año (4 dígitos).
+    Devuelve date o None si no se encuentra o no es válida.
+    """
+    if not content_extract or not isinstance(content_extract, str):
+        return None
+    t = content_extract.strip()
+    # Patrón: opcional ciudad + coma + espacios, luego día, " de ", mes, " de ", año
+    m = re.search(
+        r"(\d{1,2})\s+de\s+([A-Za-zÁ-Úá-ú]+)\s+de\s+(\d{4})\b",
+        t,
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+    day = int(m.group(1))
+    month_name = m.group(2).upper().replace("Í", "I").replace("É", "E").replace("Ú", "U").replace("Á", "A").replace("Ó", "O")
+    year = int(m.group(3))
+    month = _MESES.get(month_name)
+    if not month:
+        return None
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
 
 
 class CustomLoginView(LoginView):
@@ -249,3 +443,80 @@ def search_unified_view(request):
         'folders': result['folders'],
         'folder_files': result['folder_files'],
     })
+
+
+# ---------- Estatus Cartas (documentos transmittal ODATA-BUF-CM-TTAL-*; info en extracto de adjuntos) ----------
+
+@login_required
+@require_GET
+def cartas_status(request):
+    """
+    Lista solo cartas: documentos transmittal (TTAL) que tengan al menos un adjunto tipo CAR
+    (nombre de archivo con «CAR»). Solo se listan esos adjuntos CAR; el resto se excluye.
+    «Requiere respuesta» se obtiene del extracto del adjunto.
+    """
+    # Documentos TTAL que tengan al menos un adjunto tipo CAR (carta)
+    docs = (
+        Document.objects
+        .filter(code__icontains="TTAL", attachments__file__icontains="CAR")
+        .distinct()
+        .select_related("project", "company", "process", "doc_type", "folder")
+        .prefetch_related("attachments")
+        .order_by("-date", "-created_at")[:500]
+    )
+
+    rows = []
+    n_docs = 0
+    for d in docs:
+        n_docs += 1
+        for att in d.attachments.all():
+            # Solo listar adjuntos que son cartas (nombre con CAR)
+            nombre_archivo = os.path.basename(att.file.name) if att.file else ""
+            if "CAR" not in (att.file.name or "").upper():
+                continue
+            # Requiere respuesta desde el extracto del adjunto (carta), fallback al documento
+            requiere = _parse_requiere_respuesta(att.extracted_text)
+            if not requiere:
+                requiere = _parse_requiere_respuesta(d.content_extract)
+            # Detalle: texto que sigue a «Asunto:» en el extracto
+            detalle = _parse_asunto(att.extracted_text)
+            if not detalle:
+                detalle = _parse_asunto(d.content_extract)
+            if not detalle:
+                detalle = d.description or ""
+            # Enviado a: texto que sigue a «Atención:» en el extracto
+            enviado_a = _parse_atencion(att.extracted_text)
+            if not enviado_a:
+                enviado_a = _parse_atencion(d.content_extract)
+            # Fecha envío (emisor): extraída del extracto (ej. "Santiago, 26 de FEBRERO de 2026")
+            fecha_envio = _parse_fecha_envio(att.extracted_text)
+            if fecha_envio is None:
+                fecha_envio = _parse_fecha_envio(d.content_extract)
+            if fecha_envio is None:
+                fecha_envio = d.date
+            rows.append({
+                "document": d,
+                "transmittal": d.folder.code if d.folder else "",
+                "transmittal_title": (d.folder.title if d.folder else "") or "",
+                "tipo": "CAR",
+                "descripcion": d.title or d.description or nombre_archivo or "",
+                "fecha_envio": fecha_envio,
+                "responsable": d.company.name or d.company.code,
+                "documento_archivo": nombre_archivo or d.code,
+                "estado": d.get_status_display(),
+                "detalle": detalle,
+                "enviado_a": enviado_a,
+                "requiere_respuesta": requiere,
+                "respuesta": "",
+                "fecha_respuesta": "",
+                "para": "",
+                "file_url": att.file.url if att.file else None,
+            })
+            print(f"[cartas_status] DOC {d.code!r} adjunto {nombre_archivo!r} → Requiere respuesta = {requiere!r}")
+
+    n_si = sum(1 for r in rows if r.get("requiere_respuesta") == "SI")
+    n_no = sum(1 for r in rows if r.get("requiere_respuesta") == "NO")
+    n_vacio = sum(1 for r in rows if not r.get("requiere_respuesta"))
+    print(f"[cartas_status] RESUMEN: documentos TTAL={n_docs} | filas(adjuntos)={len(rows)} | SI={n_si} | NO={n_no} | vacío={n_vacio}")
+
+    return render(request, "documents/cartas_status.html", {"rows": rows})

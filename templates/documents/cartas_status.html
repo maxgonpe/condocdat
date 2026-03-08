@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Estatus Cartas{% endblock %}
+
+{% block content %}
+<h1>Estatus Cartas</h1>
+<p class="muted">Solo se listan cartas: documentos transmittal (TTAL) que tengan al menos un adjunto tipo CAR. Se muestran únicamente esos adjuntos CAR; «Requiere respuesta» viene del extracto del adjunto.</p>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Transmittal</th>
+          <th>Tipo</th>
+          <th>Descripción</th>
+          <th>Fecha envío (emisor)</th>
+          <th>Responsable</th>
+          <th>Documento - Archivo</th>
+          <th>Estado</th>
+          <th>Detalle</th>
+          <th>Enviado a</th>
+          <th>Requiere respuesta?</th>
+          <th>Respuesta</th>
+          <th>Fecha respuesta</th>
+          <th>Para</th>
+          <th>Link</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.transmittal|default:"" }}{% if row.transmittal_title %} — {{ row.transmittal_title|truncatewords:8 }}{% endif %}</td>
+          <td>{{ row.tipo|default:"" }}</td>
+          <td>{{ row.descripcion|truncatewords:12|default:"" }}</td>
+          <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+          <td>{{ row.responsable|default:"" }}</td>
+          <td>
+            {% if row.file_url %}
+              <a href="{{ row.file_url }}" target="_blank" rel="noopener">{{ row.documento_archivo }}</a>
+            {% else %}
+              {{ row.documento_archivo }}
+            {% endif %}
+          </td>
+          <td>{{ row.estado|default:"" }}</td>
+          <td>{{ row.detalle|truncatewords:8|default:"" }}</td>
+          <td>{{ row.enviado_a|default:"" }}</td>
+          <td>{{ row.requiere_respuesta|default:"" }}</td>
+          <td>{{ row.respuesta|default:"" }}</td>
+          <td>{{ row.fecha_respuesta|default:"" }}</td>
+          <td>{{ row.para|default:"" }}</td>
+          <td>
+            <a href="{% url 'document_detail' row.document.pk %}" target="_blank" rel="noopener">Ver</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="14" class="muted">
+            No hay cartas. Asegúrate de tener documentos TTAL con al menos un adjunto cuyo nombre contenga «CAR» (ej. ODATA-BUF-CC-CAR-001.pdf).
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p>
+  <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
+  <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
+  <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
+</p>
+{% endblock %}
