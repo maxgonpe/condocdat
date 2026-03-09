@@ -91,6 +91,21 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
 }
 
+/* Tema oscuro: texto legible en filas pendiente/respondida (fondo claro) */
+[data-theme="dark"] table.data-table tr.row-pendiente td,
+[data-theme="dark"] table.data-table tr.row-respondida td {
+  color: #1c1917;
+}
+[data-theme="dark"] table.data-table tr.row-pendiente td a,
+[data-theme="dark"] table.data-table tr.row-respondida td a {
+  color: #1d4ed8;
+}
+[data-theme="dark"] table.data-table tr.row-pendiente td a:hover,
+[data-theme="dark"] table.data-table tr.row-respondida td a:hover {
+  color: #1e40af;
+  text-decoration: underline;
+}
+
 /* ========== TEMA SISTEMA (BÁSICO BLANCO Y NEGRO) ========== */
 [data-theme="system"] {
   /* Fondos (un par de tonos más oscuros) */
@@ -481,6 +496,70 @@ a.btn-pdf:hover,
   text-decoration: none;
 }
 
+/* Botón Eliminar (rojo) en listados */
+a.btn-danger,
+.btn-danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+a.btn-danger:hover,
+.btn-danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Botón Info (amarillo) en listados */
+a.btn-info-action,
+.btn-info-action {
+  background: #eab308;
+  border-color: #ca8a04;
+  color: #1c1917;
+}
+a.btn-info-action:hover,
+.btn-info-action:hover {
+  background: #ca8a04;
+  border-color: #a16207;
+  color: #1c1917;
+  text-decoration: none;
+}
+
+/* ========== BOTONES DE ACCIÓN EN TABLAS (fijos, sin variables) ========== */
+/* Colores forzados para que no los sobrescriban las variables del tema */
+table.data-table .btn-danger,
+table.data-table button.btn-danger,
+table.data-table a.btn-danger {
+  background: #dc2626 !important;
+  border: 1px solid #dc2626 !important;
+  color: #ffffff !important;
+}
+table.data-table .btn-danger:hover,
+table.data-table button.btn-danger:hover,
+table.data-table a.btn-danger:hover {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+
+table.data-table .btn-info-action,
+table.data-table button.btn-info-action,
+table.data-table a.btn-info-action {
+  background: #eab308 !important;
+  border: 1px solid #ca8a04 !important;
+  color: #1c1917 !important;
+}
+table.data-table .btn-info-action:hover,
+table.data-table button.btn-info-action:hover,
+table.data-table a.btn-info-action:hover {
+  background: #ca8a04 !important;
+  border-color: #a16207 !important;
+  color: #1c1917 !important;
+  text-decoration: none !important;
+}
+
 /* ========== UTILIDADES DE TEXTO ========== */
 .muted {
   color: var(--text-muted);
@@ -583,6 +662,22 @@ table.data-table tr.empty-state td {
   font-size: 0.95rem;
   background: var(--surface-hover);
   border-bottom: none;
+}
+
+/* Filas con respuesta requerida sin contestar (Estatus Cartas) */
+table.data-table tr.row-pendiente td {
+  background: #fef3c7;
+}
+table.data-table tbody tr.row-pendiente:hover td {
+  background: #fde68a;
+}
+
+/* Filas con respuesta requerida ya contestada (Estatus Cartas) */
+table.data-table tr.row-respondida td {
+  background: #dcfce7;
+}
+table.data-table tbody tr.row-respondida:hover td {
+  background: #bbf7d0;
 }
 
 .btn-sm,

@@ -31,7 +31,7 @@
       </thead>
       <tbody>
         {% for row in rows %}
-        <tr>
+        <tr class="{% if row.requiere_respuesta == 'SI' and not row.respuesta %}row-pendiente{% elif row.requiere_respuesta == 'SI' and row.respuesta %}row-respondida{% endif %}">
           <td>{{ row.transmittal|default:"" }}{% if row.transmittal_title %} — {{ row.transmittal_title|truncatewords:8 }}{% endif %}</td>
           {% comment %}<td>{{ row.tipo|default:"" }}</td>{% endcomment %}
           <td>{{ row.descripcion|truncatewords:12|default:"" }}</td>

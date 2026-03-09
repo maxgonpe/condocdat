@@ -51,8 +51,8 @@
           <td>{% if doc.file %}<a href="{{ doc.file.url }}" target="_blank" rel="noopener">Ver</a>{% else %}—{% endif %}</td>
           <td>—</td>
           <td>
-            <a href="{% url 'document_detail' doc.pk %}" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Ver</a>
-            <button type="button" class="btn btn-outline doc-delete" data-id="{{ doc.id }}" data-code="{{ doc.code }}" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Eliminar</button>
+            <a href="{% url 'document_detail' doc.pk %}" class="btn btn-info-action" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Info</a>
+            <button type="button" class="btn btn-danger doc-delete" data-id="{{ doc.id }}" data-code="{{ doc.code }}" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Eliminar</button>
           </td>
         </tr>
         {% empty %}
@@ -115,8 +115,8 @@
       '<td>' + fileHtml + '</td>' +
       '<td>' + contextHtml + '</td>' +
       '<td>' +
-        '<a href="/documentos/' + d.id + '/" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Ver</a> ' +
-        '<button type="button" class="btn btn-outline doc-delete" data-id="' + d.id + '" data-code="' + escapeHtml(d.code) + '" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Eliminar</button>' +
+        '<a href="/documentos/' + d.id + '/" class="btn btn-info-action" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Info</a> ' +
+        '<button type="button" class="btn btn-danger doc-delete" data-id="' + d.id + '" data-code="' + escapeHtml(d.code) + '" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Eliminar</button>' +
       '</td></tr>';
   }
 
