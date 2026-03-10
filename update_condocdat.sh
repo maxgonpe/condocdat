@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
 #
-# Actualiza Condocdat en producción:
+# Actualiza Condocdat en producción (usa docker-compose.prod.yml de ESTE directorio).
+# Ejecutar desde la raíz de Condocdat: cd /home/max/myproject/condocdat && ./update_condocdat.sh
+#
 #   - Reconstruye la imagen con el código actual (incluye migraciones y estáticos)
-#   - Detiene el contenedor
-#   - Vuelve a levantar con la nueva imagen
+#   - Detiene el contenedor y vuelve a levantar
 #
 # Uso: ./update_condocdat.sh [nocache]
-#   nocache = reconstruir imagen sin caché (más lento, útil si algo falla)
 #
 set -euo pipefail
 
-# Directorio del proyecto = donde está este script
+# Este script debe estar en la raíz de Condocdat (junto a manage.py y docker-compose.prod.yml)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 COMPOSE_FILE="docker-compose.prod.yml"
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+  echo "❌ No se encuentra $COMPOSE_FILE en $SCRIPT_DIR"
+  exit 1
+fi
 SERVICE_NAME="condocdat"
 BUILD_NO_CACHE=""
 

@@ -3,9 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 .env
+.env.postgres.local
 env/
 venv/
 *.sqlite3
 /media
 /staticfiles
 /data
+condocdat/settings_local.py

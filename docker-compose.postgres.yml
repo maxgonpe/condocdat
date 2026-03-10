@@ -1,0 +1,26 @@
+# Solo PostgreSQL para desarrollo local.
+# Uso: docker compose -f docker-compose.postgres.yml up -d
+# Luego: export $(cat .env.postgres.local | xargs) && python manage.py migrate
+# Así Django (venv) se conecta a este Postgres y es 100% compatible con producción.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: condocdat_postgres_local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: condocdat_db
+      POSTGRES_USER: condocdat_user
+      POSTGRES_PASSWORD: condocdat_local
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - condocdat_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U condocdat_user -d condocdat_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  condocdat_pgdata:

@@ -59,18 +59,23 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'condocdat.wsgi.application'
 
-# Database - SQLite por defecto; soporta PostgreSQL vía env
-DB_ENGINE = os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3')
+# Database - En local (DEBUG=True) PostgreSQL por defecto; en producción vía env
+# Para no dejar contraseña en código, define DB_PASSWORD (y opcionalmente DB_USER, etc.) en el entorno.
+if os.environ.get('DB_ENGINE'):
+    DB_ENGINE = os.environ.get('DB_ENGINE')
+else:
+    DB_ENGINE = 'django.db.backends.postgresql' if DEBUG else 'django.db.backends.sqlite3'
 
 if DB_ENGINE == 'django.db.backends.postgresql':
     DATABASES = {
         'default': {
             'ENGINE': DB_ENGINE,
             'NAME': os.environ.get('DB_NAME', 'condocdat_db'),
-            'USER': os.environ.get('DB_USER', 'condocdat_user'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'USER': os.environ.get('DB_USER', 'maxgonpe'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'celsa1961'),
             'HOST': os.environ.get('DB_HOST', 'localhost'),
             'PORT': os.environ.get('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 60,
         }
     }
 else:

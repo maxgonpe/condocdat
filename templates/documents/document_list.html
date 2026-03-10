@@ -176,12 +176,14 @@
     var q = searchInput.value.trim();
     var url = '/documentos/?format=json';
     if (q) url += '&q=' + encodeURIComponent(q);
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Buscando…</td></tr>';
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         tbody.innerHTML = '';
-        if (data.documents.length === 0) {
-          tbody.innerHTML = '<tr class="empty-state"><td colspan="8" class="muted">No hay documentos.</td></tr>';
+        if (!data.documents || data.documents.length === 0) {
+          tbody.innerHTML = '<tr class="empty-state"><td colspan="8" class="muted">' +
+            (q ? 'No hay documentos que coincidan con «' + escapeHtml(q) + '».' : 'No hay documentos.') + '</td></tr>';
         } else {
           data.documents.forEach(function(d) {
             tbody.insertAdjacentHTML('beforeend', renderRow(d));

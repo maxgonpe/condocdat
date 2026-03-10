@@ -12,8 +12,8 @@ import re
 from datetime import date
 
 from .models import Document, Folder, FolderFile, DocumentAttachment
-from .search_backend import search_unified
-from .snippets import extract_snippets
+from .search_backend import search_unified, _normalize_terms
+from .snippets import extract_snippets, extract_snippets_multi_term
 
 
 def _parse_requiere_respuesta(content_extract):
@@ -324,46 +324,58 @@ def dashboard(request):
 @login_required
 @require_GET
 def document_list(request):
-    """Listado de documentos. Si piden JSON (AJAX), devuelve lista para búsqueda."""
-    qs = Document.objects.select_related('project', 'company', 'process', 'doc_type', 'folder').order_by('-date', '-created_at')
+    """Listado de documentos. Si piden JSON (AJAX), usa búsqueda unificada (FTS) y devuelve lista con hits/snippets."""
     q = request.GET.get('q', '').strip()
-    if q:
-        qs = qs.filter(
-            Q(code__icontains=q) |
-            Q(title__icontains=q) |
-            Q(description__icontains=q) |
-            Q(content_extract__icontains=q) |
-            Q(attachments__extracted_text__icontains=q) |
-            Q(project__code__icontains=q) |
-            Q(company__code__icontains=q) |
-            Q(process__code__icontains=q) |
-            Q(doc_type__code__icontains=q)
-        ).distinct()
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
-        # Con búsqueda por texto, pre-cargar adjuntos y calcular hits (archivo + fragmentos de contexto)
-        qs_json = qs.prefetch_related('attachments')[:500]
+        # Búsqueda unificada (PostgreSQL FTS) cuando hay consulta; si no hay q, listar todos
+        if q:
+            result = search_unified(q, limit=500)
+            docs_for_list = result['documents']
+        else:
+            docs_for_list = list(
+                Document.objects.select_related('project', 'company', 'process', 'doc_type', 'folder')
+                .order_by('-date', '-created_at')[:500]
+            )
+        doc_map = {d.pk: d for d in docs_for_list}
+        qs_json = Document.objects.filter(pk__in=[d.pk for d in docs_for_list]).prefetch_related('attachments')
+        terms = _normalize_terms(q)
+        use_multi = len(terms) > 1
         docs = []
         for d in qs_json:
             hits = []
-            if q and d.content_extract and (q.lower() in d.content_extract.lower()):
-                snippets = extract_snippets(d.content_extract, q, context_words=10, max_snippets=5)
-                file_name = d.file.name if d.file else 'Documento principal'
-                hits.append({
-                    'source': 'document',
-                    'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
-                    'file_url': d.file.url if d.file else None,
-                    'snippets': snippets,
-                })
-            for att in d.attachments.all():
-                if q and att.extracted_text and (q.lower() in att.extracted_text.lower()):
-                    snippets = extract_snippets(att.extracted_text, q, context_words=10, max_snippets=5)
-                    name = att.file.name.split('/')[-1] if att.file.name else 'Adjunto'
+            if q and d.content_extract:
+                text_lower = d.content_extract.lower()
+                if use_multi and all(t.lower() in text_lower for t in terms):
+                    snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=10, max_snippets=5)
+                elif not use_multi and q.lower() in text_lower:
+                    snippets = extract_snippets(d.content_extract, q, context_words=10, max_snippets=5)
+                else:
+                    snippets = []
+                if snippets:
+                    file_name = d.file.name if d.file else 'Documento principal'
                     hits.append({
-                        'source': 'attachment',
-                        'file_name': name,
-                        'file_url': att.file.url if att.file else None,
+                        'source': 'document',
+                        'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                        'file_url': d.file.url if d.file else None,
                         'snippets': snippets,
                     })
+            for att in d.attachments.all():
+                if q and att.extracted_text:
+                    text_lower = att.extracted_text.lower()
+                    if use_multi and all(t.lower() in text_lower for t in terms):
+                        snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=10, max_snippets=5)
+                    elif not use_multi and q.lower() in text_lower:
+                        snippets = extract_snippets(att.extracted_text, q, context_words=10, max_snippets=5)
+                    else:
+                        snippets = []
+                    if snippets:
+                        name = att.file.name.split('/')[-1] if att.file.name else 'Adjunto'
+                        hits.append({
+                            'source': 'attachment',
+                            'file_name': name,
+                            'file_url': att.file.url if att.file else None,
+                            'snippets': snippets,
+                        })
             docs.append({
                 'id': d.id,
                 'code': d.code,
@@ -383,6 +395,8 @@ def document_list(request):
                 'hits': hits,
             })
         return JsonResponse({'documents': docs})
+    # HTML: listado inicial (sin búsqueda)
+    qs = Document.objects.select_related('project', 'company', 'process', 'doc_type', 'folder').order_by('-date', '-created_at')
     return render(request, 'documents/document_list.html', {'document_list': qs[:100]})
 
 
@@ -487,13 +501,52 @@ def folder_upload_files(request, pk):
 @login_required
 @require_GET
 def search_unified_view(request):
-    """Búsqueda por nombre/código y contenido extraído. Responde HTML o JSON."""
+    """Búsqueda por nombre/código y contenido. Responde HTML o JSON. Documentos y archivos de carpeta incluyen hits con snippets (igual lógica que listado de documentos)."""
     q = request.GET.get('q', '').strip()
     result = search_unified(q, limit=200)
+    terms = _normalize_terms(q)
+    use_multi = len(terms) > 1
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        # Documentos: mismo payload que document_list (con hits/snippets)
+        doc_ids = [d.id for d in result['documents']]
+        qs_docs = Document.objects.filter(pk__in=doc_ids).prefetch_related('attachments').select_related('project', 'company', 'process', 'doc_type', 'folder')
         docs = []
-        for d in result['documents']:
+        for d in qs_docs:
+            hits = []
+            if q and d.content_extract:
+                text_lower = d.content_extract.lower()
+                if use_multi and all(t.lower() in text_lower for t in terms):
+                    snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=10, max_snippets=5)
+                elif not use_multi and q.lower() in text_lower:
+                    snippets = extract_snippets(d.content_extract, q, context_words=10, max_snippets=5)
+                else:
+                    snippets = []
+                if snippets:
+                    file_name = d.file.name if d.file else 'Documento principal'
+                    hits.append({
+                        'source': 'document',
+                        'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                        'file_url': d.file.url if d.file else None,
+                        'snippets': snippets,
+                    })
+            for att in d.attachments.all():
+                if q and att.extracted_text:
+                    text_lower = att.extracted_text.lower()
+                    if use_multi and all(t.lower() in text_lower for t in terms):
+                        snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=10, max_snippets=5)
+                    elif not use_multi and q.lower() in text_lower:
+                        snippets = extract_snippets(att.extracted_text, q, context_words=10, max_snippets=5)
+                    else:
+                        snippets = []
+                    if snippets:
+                        name = att.file.name.split('/')[-1] if att.file.name else 'Adjunto'
+                        hits.append({
+                            'source': 'attachment',
+                            'file_name': name,
+                            'file_url': att.file.url if att.file else None,
+                            'snippets': snippets,
+                        })
             docs.append({
                 'id': d.id,
                 'code': d.code,
@@ -504,21 +557,39 @@ def search_unified_view(request):
                 'folder_code': d.folder.code if d.folder else None,
                 'file_url': d.file.url if d.file else None,
                 'has_file': bool(d.file),
+                'hits': hits,
             })
         folders_data = [
             {'id': f.id, 'code': f.code, 'title': f.title or '', 'date': f.date.isoformat() if f.date else ''}
             for f in result['folders']
         ]
-        files_data = [
-            {
+        files_data = []
+        for ff in result['folder_files']:
+            hits = []
+            if q and ff.extracted_text:
+                text_lower = ff.extracted_text.lower()
+                if use_multi and all(t.lower() in text_lower for t in terms):
+                    snippets = extract_snippets_multi_term(ff.extracted_text, terms, context_words=10, max_snippets=5)
+                elif not use_multi and q.lower() in text_lower:
+                    snippets = extract_snippets(ff.extracted_text, q, context_words=10, max_snippets=5)
+                else:
+                    snippets = []
+                if snippets:
+                    hits.append({
+                        'source': 'folder_file',
+                        'file_name': ff.name,
+                        'file_url': ff.file.url if ff.file else None,
+                        'snippets': snippets,
+                    })
+            files_data.append({
                 'id': ff.id,
                 'name': ff.name,
                 'file_url': ff.file.url if ff.file else None,
                 'folder_id': ff.folder_id,
                 'folder_code': ff.folder.code if ff.folder else None,
-            }
-            for ff in result['folder_files']
-        ]
+                'folder_title': (ff.folder.title or '') if ff.folder else '',
+                'hits': hits,
+            })
         return JsonResponse({
             'documents': docs,
             'folders': folders_data,

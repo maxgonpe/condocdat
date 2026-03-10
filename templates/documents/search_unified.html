@@ -5,7 +5,7 @@
 {% block content %}
 <header class="page-header">
   <h1>Buscar por nombre y contenido</h1>
-  <p class="muted">Busca en códigos, títulos, descripciones y en el texto extraído de los archivos (PDF, DOCX). Ej: "Juan Pérez", "ODATA-ST01", "PPT-00050".</p>
+  <p class="muted">Busca en códigos, títulos, descripciones y en el texto extraído de los archivos (PDF, DOCX). Varias palabras encuentran resultados donde aparecen <strong>todas</strong> (en cualquier orden). Se priorizan coincidencias en código y título. Ej: "Max Gonzalez", "ODATA-ST01", "PPT-00050".</p>
 </header>
 
 <div class="card">
@@ -40,6 +40,7 @@
 
   <div class="card" id="results-folders">
     <h2>Carpetas</h2>
+    <p class="muted">Carpetas cuyo código, título o descripción coinciden con la búsqueda.</p>
     <div id="folders-list">
       {% if query %}
         {% for f in folders %}
@@ -55,6 +56,7 @@
 
   <div class="card" id="results-files">
     <h2>Archivos en carpetas</h2>
+    <p class="muted">Archivos cuyo nombre o contenido extraído coinciden. Enlace al archivo y a la carpeta.</p>
     <div id="folder-files-list">
       {% if query %}
         {% for ff in folder_files %}
@@ -72,6 +74,16 @@
   </div>
 </div>
 
+<div id="context-modal-wrap" class="context-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000;" aria-hidden="true" role="dialog" aria-labelledby="context-modal-title">
+  <div class="context-modal-content" style="background: var(--bg-elevated, #fff); border-radius: var(--radius-lg, 12px); max-width: 600px; max-height: 85vh; overflow: auto; box-shadow: var(--shadow-lg); padding: 1.5rem;">
+    <h2 id="context-modal-title" style="margin-top: 0; margin-bottom: 1rem;">Contexto de búsqueda</h2>
+    <div id="context-modal-body"></div>
+    <p style="margin-top: 1rem; margin-bottom: 0;">
+      <button type="button" class="btn btn-outline" id="context-modal-close">Cerrar</button>
+    </p>
+  </div>
+</div>
+
 <script>
 (function() {
   var searchInput = document.getElementById('global-search');
@@ -86,18 +98,37 @@
     div.textContent = s;
     return div.innerHTML;
   }
+  function escapeAttr(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+  function snippetToHtml(s) {
+    var escaped = escapeHtml(s);
+    return escaped.replace(/\*\*(.+?)\*\*/g, function(_, g1) {
+      return '<strong>' + escapeHtml(g1) + '</strong>';
+    });
+  }
 
   function renderDocuments(docs) {
     if (!docs.length) return '<p class="muted">Ningún documento coincide.</p>';
     return docs.map(function(d) {
-      var folderLink = d.folder_code
+      var folderLink = d.folder_code && d.folder_id
         ? '(carpeta: <a href="/documentos/carpetas/' + d.folder_id + '/">' + escapeHtml(d.folder_code) + '</a>)'
         : '';
       var fileLink = d.has_file && d.file_url
         ? ' <a href="' + escapeHtml(d.file_url) + '" target="_blank" rel="noopener">Archivo</a>'
         : '';
+      var hits = d.hits && d.hits.length ? d.hits : [];
+      var contextBtn = hits.length
+        ? ' <button type="button" class="btn btn-outline search-context" data-label="' + escapeAttr(d.code) + '" data-hits="' + escapeAttr(JSON.stringify(hits)) + '" style="padding: 0.2rem 0.5rem; font-size: 0.85rem;">Ver contexto</button>'
+        : '';
       return '<p><a href="/documentos/' + d.id + '/">' + escapeHtml(d.code) + '</a> — ' +
-        escapeHtml(d.title || '—').substring(0, 60) + ' ' + folderLink + fileLink + '</p>';
+        escapeHtml((d.title || '—').substring(0, 80)) + ' ' + folderLink + fileLink + contextBtn + '</p>';
     }).join('');
   }
 
@@ -114,8 +145,52 @@
     return files.map(function(ff) {
       var fileUrl = ff.file_url ? escapeHtml(ff.file_url) : '#';
       var folderLink = '<a href="/documentos/carpetas/' + ff.folder_id + '/">' + escapeHtml(ff.folder_code || '') + '</a>';
-      return '<p><a href="' + fileUrl + '" target="_blank" rel="noopener">' + escapeHtml(ff.name) + '</a> — carpeta: ' + folderLink + '</p>';
+      var contextBtn = (ff.hits && ff.hits.length)
+        ? ' <button type="button" class="btn btn-outline search-context" data-label="' + escapeAttr(ff.name) + '" data-hits="' + escapeAttr(JSON.stringify(ff.hits)) + '" style="padding: 0.2rem 0.5rem; font-size: 0.85rem;">Ver contexto</button>'
+        : '';
+      return '<p><a href="' + fileUrl + '" target="_blank" rel="noopener">' + escapeHtml(ff.name) + '</a> — carpeta: ' + folderLink + contextBtn + '</p>';
     }).join('');
+  }
+
+  function openContextModal(label, hits) {
+    var wrap = document.getElementById('context-modal-wrap');
+    var titleEl = document.getElementById('context-modal-title');
+    var bodyEl = document.getElementById('context-modal-body');
+    if (!wrap || !titleEl || !bodyEl) return;
+    titleEl.textContent = 'Contexto de búsqueda — ' + label;
+    var html = '';
+    (hits || []).forEach(function(h) {
+      var fileName = escapeHtml(h.file_name || 'Archivo');
+      var fileLink = h.file_url ? ('<a href="' + escapeHtml(h.file_url) + '" target="_blank" rel="noopener">' + fileName + '</a>') : fileName;
+      html += '<div class="context-hit" style="margin-bottom: 1rem;">';
+      html += '<div class="context-file" style="font-weight: 600; margin-bottom: 0.35rem;">' + fileLink + '</div>';
+      html += '<div class="context-snippets">';
+      (h.snippets || []).forEach(function(snip) {
+        html += '<div class="context-snippet" style="background: var(--surface-hover, #f5f5f5); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.35rem; font-size: 0.9rem;">' + snippetToHtml(snip) + '</div>';
+      });
+      html += '</div></div>';
+    });
+    bodyEl.innerHTML = html || '<p class="muted">Sin fragmentos.</p>';
+    wrap.style.display = 'flex';
+    wrap.setAttribute('aria-hidden', 'false');
+  }
+  function closeContextModal() {
+    var wrap = document.getElementById('context-modal-wrap');
+    if (wrap) { wrap.style.display = 'none'; wrap.setAttribute('aria-hidden', 'true'); }
+  }
+  function bindContextButtons(container) {
+    if (!container) return;
+    container.querySelectorAll('.search-context').forEach(function(btn) {
+      btn.onclick = function() {
+        var label = this.getAttribute('data-label');
+        var hitsRaw = this.getAttribute('data-hits');
+        if (!hitsRaw) return;
+        try {
+          var hits = JSON.parse(hitsRaw);
+          openContextModal(label, hits);
+        } catch (e) {}
+      };
+    });
   }
 
   function doSearch() {
@@ -126,6 +201,9 @@
       folderFilesList.innerHTML = '<p class="muted">—</p>';
       return;
     }
+    documentsList.innerHTML = '<p class="muted">Buscando…</p>';
+    foldersList.innerHTML = '<p class="muted">Buscando…</p>';
+    folderFilesList.innerHTML = '<p class="muted">Buscando…</p>';
     var url = '/documentos/buscar/?format=json&q=' + encodeURIComponent(q);
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function(r) { return r.json(); })
@@ -133,11 +211,13 @@
         documentsList.innerHTML = renderDocuments(data.documents || []);
         foldersList.innerHTML = renderFolders(data.folders || []);
         folderFilesList.innerHTML = renderFolderFiles(data.folder_files || []);
+        bindContextButtons(documentsList);
+        bindContextButtons(folderFilesList);
       })
       .catch(function() {
         documentsList.innerHTML = '<p class="alert alert-error">Error al buscar.</p>';
-        foldersList.innerHTML = '';
-        folderFilesList.innerHTML = '';
+        foldersList.innerHTML = '<p class="muted">—</p>';
+        folderFilesList.innerHTML = '<p class="muted">—</p>';
       });
   }
 
@@ -147,6 +227,12 @@
   });
   searchInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  });
+  if (searchInput.value.trim()) doSearch();
+
+  document.getElementById('context-modal-close').addEventListener('click', closeContextModal);
+  document.getElementById('context-modal-wrap').addEventListener('click', function(e) {
+    if (e.target === this) closeContextModal();
   });
 })();
 </script>

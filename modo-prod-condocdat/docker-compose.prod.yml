@@ -1,0 +1,42 @@
+services:
+  condocdat:
+    build:
+      # Contexto = raíz del proyecto (para que la imagen incluya condocdat/, documents/, manage.py, etc.)
+      context: ..
+      dockerfile: ../Dockerfile
+    container_name: condocdat
+    restart: unless-stopped
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-condocdat.netgogo.cl}
+      - DJANGO_SETTINGS_MODULE=condocdat.settings
+      # PostgreSQL en producción (misma instancia que Talleres, base condocdat_db)
+      - DB_ENGINE=${DB_ENGINE:-django.db.backends.postgresql}
+      - DB_NAME=${DB_NAME:-condocdat_db}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
+      - TZ=America/Santiago
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    networks:
+      - traefik_default
+      - myproject_netgogo_default
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.condocdat.entrypoints: "websecure"
+      traefik.http.routers.condocdat.rule: "Host(`condocdat.netgogo.cl`)"
+      traefik.http.routers.condocdat.tls.certresolver: "letsencrypt"
+      traefik.http.services.condocdat.loadbalancer.server.port: "8000"
+      traefik.http.middlewares.condocdat-headers.headers.customrequestheaders.X-Forwarded-Proto: "https"
+      traefik.http.routers.condocdat.middlewares: "condocdat-headers"
+
+networks:
+  traefik_default:
+    external: true
+  myproject_netgogo_default:
+    external: true
