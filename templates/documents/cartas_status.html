@@ -15,7 +15,7 @@
         <tr>
           <th>Transmittal</th>
           {% comment %}<th>Tipo</th>{% endcomment %}
-          <th>Descripción</th>
+          <th>Asunto</th>
           <th>Fecha envío (emisor)</th>
           <th>Responsable</th>
           <th>Documento - Archivo</th>
@@ -25,8 +25,6 @@
           <th>Requiere respuesta?</th>
           <th>Respuesta</th>
           <th>Fecha respuesta</th>
-          {% comment %}<th>Para</th>{% endcomment %}
-          <th>Link</th>
         </tr>
       </thead>
       <tbody>
@@ -34,7 +32,7 @@
         <tr class="{% if row.requiere_respuesta == 'SI' and not row.respuesta %}row-pendiente{% elif row.requiere_respuesta == 'SI' and row.respuesta %}row-respondida{% endif %}">
           <td>{{ row.transmittal|default:"" }}{% if row.transmittal_title %} — {{ row.transmittal_title|truncatewords:8 }}{% endif %}</td>
           {% comment %}<td>{{ row.tipo|default:"" }}</td>{% endcomment %}
-          <td>{{ row.descripcion|truncatewords:12|default:"" }}</td>
+          <td>{{ row.asunto|truncatewords:20|default:"" }}</td>
           <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
           <td>{{ row.responsable|default:"" }}</td>
           <td>
@@ -50,14 +48,10 @@
           <td>{{ row.requiere_respuesta|default:"" }}</td>
           <td>{{ row.respuesta|default:"" }}</td>
           <td>{% if row.fecha_respuesta %}{{ row.fecha_respuesta|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-          {% comment %}<td>{{ row.para|default:"" }}</td>{% endcomment %}
-          <td>
-            <a href="{% url 'document_detail' row.document.pk %}" target="_blank" rel="noopener">Ver</a>
-          </td>
         </tr>
         {% empty %}
         <tr class="empty-state">
-          <td colspan="12" class="muted">
+          <td colspan="11" class="muted">
             No hay cartas. Asegúrate de tener documentos TTAL con al menos un adjunto cuyo nombre contenga «CAR» (ej. ODATA-BUF-CC-CAR-001.pdf).
           </td>
         </tr>

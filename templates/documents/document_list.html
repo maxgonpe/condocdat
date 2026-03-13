@@ -52,7 +52,7 @@
           <td>—</td>
           <td>
             <a href="{% url 'document_detail' doc.pk %}" class="btn btn-info-action" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Info</a>
-            <button type="button" class="btn btn-danger doc-delete" data-id="{{ doc.id }}" data-code="{{ doc.code }}" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Eliminar</button>
+            <button type="button" class="btn btn-danger doc-delete" data-id="{{ doc.id }}" data-code="{{ doc.code }}" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; display: none;">Eliminar</button>
           </td>
         </tr>
         {% empty %}
@@ -116,7 +116,7 @@
       '<td>' + contextHtml + '</td>' +
       '<td>' +
         '<a href="/documentos/' + d.id + '/" class="btn btn-info-action" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Info</a> ' +
-        '<button type="button" class="btn btn-danger doc-delete" data-id="' + d.id + '" data-code="' + escapeHtml(d.code) + '" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">Eliminar</button>' +
+        '<button type="button" class="btn btn-danger doc-delete" data-id="' + d.id + '" data-code="' + escapeHtml(d.code) + '" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; display: none;">Eliminar</button>' +
       '</td></tr>';
   }
 

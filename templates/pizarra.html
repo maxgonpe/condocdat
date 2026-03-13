@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Pizarra{% endblock %}
+
+{% block extra_css %}
+<style>
+  .pizarra-estatus {
+    --neon-cyan: #00f5ff;
+    --neon-magenta: #ff00aa;
+    --neon-green: #39ff14;
+    --neon-amber: #ffbf00;
+    --neon-bg: rgba(0, 0, 0, 0.75);
+    background: var(--neon-bg);
+    border: 2px solid var(--neon-cyan);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow:
+      0 0 10px rgba(0, 245, 255, 0.4),
+      0 0 20px rgba(0, 245, 255, 0.2),
+      inset 0 0 30px rgba(0, 245, 255, 0.05);
+  }
+  [data-theme="light"] .pizarra-estatus {
+    background: linear-gradient(135deg, #1a0a2e 0%, #16213e 100%);
+    border-color: var(--neon-cyan);
+  }
+  .pizarra-estatus h2 {
+    margin: 0 0 1rem 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 10px rgba(0, 245, 255, 0.8);
+  }
+  .pizarra-estatus-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1.25rem;
+  }
+  .pizarra-stat {
+    text-align: center;
+    padding: 0.75rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(0, 245, 255, 0.25);
+  }
+  .pizarra-stat .valor {
+    display: block;
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.25rem;
+  }
+  .pizarra-stat .etiqueta {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .pizarra-stat--total .valor { color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 245, 255, 0.7); }
+  .pizarra-stat--propamat .valor { color: var(--neon-magenta); text-shadow: 0 0 12px rgba(255, 0, 170, 0.6); }
+  .pizarra-stat--odata .valor { color: #7b68ee; text-shadow: 0 0 12px rgba(123, 104, 238, 0.6); }
+  .pizarra-stat--requieren .valor { color: var(--neon-amber); text-shadow: 0 0 12px rgba(255, 191, 0, 0.6); }
+  .pizarra-stat--pendientes .valor { color: #ff6b6b; text-shadow: 0 0 12px rgba(255, 107, 107, 0.6); }
+  .pizarra-stat--respondidas .valor { color: var(--neon-green); text-shadow: 0 0 12px rgba(57, 255, 20, 0.6); }
+  .pizarra-stat--text .valor { font-size: 0.95rem; font-weight: 600; word-break: break-all; color: #fff; text-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 255, 255, 0.5); }
+  .pizarra-estatus--propamat { border-color: var(--neon-amber); box-shadow: 0 0 12px rgba(255, 191, 0, 0.35), 0 0 24px rgba(255, 191, 0, 0.15); }
+  .pizarra-estatus--propamat h2 { color: var(--neon-amber); text-shadow: 0 0 10px rgba(255, 191, 0, 0.8); }
+  .pizarra-estatus--odata { border-color: #7b68ee; box-shadow: 0 0 12px rgba(123, 104, 238, 0.4), 0 0 24px rgba(123, 104, 238, 0.2); }
+  .pizarra-estatus--odata h2 { color: #a78bfa; text-shadow: 0 0 10px rgba(167, 139, 250, 0.8); }
+  .pizarra-estatus-grid--logs { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Pizarra</h1>
+  <p class="muted">Logs, cartas y estadísticas.</p>
+</header>
+
+<div class="pizarra-estatus card">
+  <h2>Estatus de las cartas</h2>
+  <div class="pizarra-estatus-grid">
+    <div class="pizarra-stat pizarra-stat--total">
+      <span class="valor">{{ cartas_total|default:0 }}</span>
+      <span class="etiqueta">Total cartas</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--propamat">
+      <span class="valor">{{ cartas_propamat_a_odata|default:0 }}</span>
+      <span class="etiqueta">Propamat → Odata</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--odata">
+      <span class="valor">{{ cartas_odata_a_propamat|default:0 }}</span>
+      <span class="etiqueta">Odata → Propamat</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--requieren">
+      <span class="valor">{{ cartas_requieren_respuesta|default:0 }}</span>
+      <span class="etiqueta">Requieren respuesta</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--pendientes">
+      <span class="valor">{{ cartas_no_respondidas|default:0 }}</span>
+      <span class="etiqueta">Sin responder</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--respondidas">
+      <span class="valor">{{ cartas_si_respondidas|default:0 }}</span>
+      <span class="etiqueta">Respondidas</span>
+    </div>
+  </div>
+</div>
+
+<div class="pizarra-estatus pizarra-estatus--propamat card">
+  <h2>Logs Odata a Propamat</h2>
+  <div class="pizarra-estatus-grid pizarra-estatus-grid--logs">
+    <div class="pizarra-stat pizarra-stat--total">
+      <span class="valor">{{ logs_propamat.total|default:0 }}</span>
+      <span class="etiqueta">Total</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--text" style="grid-column: span 2;">
+      <span class="valor" title="{{ logs_propamat.ultimo_transmittal }}">{{ logs_propamat.ultimo_transmittal|default:"—" }}</span>
+      <span class="etiqueta">Último transmittal</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--requieren">
+      <span class="valor">{{ logs_propamat.acreditaciones|default:0 }}</span>
+      <span class="etiqueta">Acreditaciones</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--respondidas">
+      <span class="valor">{{ logs_propamat.acreditacion_personal|default:0 }}</span>
+      <span class="etiqueta">Acred. personal</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--odata">
+      <span class="valor">{{ logs_propamat.acreditacion_equipos|default:0 }}</span>
+      <span class="etiqueta">Acred. equipos</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--propamat">
+      <span class="valor">{{ logs_propamat.procedimientos|default:0 }}</span>
+      <span class="etiqueta">Procedimientos</span>
+    </div>
+  </div>
+</div>
+
+<div class="pizarra-estatus pizarra-estatus--odata card">
+  <h2>Logs Propamat a Odata</h2>
+  <div class="pizarra-estatus-grid pizarra-estatus-grid--logs">
+    <div class="pizarra-stat pizarra-stat--total">
+      <span class="valor">{{ logs_odata.total|default:0 }}</span>
+      <span class="etiqueta">Total</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--text" style="grid-column: span 2;">
+      <span class="valor" title="{{ logs_odata.ultimo_transmittal }}">{{ logs_odata.ultimo_transmittal|default:"—" }}</span>
+      <span class="etiqueta">Último transmittal</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--requieren">
+      <span class="valor">{{ logs_odata.acreditaciones|default:0 }}</span>
+      <span class="etiqueta">Acreditaciones</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--respondidas">
+      <span class="valor">{{ logs_odata.acreditacion_personal|default:0 }}</span>
+      <span class="etiqueta">Acred. personal</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--odata">
+      <span class="valor">{{ logs_odata.acreditacion_equipos|default:0 }}</span>
+      <span class="etiqueta">Acred. equipos</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--propamat">
+      <span class="valor">{{ logs_odata.procedimientos|default:0 }}</span>
+      <span class="etiqueta">Procedimientos</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

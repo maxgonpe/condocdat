@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ page_title|default:"Logs Propamat a Odata" }}{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>{{ page_title|default:"Logs Propamat a Odata" }}</h1>
+  <p class="muted">{{ page_subtitle|default:"Carpetas TRN, ordenadas de la más reciente a la más antigua por nombre." }}</p>
+</header>
+
+<div class="card card--list">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Transmittal</th>
+          <th>Especialidad</th>
+          <th>Referencia</th>
+          <th>Fecha envío (emisor)</th>
+          <th>Responsable</th>
+          <th>Documento - Archivo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.transmittal|default:"" }}{% if row.transmittal_title %} — {{ row.transmittal_title|truncatewords:8 }}{% endif %}</td>
+          <td>{{ row.descripcion|truncatewords:12|default:"" }}</td>
+          <td>{{ row.referencia|truncatewords:20|default:"—" }}</td>
+          <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+          <td>{{ row.responsable|default:"—" }}</td>
+          <td>{% if row.file_url %}<a href="{{ row.file_url }}" target="_blank" rel="noopener">{{ row.documento_archivo|linebreaksbr }}</a>{% else %}{{ row.documento_archivo|linebreaksbr|default:"—" }}{% endif %}</td>
+          <td>{{ row.estado|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr class="empty-state">
+          <td colspan="7" class="muted">No hay carpetas TRN.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<nav class="list-actions">
+  <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
+  <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
+  <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
+  <a href="{% url 'logs_propamat_odata' %}?format=excel" class="btn btn-excel" download>Descargar Excel</a>
+  <a href="{% url 'logs_propamat_odata' %}?format=pdf&open=1" class="btn btn-pdf" target="_blank" rel="noopener">Abrir PDF</a>
+  <a href="{% url 'logs_propamat_odata' %}?format=pdf" class="btn btn-pdf" download>Descargar PDF</a>
+</nav>
+{% endblock %}
+
