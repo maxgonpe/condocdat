@@ -1,14 +1,25 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}{{ page_title|default:"Logs Propamat a Odata" }}{% endblock %}
+{% block title %}{{ page_title|default:"Logs de Odata a Propamat" }}{% endblock %}
 
 {% block content %}
 <header class="page-header">
-  <h1>{{ page_title|default:"Logs Propamat a Odata" }}</h1>
-  <p class="muted">{{ page_subtitle|default:"Carpetas TRN, ordenadas de la más reciente a la más antigua por nombre." }}</p>
+  <h1>{{ page_title|default:"Logs de Odata a Propamat" }}</h1>
+  <p class="muted">{{ page_subtitle|default:"Carpetas de Propamat, ordenadas de la más reciente a la más antigua por nombre." }}</p>
 </header>
 
 <div class="card card--list">
+  <div class="list-filters" style="display:flex; justify-content:center; margin-bottom:1rem;">
+    <label for="logs-search-trn" class="sr-only">Buscar en los logs</label>
+    <input
+      id="logs-search-trn"
+      type="search"
+      class="input"
+      placeholder="Buscar en cualquier columna…"
+      autocomplete="off"
+      style="max-width:480px; width:100%; padding:0.65rem 1rem; border-radius:999px; border:1px solid #c5ced8; box-shadow:0 1px 3px rgba(15,23,42,0.08);"
+    >
+  </div>
   <div class="table-wrap">
     <table class="data-table">
       <thead>
@@ -25,7 +36,7 @@
       <tbody>
         {% for row in rows %}
         <tr>
-          <td>{{ row.transmittal|default:"" }}{% if row.transmittal_title %} — {{ row.transmittal_title|truncatewords:8 }}{% endif %}</td>
+          <td>{{ row.transmittal_display|default:row.transmittal|default:"" }}</td>
           <td>{{ row.descripcion|truncatewords:12|default:"" }}</td>
           <td>{{ row.referencia|truncatewords:20|default:"—" }}</td>
           <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
@@ -42,6 +53,42 @@
     </table>
   </div>
 </div>
+
+<script>
+  (function() {
+    const input = document.getElementById("logs-search-trn");
+    if (!input) return;
+    const table = input.closest(".card--list").querySelector("table.data-table tbody");
+    if (!table) return;
+    function normalize(text) {
+      return (text || "").toString().toLowerCase();
+    }
+    function filterRows() {
+      const q = normalize(input.value);
+      const rows = table.querySelectorAll("tr");
+      rows.forEach(function(row) {
+        if (row.classList.contains("empty-state")) return;
+        const cells = row.querySelectorAll("td");
+        let match = !q;
+        if (q) {
+          for (let i = 0; i < cells.length; i++) {
+            const cellText = normalize(cells[i].innerText || cells[i].textContent);
+            if (cellText.indexOf(q) !== -1) {
+              match = true;
+              break;
+            }
+          }
+        }
+        row.style.display = match ? "" : "none";
+      });
+    }
+    let timeoutId = null;
+    input.addEventListener("input", function() {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(filterRows, 150);
+    });
+  })();
+</script>
 
 <nav class="list-actions">
   <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>

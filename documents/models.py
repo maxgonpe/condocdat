@@ -1,3 +1,4 @@
+import re
 from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
@@ -253,3 +254,63 @@ class FolderFile(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.folder.code})"
+
+
+class CorreoEnviado(models.Model):
+    """
+    Registro de correos enviados desde el sistema (destinatario, CC, asunto, cuerpo).
+    Permite guardar en BD las variables del envío para historial o reutilización.
+    """
+    destinatarios = models.CharField(max_length=1024, help_text="Emails separados por coma o punto y coma")
+    copia = models.CharField(max_length=1024, blank=True, default="", help_text="CC, separados por coma o punto y coma")
+    asunto = models.CharField(max_length=512)
+    cuerpo = models.TextField(blank=True, default="")
+    adjuntos_nombres = models.CharField(max_length=1024, blank=True, default="", help_text="Nombres de archivos adjuntos separados por coma")
+    enviado_ok = models.BooleanField(default=False, help_text="True si el envío SMTP fue exitoso")
+    error_msg = models.CharField(max_length=512, blank=True, default="")
+    enviado_at = models.DateTimeField(auto_now_add=True)
+    enviado_por = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="correos_enviados"
+    )
+
+    class Meta:
+        verbose_name = "Correo enviado"
+        verbose_name_plural = "Correos enviados"
+        ordering = ["-enviado_at"]
+
+    def __str__(self):
+        return f"{self.asunto[:50]} — {self.enviado_at}"
+
+
+class GrupoCorreo(models.Model):
+    """
+    Grupo de correos para CC. Ej: "odata", "general", "bms".
+    Permite marcar uno o más grupos al enviar y se añaden todos sus correos a la copia.
+    """
+    nombre = models.CharField(max_length=80, unique=True, help_text="Nombre del grupo (ej: odata, general, bms)")
+    descripcion = models.CharField(max_length=255, blank=True, default="")
+    emails = models.TextField(
+        blank=True,
+        default="",
+        help_text="Un correo por línea, o separados por coma/punto y coma",
+    )
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Grupo de correos (CC)"
+        verbose_name_plural = "Grupos de correos (CC)"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+    def lista_emails(self):
+        """Devuelve lista de emails válidos del grupo (sin duplicados)."""
+        if not self.emails or not self.emails.strip():
+            return []
+        out = set()
+        for part in re.split(r"[\s,;\n]+", self.emails):
+            email = part.strip()
+            if email and "@" in email:
+                out.add(email)
+        return sorted(out)

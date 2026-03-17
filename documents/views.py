@@ -11,8 +11,12 @@ from django.utils import timezone
 import os
 import re
 from datetime import date
+from urllib.parse import quote
 
-from .models import Document, Folder, FolderFile, DocumentAttachment
+from django.core.mail import EmailMessage
+from django.conf import settings
+
+from .models import Document, Folder, FolderFile, DocumentAttachment, CorreoEnviado, GrupoCorreo
 from .search_backend import search_unified, _normalize_terms
 from .snippets import extract_snippets, extract_snippets_multi_term
 
@@ -492,6 +496,87 @@ def document_list(request):
 
 @login_required
 @require_GET
+def contrato_view(request):
+    """
+    Sección Contrato: clon de Documentos pero restringido a la carpeta/documento 'contrato'.
+    - HTML: muestra una tabla igual a Documentos pero solo con el documento de la carpeta 'contrato'.
+    - JSON: búsqueda por contenido solo dentro del documento principal y sus adjuntos de esa carpeta.
+    """
+    q = request.GET.get('q', '').strip()
+    # Determinar carpeta "contrato" y su(s) documento(s) asociados
+    contrato_folder = Folder.objects.filter(code__iexact="contrato").first()
+    base_qs = Document.objects.select_related('project', 'company', 'process', 'doc_type', 'folder')
+    if contrato_folder:
+        base_qs = base_qs.filter(folder=contrato_folder)
+    else:
+        base_qs = base_qs.none()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        docs_for_list = list(base_qs.order_by('-date', '-created_at')[:10])
+        terms = _normalize_terms(q)
+        use_multi = len(terms) > 1
+        docs = []
+        for d in docs_for_list:
+            hits = []
+            if q and d.content_extract:
+                text_lower = d.content_extract.lower()
+                if use_multi and all(t.lower() in text_lower for t in terms):
+                    snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=12, max_snippets=8)
+                elif not use_multi and q.lower() in text_lower:
+                    snippets = extract_snippets(d.content_extract, q, context_words=12, max_snippets=8)
+                else:
+                    snippets = []
+                if snippets:
+                    file_name = d.file.name if d.file else 'Documento principal'
+                    hits.append({
+                        'source': 'document',
+                        'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                        'file_url': d.file.url if d.file else None,
+                        'snippets': snippets,
+                    })
+            for att in d.attachments.all():
+                if q and att.extracted_text:
+                    text_lower = att.extracted_text.lower()
+                    if use_multi and all(t.lower() in text_lower for t in terms):
+                        snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=12, max_snippets=8)
+                    elif not use_multi and q.lower() in text_lower:
+                        snippets = extract_snippets(att.extracted_text, q, context_words=12, max_snippets=8)
+                    else:
+                        snippets = []
+                    if snippets:
+                        name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                        hits.append({
+                            'source': 'attachment',
+                            'file_name': name,
+                            'file_url': att.file.url if att.file else None,
+                            'snippets': snippets,
+                        })
+            docs.append({
+                'id': d.id,
+                'code': d.code,
+                'title': d.title or '',
+                'status': d.status,
+                'status_display': d.get_status_display(),
+                'date': d.date.isoformat() if d.date else '',
+                'revision': d.revision or '',
+                'project': d.project.code,
+                'company': d.company.code,
+                'process': d.process.code,
+                'doc_type': d.doc_type.code,
+                'file_url': d.file.url if d.file else None,
+                'has_file': bool(d.file),
+                'folder_id': d.folder_id,
+                'folder_code': d.folder.code if d.folder else None,
+                'hits': hits,
+            })
+        return JsonResponse({'documents': docs})
+
+    # HTML inicial: mostrar (como mucho) el primer documento de esa carpeta
+    qs = base_qs.order_by('-date', '-created_at')
+    return render(request, 'documents/contrato.html', {'document_list': qs[:10], 'contrato_folder': contrato_folder})
+
+@login_required
+@require_GET
 def document_detail(request, pk):
     """Detalle de un documento, archivo principal y adjuntos."""
     doc = get_object_or_404(
@@ -509,6 +594,459 @@ def document_delete(request, pk):
     code = doc.code
     doc.delete()
     return JsonResponse({'success': True, 'message': f'Documento {code} eliminado.', 'id': int(pk)})
+
+
+def _parse_emails(raw):
+    """Convierte una cadena 'a@x.com, b@y.com; c@z.com' en lista de emails sin espacios."""
+    if not raw or not raw.strip():
+        return []
+    out = []
+    for part in re.split(r'[,;\n]+', raw):
+        email = part.strip()
+        if email and '@' in email:
+            out.append(email)
+    return out
+
+
+# --- Plantilla correo Transmittal (ODATA-ST01-F5-TTAL-PPT-?????) ---
+TRANSMITTAL_ASUNTO_TEMPLATE = "ODATA ST01 EXP 05-E2 |   {{ referencia }}   | {{ transmittal }}"
+# Plantilla SharePoint: la carpeta del transmittal existe siempre en este repositorio; solo cambia el código.
+SHAREPOINT_TRANSMITTAL_BASE_PATH = "/sites/GestorDocumentalProyectoODATA/Documentos compartidos/1. ODATA ST01/4. EXP05 - FASE 5.2/4.1 Comunicaciones/4.1.1 Transmittal/PROPAMAT/PROPAMAT a ODATA/"
+SHAREPOINT_TRANSMITTAL_VIEWID = "d9a3f383-3cf1-43be-85e9-c0a8cafec845"
+SHAREPOINT_TRANSMITTAL_BASE_URL = (
+    "https://bufferconsultores.sharepoint.com/sites/GestorDocumentalProyectoODATA/Documentos%20compartidos/Forms/AllItems.aspx"
+)
+TRANSMITTAL_CUERPO_TEMPLATE = """Estimados,
+
+Junto con saludar y mediante el presente, se adjunta ruta de la documentación del asunto de la referencia.
+
+De acuerdo con lo anterior, se pone a vuestra disposición el Transmittal "{{ transmittal_bold }}", {{ referencia }}, los cuales han sido cargados en SharePoint.
+
+{{ transmittal_link }}
+
+Detalle Documentos Adjuntos:
+
+{{ documentos }}
+
+Saludos cordiales,
+
+MAX GONZÁLEZ PEÑA
+CONTROL DE DOCUMENTOS
+PROPAMAT"""
+
+
+def _extract_text_from_uploaded_file(file_obj):
+    """
+    Extrae texto de un archivo subido (PDF o DOCX) para parsear transmittal.
+    file_obj: UploadedFile con .read() y .name.
+    """
+    content = file_obj.read()
+    if not content:
+        return ""
+    name = (file_obj.name or "").lower()
+    try:
+        if name.endswith(".pdf"):
+            from pypdf import PdfReader
+            from io import BytesIO
+            reader = PdfReader(BytesIO(content))
+            return " ".join((p.extract_text() or "").replace("\r", "\n") for p in reader.pages)
+        if name.endswith(".docx"):
+            from docx import Document as DocxDocument
+            from io import BytesIO
+            doc = DocxDocument(BytesIO(content))
+            return "\n".join(p.text for p in doc.paragraphs)
+    except Exception:
+        pass
+    return ""
+
+
+def _parse_transmittal_extract(text, filename_hint=""):
+    """
+    Parsea el extracto de una hoja de transmittal y devuelve:
+    - transmittal: código tipo ODATA-ST01-F5-TTAL-PPT-00093
+    - referencia: texto después de "Referencia:"
+    - documentos: lista de códigos de documento (ej. JLG 193022)
+    """
+    result = {"transmittal": "", "referencia": "", "documentos": []}
+    if not text:
+        text = ""
+    text = text.replace("\r", "\n")
+    # Código transmittal: del contenido o del nombre de archivo
+    trans_re = re.compile(r"ODATA-ST01-F5-TTAL-PPT-\d+", re.IGNORECASE)
+    match = trans_re.search(text)
+    if match:
+        result["transmittal"] = match.group(0).upper()
+    if not result["transmittal"] and filename_hint:
+        match = trans_re.search(filename_hint)
+        if match:
+            result["transmittal"] = match.group(0).upper()
+    # Referencia: después de "Referencia:" hasta fin de línea o doble salto
+    ref_re = re.compile(r"Referencia:\s*(.+?)(?:\n\n|\n\s*\n|$)", re.IGNORECASE | re.DOTALL)
+    match = ref_re.search(text)
+    if match:
+        result["referencia"] = match.group(1).strip().replace("\n", " ").strip()
+        if len(result["referencia"]) > 200:
+            result["referencia"] = result["referencia"][:200].rsplit(" ", 1)[0]
+    # Documentos: columna "Título / Descripción Documento" (ej. JLG 193022, SRT-477)
+    # 1) Reducir espacios múltiples para que el regex funcione aunque el PDF meta espacios de más
+    text_norm = re.sub(r"\s+", " ", text)
+    lines = text.splitlines()
+    seen = set()
+    # Patrones: "JLG 193022" (letras + espacio(s) + dígitos) y "SRT-477" (letras + guión + dígitos)
+    doc_code_re = re.compile(r"\b([A-Za-z]{2,8}\s*\d{5,})\b")
+    doc_code_hyphen_re = re.compile(r"\b([A-Za-z]{2,8}-\d{2,})\b")
+
+    def _add_doc(c):
+        c = re.sub(r"\s+", " ", (c or "").strip()).strip()
+        if not c or c in seen:
+            return
+        if "ODATA" in c.upper():
+            return
+        # No incluir códigos tipo PPT-00095 o PPT-000 (parte del transmittal, no nombre de documento)
+        if re.match(r"^PPT-\d+$", c, re.IGNORECASE):
+            return
+        # No incluir "omitido" ni "emitido" (issued) ni variantes como "Emitido ,"
+        c_low = c.lower().strip()
+        c_norm = re.sub(r"[,.\s]+$", "", c_low).strip()
+        if c_norm in ("omitido", "emitido"):
+            return
+        docs_list = result["documentos"]
+        # No duplicar: si c ya está contenido en un nombre más largo (ej. "TDDF-80" en "Minicargador TDDF-80"), no añadir c
+        for d in docs_list:
+            if c != d and c in d:
+                return
+        # Si un ítem ya en la lista es solo un fragmento del nuevo (ej. "TDDF-80" y llegamos a "Minicargador TDDF-80"), quitar el corto
+        for d in list(docs_list):
+            if d != c and d in c:
+                docs_list.remove(d)
+                seen.discard(d)
+        seen.add(c)
+        docs_list.append(c)
+
+    # Buscar bloque de tabla: entre "Título / Descripción Documento" o "Estatus" y "Emitido" / "Unidad revisora"
+    bloque_docs = ""
+    lower_text = text.lower()
+    idx_titulo = max(lower_text.find("título / descripción documento"), lower_text.find("descripción documento"), lower_text.find("titulo / descripcion documento"))
+    idx_estatus = lower_text.find("estatus")
+    idx_emitido = lower_text.find("emitido para")
+    idx_unidad = lower_text.find("unidad revisora")
+    start = idx_titulo if idx_titulo >= 0 else idx_estatus
+    if start >= 0:
+        end = len(text)
+        for e in (idx_emitido, idx_unidad):
+            if e > start:
+                end = min(end, e)
+        bloque_docs = text[start:end] + " " + text_norm
+
+    # Primero: extraer títulos/descripciones de documento de cada línea "Para revisión" (ej. "Maquinaria", "Trabajador operador")
+    # En el PDF suele verse como "0Maquinaria0Para revisión" o "0Trabajador operador0Para revisión"
+    for line in lines:
+        if "para revisión" not in line.lower() and "para revision" not in line.lower():
+            continue
+        antes = re.split(r"\bpara\s+revisi[oó]n\b", line, 1, re.IGNORECASE)[0].strip()
+        # Quitar código ODATA-ST01-F5-TTAL-PPT-XXXXX si está
+        antes = re.sub(r"ODATA-ST01-F5-TTAL-PPT-\d+", " ", antes, flags=re.IGNORECASE)
+        # Quitar ruido al inicio (dígitos/espacios de tabla)
+        antes = re.sub(r"^[\d\s\.]+", "", antes).strip()
+        # Quitar solo ruido de columna al final (espacio + 1-3 dígitos), no códigos como TDDF-80 o JLG 193022
+        antes = re.sub(r"\s+\d{1,3}\s*$", "", antes).strip()
+        antes = re.sub(r"\s+", " ", antes).strip()
+        if len(antes) >= 2 and any(c.isalpha() for c in antes):
+            _add_doc(antes)
+
+    search_text = bloque_docs if bloque_docs.strip() else text_norm + " " + text
+    for regex in (doc_code_re, doc_code_hyphen_re):
+        for m in regex.finditer(search_text):
+            _add_doc(m.group(1))
+
+    # Por línea: si la línea contiene "Para revisión", extraer también códigos tipo JLG 193022 / SRT-477
+    for line in lines:
+        if "para revisión" in line.lower() or "para revision" in line.lower():
+            for m in doc_code_re.finditer(line):
+                _add_doc(m.group(1))
+            for m in doc_code_hyphen_re.finditer(line):
+                _add_doc(m.group(1))
+
+    # Último recurso: todos los códigos tipo WORD+NUMBER en todo el texto (excluir ODATA)
+    if not result["documentos"]:
+        for m in doc_code_re.finditer(text_norm):
+            _add_doc(m.group(1))
+        for m in doc_code_hyphen_re.finditer(text_norm):
+            _add_doc(m.group(1))
+
+    # Si el PDF metió espacio entre cada carácter (ej. "J L G 1 9 3 0 2 2"), buscar sin espacios
+    if not result["documentos"]:
+        sin_espacios = re.sub(r"\s+", "", bloque_docs if bloque_docs.strip() else text)
+        for m in re.finditer(r"[A-Za-z]{2,8}\d{5,}", sin_espacios):
+            cod = m.group(0)
+            if "ODATA" in cod.upper():
+                continue
+            # Formatear con espacio: JLG193022 -> JLG 193022
+            for i in range(len(cod) - 1, 0, -1):
+                if cod[i].isdigit() and cod[i - 1].isalpha():
+                    cod = cod[:i] + " " + cod[i:]
+                    break
+            _add_doc(cod)
+
+    return result
+
+
+def _limpiar_referencia_para_asunto(ref):
+    """Quita de la referencia texto como 'REV . WWW.PROPAMAT.CL' para el asunto del correo."""
+    if not ref:
+        return ref
+    # Quitar variantes de REV . WWW.PROPAMAT.CL (con o sin punto, espacios)
+    ref = re.sub(r"\s*REV\s*\.?\s*WWW\.PROPAMAT\.CL\s*", " ", ref, flags=re.IGNORECASE)
+    return ref.strip()
+
+
+def _referencia_solo_para_asunto(ref):
+    """
+    Para el asunto: solo el texto antes de "Nota" (sin incluir Nota), o si no hay Nota,
+    el texto hasta antes de la tabla que comienza con "Ítem" o "Item".
+    """
+    if not ref or not ref.strip():
+        return ref
+    ref = ref.strip()
+    # Primero cortar en "nota" (palabra completa) si existe
+    if re.search(r"\bnota\b", ref, re.IGNORECASE):
+        ref = re.split(r"\bnota\b", ref, 1, re.IGNORECASE)[0].strip()
+    # Luego cortar en "ítem" o "item" (inicio de tabla) si existe
+    if re.search(r"\b(?:ítem|item)\b", ref, re.IGNORECASE):
+        ref = re.split(r"\b(?:ítem|item)\b", ref, 1, re.IGNORECASE)[0].strip()
+    return ref
+
+
+def _build_asunto_transmittal(data):
+    """Sustituye en la plantilla de asunto solo {{ referencia }} y {{ transmittal }}. Sin listado de documentos."""
+    ref = (data.get("referencia") or "").strip()
+    ref = _limpiar_referencia_para_asunto(ref)
+    ref = _referencia_solo_para_asunto(ref)
+    ref = ref.upper()
+    # Una sola línea; límite de longitud
+    if "\n" in ref:
+        ref = ref.split("\n")[0].strip()
+    if len(ref) > 120:
+        ref = ref[:120].rsplit(" ", 1)[0]
+    trans = (data.get("transmittal") or "").strip()
+    return (
+        TRANSMITTAL_ASUNTO_TEMPLATE.replace("{{ referencia }}", ref).replace("{{ transmittal }}", trans)
+    )
+
+
+def _build_cuerpo_transmittal(data, request=None):
+    """Sustituye en la plantilla de cuerpo: {{ transmittal }}, {{ referencia }}, {{ documentos }}.
+    Documentos como tabla de una columna. Quita " Rev . www.propamat.cl" de la referencia.
+    Si request se pasa, devuelve HTML con el transmittal como link a la carpeta."""
+    trans = (data.get("transmittal") or "").strip()
+    ref = _limpiar_referencia_para_asunto((data.get("referencia") or "").strip())
+    docs = data.get("documentos") or []
+    if docs:
+        documentos_bloque = "\n".join("• " + d for d in docs)
+    else:
+        documentos_bloque = "• (no detectados)"
+
+    # En el párrafo: código en negrita y sin link. En la línea previa a Detalle: link a SharePoint de la carpeta del transmittal.
+    if request and trans:
+        transmittal_bold = "<strong>%s</strong>" % trans
+        path = SHAREPOINT_TRANSMITTAL_BASE_PATH + trans
+        id_param = quote(path, safe="")
+        transmittal_link = '<a href="%s?id=%s&viewid=%s&p=true">%s</a>' % (
+            SHAREPOINT_TRANSMITTAL_BASE_URL,
+            id_param,
+            quote(SHAREPOINT_TRANSMITTAL_VIEWID, safe=""),
+            trans,
+        )
+    else:
+        transmittal_bold = trans
+        transmittal_link = trans
+
+    body = (
+        TRANSMITTAL_CUERPO_TEMPLATE.replace("{{ transmittal_bold }}", transmittal_bold)
+        .replace("{{ transmittal_link }}", transmittal_link)
+        .replace("{{ referencia }}", ref)
+        .replace("{{ documentos }}", documentos_bloque)
+    )
+    if request and trans and (transmittal_bold != trans or transmittal_link != trans):
+        body = body.replace("\n", "<br>\n")
+    return body
+
+
+@login_required
+@require_POST
+def extraer_transmittal_ajax(request):
+    """
+    AJAX: recibe un archivo (PDF/DOCX) de transmittal, extrae texto, parsea y devuelve
+    asunto y cuerpo para rellenar el formulario antes de enviar.
+    """
+    archivo = request.FILES.get("archivo")
+    if not archivo or not archivo.name:
+        return JsonResponse({"ok": False, "error": "No se envió ningún archivo."}, status=400)
+    try:
+        text = _extract_text_from_uploaded_file(archivo)
+        data = _parse_transmittal_extract(text, archivo.name)
+        asunto = _build_asunto_transmittal(data)
+        cuerpo = _build_cuerpo_transmittal(data)
+        return JsonResponse({
+            "ok": True,
+            "asunto": asunto,
+            "cuerpo": cuerpo,
+            "transmittal": data.get("transmittal") or "",
+            "referencia": data.get("referencia") or "",
+            "documentos": data.get("documentos") or [],
+        })
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@login_required
+def enviar_correo_view(request):
+    """
+    Formulario para enviar correo desde el sistema: destinatario(s), CC, asunto y cuerpo.
+    Envío desde la cuenta configurada (EMAIL_HOST_USER). Se guarda registro en CorreoEnviado.
+    """
+    if request.method == 'GET':
+        cc_grupos = GrupoCorreo.objects.filter(activo=True).order_by('nombre')
+        return render(request, 'documents/enviar_correo.html', {
+            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
+            'cc_grupos': cc_grupos,
+        })
+
+    # POST
+    cc_grupos = GrupoCorreo.objects.filter(activo=True).order_by('nombre')
+    usar_plantilla = request.POST.get('usar_plantilla_transmittal') == 'on'
+    destinatarios_raw = (request.POST.get('destinatarios') or '').strip()
+    copia_raw = (request.POST.get('copia') or '').strip()
+    destinatario_grupos_ids = request.POST.getlist('destinatario_grupos')
+    cc_grupos_ids = request.POST.getlist('cc_grupos')
+    asunto = (request.POST.get('asunto') or '').strip()
+    cuerpo = (request.POST.get('cuerpo') or '').strip()
+
+    # Leer todos los adjuntos en memoria (para poder reutilizar si usamos plantilla)
+    adjuntos_list = []
+    for f in request.FILES.getlist('adjuntos'):
+        if f and f.name:
+            contenido = f.read()
+            adjuntos_list.append((f.name, contenido, getattr(f, 'content_type', None) or 'application/octet-stream'))
+
+    # Si "Usar plantilla transmittal": extraer del primer adjunto y prellenar asunto/cuerpo (cuerpo con link si hay carpeta)
+    if usar_plantilla and adjuntos_list:
+        from io import BytesIO
+        first_name, first_content, _ = adjuntos_list[0]
+        class _FakeFile:
+            def __init__(self, c, n):
+                self._c, self._n = c, n
+            def read(self): return self._c
+            name = property(lambda self: self._n)
+        fake = _FakeFile(first_content, first_name)
+        text = _extract_text_from_uploaded_file(fake)
+        data = _parse_transmittal_extract(text, first_name)
+        asunto = _build_asunto_transmittal(data)
+        cuerpo = _build_cuerpo_transmittal(data, request=request)
+
+    to_list = list(_parse_emails(destinatarios_raw))
+    for g in GrupoCorreo.objects.filter(pk__in=destinatario_grupos_ids, activo=True):
+        for e in g.lista_emails():
+            if e not in to_list:
+                to_list.append(e)
+    cc_list = list(_parse_emails(copia_raw))
+    for g in GrupoCorreo.objects.filter(pk__in=cc_grupos_ids, activo=True):
+        for e in g.lista_emails():
+            if e not in cc_list:
+                cc_list.append(e)
+
+    if not to_list:
+        messages.error(request, 'Indique al menos un destinatario (email).')
+        return render(request, 'documents/enviar_correo.html', {
+            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
+            'cc_grupos': cc_grupos,
+            'destinatarios': destinatarios_raw,
+            'copia': copia_raw,
+            'asunto': asunto,
+            'cuerpo': cuerpo,
+            'usar_plantilla_transmittal': usar_plantilla,
+        })
+    if not asunto:
+        messages.error(request, 'El asunto no puede estar vacío.')
+        return render(request, 'documents/enviar_correo.html', {
+            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
+            'cc_grupos': cc_grupos,
+            'destinatarios': destinatarios_raw,
+            'copia': copia_raw,
+            'asunto': asunto,
+            'cuerpo': cuerpo,
+            'usar_plantilla_transmittal': usar_plantilla,
+        })
+
+    if not getattr(settings, 'EMAIL_HOST_PASSWORD', None):
+        messages.error(
+            request,
+            'No está configurada la contraseña de correo (EMAIL_HOST_PASSWORD en el entorno). '
+            'Configure la variable de entorno y reinicie el servidor.'
+        )
+        return render(request, 'documents/enviar_correo.html', {
+            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
+            'cc_grupos': cc_grupos,
+            'destinatarios': destinatarios_raw,
+            'copia': copia_raw,
+            'asunto': asunto,
+            'cuerpo': cuerpo,
+            'usar_plantilla_transmittal': usar_plantilla,
+        })
+
+    if usar_plantilla and not adjuntos_list:
+        messages.warning(request, 'Para usar la plantilla transmittal debe adjuntar al menos un archivo (PDF o DOCX).')
+        return render(request, 'documents/enviar_correo.html', {
+            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
+            'cc_grupos': cc_grupos,
+            'destinatarios': destinatarios_raw,
+            'copia': copia_raw,
+            'asunto': asunto,
+            'cuerpo': cuerpo,
+            'usar_plantilla_transmittal': True,
+        })
+
+    adjuntos_nombres = [t[0] for t in adjuntos_list]
+
+    registro = CorreoEnviado(
+        destinatarios=destinatarios_raw,
+        copia=copia_raw,
+        asunto=asunto,
+        cuerpo=cuerpo,
+        adjuntos_nombres=', '.join(adjuntos_nombres) if adjuntos_nombres else '',
+        enviado_por=request.user,
+    )
+    try:
+        msg = EmailMessage(
+            subject=asunto,
+            body=cuerpo,
+            from_email=settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
+            to=to_list,
+            cc=cc_list,
+        )
+        if "<a href=" in cuerpo or "<br>" in cuerpo:
+            msg.content_subtype = "html"
+        for name, contenido, mimetype in adjuntos_list:
+            msg.attach(name, contenido, mimetype or 'application/octet-stream')
+        msg.send(fail_silently=False)
+        registro.enviado_ok = True
+        registro.save()
+        messages.success(request, f'Correo enviado correctamente a {", ".join(to_list)}.')
+        return redirect('enviar_correo')
+    except Exception as e:
+        registro.enviado_ok = False
+        registro.error_msg = str(e)[:512]
+        registro.save()
+        messages.error(request, f'Error al enviar: {e}')
+        return render(request, 'documents/enviar_correo.html', {
+            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
+            'cc_grupos': cc_grupos,
+            'destinatarios': destinatarios_raw,
+            'copia': copia_raw,
+            'asunto': asunto,
+            'cuerpo': cuerpo,
+            'usar_plantilla_transmittal': usar_plantilla,
+        })
 
 
 @login_required
@@ -1236,15 +1774,63 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
             .prefetch_related("folder_files", "documents__attachments")
             .order_by(order_by, then_by)[:500]
         )
+    def _clean_doc_arch(text):
+        """
+        Limpia el texto de Documento-Archivo en los logs,
+        eliminando líneas inútiles como:
+        - 'Rev'
+        - '.'
+        - 'www.propamat.cl'
+        - 'Rev . www.propamat.cl'
+        que a veces se cuelan desde el extracto del PDF.
+        """
+        if not text:
+            return ""
+        out_lines = []
+        for raw in str(text).splitlines():
+            ln = raw.strip()
+            if not ln:
+                continue
+            # Quitar viñetas y puntos sueltos para comparar
+            norm = ln.lstrip("•-*").strip().lower()
+            norm = norm.replace(" ", " ")  # espacio no separable
+            norm = re.sub(r"\s+", " ", norm)
+            if norm in ("rev", ".", "www.propamat.cl", "rev . www.propamat.cl"):
+                continue
+            out_lines.append(ln)
+        return "\n".join(out_lines).strip()
+
     rows = []
     is_odata_list = "odata" in (code_filter or "").lower()
     for f in folders:
         main_extract = _get_main_extract_for_folder(f)
         if is_odata_list:
-            # Propamat a Odata: listar lo que está después de "Referencia:" hasta Detalle/Destinatario
-            doc_arch = _extract_after_referencia_from_text(main_extract)
+            # Misma lógica que el envío de correo transmittal: referencia = texto del asunto (antes de nota/ítem);
+            # documento_archivo = lista de documentos como en el cuerpo (antes de Saludos cordiales, sin Emitido).
+            parsed = _parse_transmittal_extract(main_extract, f.code)
+            ref_raw = parsed.get("referencia") or ""
+            referencia = _referencia_solo_para_asunto(_limpiar_referencia_para_asunto(ref_raw))
+            docs = parsed.get("documentos") or []
+            # Excluir cualquier ítem que sea solo "Emitido" (en cualquier posición)
+            docs = [d for d in docs if re.sub(r"[,.\s]+$", "", (d or "").lower()).strip() != "emitido"]
+            doc_arch = "\n".join("• " + d for d in docs) if docs else ""
             if not doc_arch:
-                doc_arch = _extract_detalle_documentos_adjuntos_odata_from_text(main_extract)
+                doc_arch = _extract_after_referencia_from_text(main_extract)
+                if not doc_arch:
+                    doc_arch = _extract_detalle_documentos_adjuntos_odata_from_text(main_extract)
+                # Quitar líneas con "emitido" y cortar en "Saludos cordiales"
+                if doc_arch:
+                    lineas = []
+                    for ln in doc_arch.replace("\r", "\n").splitlines():
+                        ln = ln.strip()
+                        if not ln:
+                            continue
+                        if "saludos cordiales" in ln.lower():
+                            break
+                        if "emitido" in ln.lower():
+                            continue
+                        lineas.append(ln)
+                    doc_arch = "\n".join(lineas) if lineas else ""
         else:
             doc_arch = _extract_detalle_documentos_adjuntos_from_text(main_extract)
         if not doc_arch:
@@ -1252,13 +1838,20 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
             # No mostrar fallback si es solo revisión (Rev.00) o celda de tabla
             if doc_arch and not is_odata_list and re.match(r"^Rev\.?\s*\d*$", doc_arch.strip(), re.IGNORECASE):
                 doc_arch = ""
+        doc_arch = _clean_doc_arch(doc_arch)
+        if is_odata_list and not referencia:
+            referencia = _referencia_solo_para_asunto(_limpiar_referencia_para_asunto(_extract_referencia_from_text(main_extract)))
+        # Transmittal para listado/Excel/PDF: solo el código (ej. ODATA-ST01-F5-TTAL-PPT-00068), sin " — PROPAMAT-A-ODATA-XX"
+        code = (f.code or "").strip()
+        transmittal_display = code.split(" — ")[0].strip() if code else ""
         rows.append({
             "folder": f,
             "document": None,
-            "transmittal": f.code,
+            "transmittal": code,
             "transmittal_title": f.title or "",
+            "transmittal_display": transmittal_display,
             "descripcion": f.description or "",
-            "referencia": _extract_referencia_from_text(main_extract),
+            "referencia": referencia if is_odata_list else _extract_referencia_from_text(main_extract),
             "fecha_envio": f.date,
             "responsable": _extract_unidad_emisora_from_text(main_extract),
             "documento_archivo": doc_arch,
@@ -1277,11 +1870,12 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
 def _format_log_row_for_export(row, request=None):
     """
     Formatea una fila de log con la misma lógica que los templates:
-    Transmittal (+ título), Especialidad, Referencia, Fecha, Responsable, Documento-Archivo, Estado, Link.
+    Transmittal = solo el código (parte antes de " — "), sin " — PROPAMAT-A-ODATA-XX". Igual en Excel y PDF.
     """
-    trans = (row.get("transmittal") or "")
-    if row.get("transmittal_title"):
-        trans = trans + " — " + (row.get("transmittal_title") or "")
+    trans = row.get("transmittal_display")
+    if trans is None:
+        trans = (row.get("transmittal") or "").strip()
+        trans = trans.split(" — ")[0].strip() if trans else ""
     fe = row.get("fecha_envio")
     fecha_str = fe.strftime("%d/%m/%Y") if fe and hasattr(fe, "strftime") else "—"
     link = "Ver"
@@ -1473,7 +2067,7 @@ def logs_propamat_odata(request):
     return render(
         request,
         "documents/logs_propamat_odata.html",
-        {"rows": rows, "page_title": "Logs Propamat a Odata", "page_subtitle": "Carpetas TRN."},
+        {"rows": rows, "page_title": "Logs de Odata a Propamat", "page_subtitle": "Carpetas de Propamat."},
     )
 
 
@@ -1493,5 +2087,5 @@ def logs_odata_propamat(request):
     return render(
         request,
         "documents/logs_odata_propamat.html",
-        {"rows": rows, "page_title": "Logs Odata a Propamat", "page_subtitle": "Carpetas Odata."},
+        {"rows": rows, "page_title": "Propamat a Odata", "page_subtitle": "Carpetas Propamat."},
     )

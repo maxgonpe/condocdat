@@ -10,6 +10,12 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Cargar variables de entorno desde .env (solo si existe). En producción se usan las del sistema.
+_env_file = BASE_DIR / '.env'
+if _env_file.exists():
+    from dotenv import load_dotenv
+    load_dotenv(_env_file)
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me-in-production')
 
@@ -136,3 +142,16 @@ SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SECURE_SSL_REDIRECT = False
+
+# Email (Outlook / Office 365). Credenciales por entorno; nunca la contraseña en código.
+# Para max.gonzalez@propamat.cl usar SMTP de Office 365; si tienes 2FA, crea una "Contraseña de aplicación" en cuenta Microsoft.
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.smtp.EmailBackend'
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.office365.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'max.gonzalez@propamat.cl')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')  # Obligatorio en producción vía .env
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
