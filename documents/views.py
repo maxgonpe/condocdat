@@ -395,6 +395,25 @@ def pizarra(request):
     logs_propamat = _log_rows_stats(rows_propamat)
     logs_odata = _log_rows_stats(rows_odata)
 
+    # Estadísticas RDI por estado (status)
+    try:
+        from rdi.models import RDIRecord, RDI_STATUS_CHOICES
+
+        rdi_total = RDIRecord.objects.count()
+        rdi_stats = []
+        for code, label in RDI_STATUS_CHOICES:
+            rdi_stats.append(
+                {
+                    "code": code,
+                    "label": label,
+                    "count": RDIRecord.objects.filter(status=code).count(),
+                }
+            )
+    except Exception:
+        # Si RDI aún no está instalado en este entorno, no rompemos la pizarra.
+        rdi_total = 0
+        rdi_stats = []
+
     return render(request, "pizarra.html", {
         "cartas_total": total,
         "cartas_propamat_a_odata": propamat_a_odata,
@@ -404,6 +423,8 @@ def pizarra(request):
         "cartas_si_respondidas": si_respondidas,
         "logs_propamat": logs_propamat,
         "logs_odata": logs_odata,
+        "rdi_total": rdi_total,
+        "rdi_stats": rdi_stats,
     })
 
 
@@ -447,11 +468,27 @@ def document_list(request):
                     snippets = []
                 if snippets:
                     file_name = d.file.name if d.file else 'Documento principal'
+                    qa = _extract_qa_from_delimiters(
+                        d.content_extract,
+                        query=None if use_multi else query,
+                        terms=terms if use_multi else [],
+                    )
+                    pregunta = qa.get("pregunta", "")
+                    respuesta = qa.get("respuesta", "")
+                    especialidad = ""
+                    # Fallback por si el contenido NO viene en formato delimitado fijo
+                    if not respuesta:
+                        respuesta = _extract_respuesta_from_extracted_text("\n".join(snippets))
+                    if not respuesta:
+                        respuesta = _extract_respuesta_from_extracted_text(d.content_extract)
                     hits.append({
                         'source': 'document',
                         'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
                         'file_url': d.file.url if d.file else None,
                         'snippets': snippets,
+                        'pregunta': pregunta,
+                        'respuesta': respuesta,
+                        'especialidad': especialidad,
                     })
             for att in d.attachments.all():
                 if q and att.extracted_text:
@@ -503,54 +540,164 @@ def contrato_view(request):
     - JSON: búsqueda por contenido solo dentro del documento principal y sus adjuntos de esa carpeta.
     """
     q = request.GET.get('q', '').strip()
-    # Determinar carpeta "contrato" y su(s) documento(s) asociados
-    contrato_folder = Folder.objects.filter(code__iexact="contrato").first()
-    base_qs = Document.objects.select_related('project', 'company', 'process', 'doc_type', 'folder')
-    if contrato_folder:
-        base_qs = base_qs.filter(folder=contrato_folder)
-    else:
-        base_qs = base_qs.none()
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
-        docs_for_list = list(base_qs.order_by('-date', '-created_at')[:10])
-        terms = _normalize_terms(q)
+    def _folder_scoped_qs(folder_code: str):
+        folder = Folder.objects.filter(code__iexact=folder_code).first()
+        qs = Document.objects.select_related('project', 'company', 'process', 'doc_type', 'folder').prefetch_related('attachments')
+        if folder:
+            qs = qs.filter(folder=folder)
+        else:
+            qs = qs.none()
+        return folder, qs
+
+    def _folder_scoped_json(qs, query: str):
+        docs_for_list = list(qs.order_by('-date', '-created_at')[:10])
+        terms = _normalize_terms(query)
         use_multi = len(terms) > 1
         docs = []
         for d in docs_for_list:
             hits = []
-            if q and d.content_extract:
-                text_lower = d.content_extract.lower()
-                if use_multi and all(t.lower() in text_lower for t in terms):
-                    snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=12, max_snippets=8)
-                elif not use_multi and q.lower() in text_lower:
-                    snippets = extract_snippets(d.content_extract, q, context_words=12, max_snippets=8)
-                else:
-                    snippets = []
-                if snippets:
-                    file_name = d.file.name if d.file else 'Documento principal'
-                    hits.append({
-                        'source': 'document',
-                        'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
-                        'file_url': d.file.url if d.file else None,
-                        'snippets': snippets,
-                    })
-            for att in d.attachments.all():
-                if q and att.extracted_text:
-                    text_lower = att.extracted_text.lower()
-                    if use_multi and all(t.lower() in text_lower for t in terms):
-                        snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=12, max_snippets=8)
-                    elif not use_multi and q.lower() in text_lower:
-                        snippets = extract_snippets(att.extracted_text, q, context_words=12, max_snippets=8)
+            if query and d.content_extract:
+                # 1) Modo simple Excel: buscar QA dentro de delimitadores ¿... ? @ ... @
+                if use_multi:
+                    qa_list = _extract_all_qa_from_delimiters(
+                        d.content_extract,
+                        query=None,
+                        terms=terms,
+                        max_pairs=8,
+                    )
+                    if qa_list:
+                        file_name = d.file.name if d.file else 'Documento principal'
+                        for qa in qa_list:
+                            hits.append({
+                                'source': 'document',
+                                'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                                'file_url': d.file.url if d.file else None,
+                                'snippets': [],
+                                'pregunta': qa.get("pregunta", ""),
+                                'respuesta': qa.get("respuesta", ""),
+                                'especialidad': qa.get("especialidad", ""),
+                                'gc': qa.get("gc", ""),
+                            })
                     else:
-                        snippets = []
-                    if snippets:
-                        name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                        # 2) Fallback: snippets tradicionales (PDF/DOCX u otros)
+                        text_lower = d.content_extract.lower()
+                        if all(t.lower() in text_lower for t in terms):
+                            snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=10, max_snippets=8)
+                        else:
+                            snippets = []
+                        if snippets:
+                            file_name = d.file.name if d.file else 'Documento principal'
+                            hits.append({
+                                'source': 'document',
+                                'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                                'file_url': d.file.url if d.file else None,
+                                'snippets': snippets,
+                            })
+                else:
+                    qa = _extract_qa_from_delimiters(
+                        d.content_extract,
+                        query=query,
+                        terms=[],
+                    )
+                    if qa.get("pregunta") and qa.get("respuesta"):
+                        file_name = d.file.name if d.file else 'Documento principal'
                         hits.append({
-                            'source': 'attachment',
-                            'file_name': name,
-                            'file_url': att.file.url if att.file else None,
-                            'snippets': snippets,
+                            'source': 'document',
+                            'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                            'file_url': d.file.url if d.file else None,
+                            'snippets': [],
+                            'pregunta': qa.get("pregunta", ""),
+                            'respuesta': qa.get("respuesta", ""),
+                            'especialidad': qa.get("especialidad", ""),
+                            'gc': qa.get("gc", ""),
                         })
+                    else:
+                        # 2) Fallback: snippets tradicionales (PDF/DOCX u otros)
+                        text_lower = d.content_extract.lower()
+                        if query.lower() in text_lower:
+                            snippets = extract_snippets(d.content_extract, query, context_words=10, max_snippets=8)
+                        else:
+                            snippets = []
+                        if snippets:
+                            file_name = d.file.name if d.file else 'Documento principal'
+                            hits.append({
+                                'source': 'document',
+                                'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                                'file_url': d.file.url if d.file else None,
+                                'snippets': snippets,
+                            })
+            for att in d.attachments.all():
+                if query and att.extracted_text:
+                    # 1) Modo simple Excel
+                    if use_multi:
+                        qa_list = _extract_all_qa_from_delimiters(
+                            att.extracted_text,
+                            query=None,
+                            terms=terms,
+                            max_pairs=8,
+                        )
+                        if qa_list:
+                            name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                            for qa in qa_list:
+                                hits.append({
+                                    'source': 'attachment',
+                                    'file_name': name,
+                                    'file_url': att.file.url if att.file else None,
+                                    'snippets': [],
+                                    'pregunta': qa.get("pregunta", ""),
+                                    'respuesta': qa.get("respuesta", ""),
+                                    'especialidad': qa.get("especialidad", ""),
+                                    'gc': qa.get("gc", ""),
+                                })
+                        else:
+                            # 2) Fallback snippets
+                            text_lower = att.extracted_text.lower()
+                            if all(t.lower() in text_lower for t in terms):
+                                snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=10, max_snippets=8)
+                            else:
+                                snippets = []
+                            if snippets:
+                                name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                                hits.append({
+                                    'source': 'attachment',
+                                    'file_name': name,
+                                    'file_url': att.file.url if att.file else None,
+                                    'snippets': snippets,
+                                })
+                    else:
+                        qa = _extract_qa_from_delimiters(
+                            att.extracted_text,
+                            query=query,
+                            terms=[],
+                        )
+                        if qa.get("pregunta") and qa.get("respuesta"):
+                            name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                            hits.append({
+                                'source': 'attachment',
+                                'file_name': name,
+                                'file_url': att.file.url if att.file else None,
+                                'snippets': [],
+                                'pregunta': qa.get("pregunta", ""),
+                                'respuesta': qa.get("respuesta", ""),
+                                'especialidad': qa.get("especialidad", ""),
+                                'gc': qa.get("gc", ""),
+                            })
+                        else:
+                            # 2) Fallback snippets
+                            text_lower = att.extracted_text.lower()
+                            if query.lower() in text_lower:
+                                snippets = extract_snippets(att.extracted_text, query, context_words=10, max_snippets=8)
+                            else:
+                                snippets = []
+                            if snippets:
+                                name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                                hits.append({
+                                    'source': 'attachment',
+                                    'file_name': name,
+                                    'file_url': att.file.url if att.file else None,
+                                    'snippets': snippets,
+                                })
             docs.append({
                 'id': d.id,
                 'code': d.code,
@@ -571,9 +718,205 @@ def contrato_view(request):
             })
         return JsonResponse({'documents': docs})
 
-    # HTML inicial: mostrar (como mucho) el primer documento de esa carpeta
-    qs = base_qs.order_by('-date', '-created_at')
-    return render(request, 'documents/contrato.html', {'document_list': qs[:10], 'contrato_folder': contrato_folder})
+    contrato_folder, contrato_qs = _folder_scoped_qs("contrato")
+    consolidado_folder, consolidado_qs = _folder_scoped_qs("consolidado")
+
+    # JSON (AJAX) solo para contrato en esta ruta
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        return _folder_scoped_json(contrato_qs, q)
+
+    # HTML inicial: mostrar documentos de contrato y consolidado
+    return render(
+        request,
+        'documents/contrato.html',
+        {
+            'document_list': contrato_qs.order_by('-date', '-created_at')[:10],
+            'contrato_folder': contrato_folder,
+            'consolidado_document_list': consolidado_qs.order_by('-date', '-created_at')[:10],
+            'consolidado_folder': consolidado_folder,
+        }
+    )
+
+
+@login_required
+@require_GET
+def consolidado_view(request):
+    """
+    Endpoint JSON/HTML para la carpeta/documento 'consolidado'.
+    Se usa desde la sección Contrato para buscar solo dentro de esa carpeta.
+    """
+    q = request.GET.get('q', '').strip()
+    consolidado_folder = Folder.objects.filter(code__iexact="consolidado").first()
+    base_qs = Document.objects.select_related('project', 'company', 'process', 'doc_type', 'folder').prefetch_related('attachments')
+    if consolidado_folder:
+        base_qs = base_qs.filter(folder=consolidado_folder)
+    else:
+        base_qs = base_qs.none()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        docs_for_list = list(base_qs.order_by('-date', '-created_at')[:10])
+        terms = _normalize_terms(q)
+        use_multi = len(terms) > 1
+        docs = []
+        for d in docs_for_list:
+            hits = []
+            if q and d.content_extract:
+                if use_multi:
+                    qa_list = _extract_all_qa_from_delimiters(
+                        d.content_extract,
+                        query=None,
+                        terms=terms,
+                        max_pairs=8,
+                    )
+                    if qa_list:
+                        file_name = d.file.name if d.file else 'Documento principal'
+                        for qa in qa_list:
+                            hits.append({
+                                'source': 'document',
+                                'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                                'file_url': d.file.url if d.file else None,
+                                'snippets': [],
+                                'pregunta': qa.get("pregunta", ""),
+                                'respuesta': qa.get("respuesta", ""),
+                                'especialidad': qa.get("especialidad", ""),
+                                'gc': qa.get("gc", ""),
+                            })
+                    else:
+                        text_lower = d.content_extract.lower()
+                        if all(t.lower() in text_lower for t in terms):
+                            snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=10, max_snippets=8)
+                        else:
+                            snippets = []
+                        if snippets:
+                            file_name = d.file.name if d.file else 'Documento principal'
+                            hits.append({
+                                'source': 'document',
+                                'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                                'file_url': d.file.url if d.file else None,
+                                'snippets': snippets,
+                            })
+                else:
+                    qa = _extract_qa_from_delimiters(
+                        d.content_extract,
+                        query=q,
+                        terms=[],
+                    )
+                    if qa.get("pregunta") and qa.get("respuesta"):
+                        file_name = d.file.name if d.file else 'Documento principal'
+                        hits.append({
+                            'source': 'document',
+                            'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                            'file_url': d.file.url if d.file else None,
+                            'snippets': [],
+                            'pregunta': qa.get("pregunta", ""),
+                            'respuesta': qa.get("respuesta", ""),
+                            'especialidad': qa.get("especialidad", ""),
+                            'gc': qa.get("gc", ""),
+                        })
+                    else:
+                        text_lower = d.content_extract.lower()
+                        if q.lower() in text_lower:
+                            snippets = extract_snippets(d.content_extract, q, context_words=10, max_snippets=8)
+                        else:
+                            snippets = []
+                        if snippets:
+                            file_name = d.file.name if d.file else 'Documento principal'
+                            hits.append({
+                                'source': 'document',
+                                'file_name': file_name.split('/')[-1] if file_name else 'Documento principal',
+                                'file_url': d.file.url if d.file else None,
+                                'snippets': snippets,
+                            })
+            for att in d.attachments.all():
+                if q and att.extracted_text:
+                    if use_multi:
+                        qa_list = _extract_all_qa_from_delimiters(
+                            att.extracted_text,
+                            query=None,
+                            terms=terms,
+                            max_pairs=8,
+                        )
+                        if qa_list:
+                            name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                            for qa in qa_list:
+                                hits.append({
+                                    'source': 'attachment',
+                                    'file_name': name,
+                                    'file_url': att.file.url if att.file else None,
+                                    'snippets': [],
+                                    'pregunta': qa.get("pregunta", ""),
+                                    'respuesta': qa.get("respuesta", ""),
+                                    'especialidad': qa.get("especialidad", ""),
+                                    'gc': qa.get("gc", ""),
+                                })
+                        else:
+                            text_lower = att.extracted_text.lower()
+                            if all(t.lower() in text_lower for t in terms):
+                                snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=10, max_snippets=8)
+                            else:
+                                snippets = []
+                            if snippets:
+                                name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                                hits.append({
+                                    'source': 'attachment',
+                                    'file_name': name,
+                                    'file_url': att.file.url if att.file else None,
+                                    'snippets': snippets,
+                                })
+                    else:
+                        qa = _extract_qa_from_delimiters(
+                            att.extracted_text,
+                            query=q,
+                            terms=[],
+                        )
+                        if qa.get("pregunta") and qa.get("respuesta"):
+                            name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                            hits.append({
+                                'source': 'attachment',
+                                'file_name': name,
+                                'file_url': att.file.url if att.file else None,
+                                'snippets': [],
+                                'pregunta': qa.get("pregunta", ""),
+                                'respuesta': qa.get("respuesta", ""),
+                                'especialidad': qa.get("especialidad", ""),
+                                'gc': qa.get("gc", ""),
+                            })
+                        else:
+                            text_lower = att.extracted_text.lower()
+                            if q.lower() in text_lower:
+                                snippets = extract_snippets(att.extracted_text, q, context_words=10, max_snippets=8)
+                            else:
+                                snippets = []
+                            if snippets:
+                                name = att.file.name.split('/')[-1] if att.file and att.file.name else 'Adjunto'
+                                hits.append({
+                                    'source': 'attachment',
+                                    'file_name': name,
+                                    'file_url': att.file.url if att.file else None,
+                                    'snippets': snippets,
+                                })
+            docs.append({
+                'id': d.id,
+                'code': d.code,
+                'title': d.title or '',
+                'status': d.status,
+                'status_display': d.get_status_display(),
+                'date': d.date.isoformat() if d.date else '',
+                'revision': d.revision or '',
+                'project': d.project.code,
+                'company': d.company.code,
+                'process': d.process.code,
+                'doc_type': d.doc_type.code,
+                'file_url': d.file.url if d.file else None,
+                'has_file': bool(d.file),
+                'folder_id': d.folder_id,
+                'folder_code': d.folder.code if d.folder else None,
+                'hits': hits,
+            })
+        return JsonResponse({'documents': docs})
+
+    # Si alguien abre /documentos/consolidado/ en navegador, reusar la página principal de contrato
+    return redirect('contrato_view')
 
 @login_required
 @require_GET
@@ -1541,6 +1884,384 @@ def _extract_unidad_emisora_from_text(text):
     return rest[:500] if len(rest) > 500 else rest
 
 
+def _extract_status_from_text(text):
+    """
+    Extrae el valor de 'Status:' o 'Estatus:' desde el extracto del documento principal.
+    Se usa para la columna Estado en logs TRN / ODATA (Propamat↔Odata).
+    Devuelve texto corto normalizado (ej. 'Aprobado', 'Rechazado', u otro valor).
+    """
+    if not text or not isinstance(text, str):
+        return ""
+    t = text
+    lower = t.lower()
+    labels = ["status", "estatus"]
+    idx = -1
+    label_len = 0
+    for lab in labels:
+        i = lower.find(lab)
+        if i >= 0 and (idx < 0 or i < idx):
+            idx = i
+            label_len = len(lab)
+    if idx < 0:
+        return ""
+    start = idx + label_len
+    while start < len(t) and (t[start] == ":" or t[start].isspace()):
+        start += 1
+    rest = t[start:].strip()
+    for sep in ("\n\n", "\r\n\r\n", "\n", "\r\n"):
+        if sep in rest:
+            rest = rest.split(sep)[0].strip()
+            break
+    if not rest:
+        return ""
+    val = re.sub(r"\s+", " ", rest).strip()
+    vlow = val.lower()
+    if "aprob" in vlow or "approved" in vlow:
+        return "Aprobado"
+    if "rechaz" in vlow or "rejected" in vlow:
+        return "Rechazado"
+    if val.isupper() or val.islower():
+        return val.capitalize()
+    return val[:80]
+
+
+def _extract_respuesta_from_extracted_text(text, max_chars=1200):
+    """
+    Extrae la sección agregada por la extracción de XLS/XLSX:
+      "Respuesta:" + valores de esa columna.
+    Devuelve texto (limitado) o '' si no existe.
+    """
+    if not text or not isinstance(text, str):
+        return ""
+    lower = text.lower()
+    marker = "respuesta:"
+    idx = lower.rfind(marker)
+    if idx < 0:
+        return ""
+    rest = text[idx + len(marker):].strip()
+    if not rest:
+        return ""
+
+    # Si vienen pares "Pregunta:" / "Respuesta:" múltiples, cortar en la próxima "Pregunta:"
+    rest_lower = rest.lower()
+    next_q = rest_lower.find("pregunta:")
+    if next_q >= 0:
+        rest = rest[:next_q].strip()
+
+    rest = re.sub(r"\n{3,}", "\n\n", rest).strip()
+    if len(rest) > max_chars:
+        rest = rest[:max_chars].rsplit("\n", 1)[0].rstrip() + " …"
+    return rest
+
+
+def _extract_respuesta_from_excel_pairs(text, terms=None, query=None, max_chars=1200):
+    """
+    Para archivos Excel extraídos como pares:
+      "Pregunta: ...\\nRespuesta: ..."
+
+    Devuelve la "Respuesta" cuya "Pregunta" matchee con:
+    - si query (frase exacta) viene: substring match en la pregunta
+    - si no: todos los términos aparecen en la pregunta
+    """
+    if not text or not isinstance(text, str):
+        return ""
+    terms = terms or []
+    query = (query or "").strip()
+    pattern = re.compile(
+        r"Pregunta:\s*(?P<preg>.*?)\s*Respuesta:\s*(?P<resp>.*?)(?=Pregunta:|$)",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    q_lower = query.lower()
+    for m in pattern.finditer(text):
+        preg = (m.group("preg") or "").strip()
+        resp = (m.group("resp") or "").strip()
+        if not resp:
+            continue
+        preg_l = preg.lower()
+        if q_lower:
+            if q_lower in preg_l:
+                result = resp
+                break
+        else:
+            if terms and all((t or "").lower() in preg_l for t in terms):
+                result = resp
+                break
+    else:
+        return ""
+
+    result = result.replace("\r\n", "\n").replace("\r", "\n")
+    result = re.sub(r"[ \t]+", " ", result)
+    result = re.sub(r"\n{3,}", "\n\n", result).strip()
+    if not result:
+        return ""
+    if len(result) > max_chars:
+        result = result[:max_chars].rsplit(" ", 1)[0].rstrip() + " …"
+    return result
+
+
+def _extract_qa_from_delimiters(text, query=None, terms=None):
+    """
+    Extrae pares QA desde texto indexado con formato fijo:
+      ¿Pregunta?@Respuesta@
+
+    - pregunta: incluye delimitadores ¿...?
+    - respuesta: contenido ENTRE @...@ (sin @)
+    """
+    if not text or not isinstance(text, str):
+        return {"pregunta": "", "respuesta": "", "especialidad": "", "gc": ""}
+
+    pattern_meta = re.compile(
+        r"GC:\s*(?P<gc>[^\r\n]*)[\r\n]+\s*Especialidad:\s*(?P<esp>[^\r\n]*)"
+        r"(?:[\r\n]+\s*N:\s*(?P<num>[^\r\n]*))?"
+        r"[\r\n]+(?P<preg>¿.*?\?)[ \t\r\n]*@(?P<resp>.*?)@",
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    pattern_plain = re.compile(
+        r"(?P<preg>¿.*?\?)[ \t\r\n]*@(?P<resp>.*?)@",
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    matches = list(pattern_meta.finditer(text))
+    if not matches:
+        matches = list(pattern_plain.finditer(text))
+    if not matches:
+        return {"pregunta": "", "respuesta": "", "especialidad": "", "gc": ""}
+
+    query = (query or "").strip()
+    terms = terms or []
+
+    def norm(s: str) -> str:
+        return (s or "").strip().replace("\r\n", "\n").replace("\r", "\n")
+
+    # 1) Prioridad: si viene query, match en pregunta o respuesta
+    if query:
+        ql = query.lower()
+        for m in matches:
+            preg = norm(m.group("preg"))
+            resp = norm(m.group("resp"))
+            gc = norm(m.groupdict().get("gc", ""))
+            especialidad = norm(m.groupdict().get("esp", ""))
+            numero = norm(m.groupdict().get("num", ""))
+            pl = preg.lower()
+            rl = resp.lower()
+            if ql in pl or ql in rl:
+                return {
+                    "pregunta": preg,
+                    "respuesta": resp,
+                    "especialidad": especialidad,
+                    "gc": gc,
+                    "numero": numero,
+                }
+
+    # 2) Multi-término: cada término debe aparecer en pregunta o respuesta
+    if terms:
+        terms_l = [(t or "").strip().lower() for t in terms if (t or "").strip()]
+        if terms_l:
+            for m in matches:
+                preg = norm(m.group("preg"))
+                resp = norm(m.group("resp"))
+                gc = norm(m.groupdict().get("gc", ""))
+                especialidad = norm(m.groupdict().get("esp", ""))
+                numero = norm(m.groupdict().get("num", ""))
+                pl = preg.lower()
+                rl = resp.lower()
+                if all((t in pl) or (t in rl) for t in terms_l):
+                    return {
+                        "pregunta": preg,
+                        "respuesta": resp,
+                        "especialidad": especialidad,
+                        "gc": gc,
+                        "numero": numero,
+                    }
+
+    # 3) fallback: primer match
+    m = matches[0]
+    return {
+        "pregunta": norm(m.group("preg")),
+        "respuesta": norm(m.group("resp")),
+        "especialidad": norm(m.groupdict().get("esp", "")),
+        "gc": norm(m.groupdict().get("gc", "")),
+        "numero": norm(m.groupdict().get("num", "")),
+    }
+
+
+def _extract_all_qa_from_delimiters(text, query=None, terms=None, max_pairs=8):
+    """
+    Igual que _extract_qa_from_delimiters pero devuelve una lista:
+      ¿Pregunta?@Respuesta@
+
+    - si query viene: retorna pares donde query aparece en pregunta o respuesta
+    - si terms viene: retorna pares donde CADA término aparece en pregunta o respuesta
+    """
+    if not text or not isinstance(text, str):
+        return []
+
+    pattern_meta = re.compile(
+        r"GC:\s*(?P<gc>[^\r\n]*)[\r\n]+\s*Especialidad:\s*(?P<esp>[^\r\n]*)"
+        r"(?:[\r\n]+\s*N:\s*(?P<num>[^\r\n]*))?"
+        r"[\r\n]+(?P<preg>¿.*?\?)[ \t\r\n]*@(?P<resp>.*?)@",
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    pattern_plain = re.compile(
+        r"(?P<preg>¿.*?\?)[ \t\r\n]*@(?P<resp>.*?)@",
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+    matches = list(pattern_meta.finditer(text))
+    if not matches:
+        matches = list(pattern_plain.finditer(text))
+    if not matches:
+        return []
+
+    query = (query or "").strip().lower()
+    terms_l = [(t or "").strip().lower() for t in (terms or []) if (t or "").strip()]
+    # Evita que términos repetidos afecten el conteo de coincidencias.
+    terms_l = list(dict.fromkeys(terms_l))
+
+    def norm(s: str) -> str:
+        return (s or "").strip().replace("\r\n", "\n").replace("\r", "\n")
+
+    out = []
+    for m in matches:
+        preg = norm(m.group("preg"))
+        resp = norm(m.group("resp"))
+        gc = norm(m.groupdict().get("gc", ""))
+        especialidad = norm(m.groupdict().get("esp", ""))
+        numero = norm(m.groupdict().get("num", ""))
+        if not preg or not resp:
+            continue
+
+        pl = preg.lower()
+        rl = resp.lower()
+
+        ok = False
+        if query:
+            ok = (query in pl) or (query in rl)
+        elif terms_l:
+            # Búsqueda extendida: aceptar SOLO si TODOS los términos aparecen
+            # en la pregunta o en la respuesta (AND).
+            matched = sum(1 for t in terms_l if (t in pl) or (t in rl))
+            ok = matched == len(terms_l)
+            if ok:
+                out.append(
+                    (
+                        matched,
+                        m.start(),
+                        {
+                            "pregunta": preg,
+                            "respuesta": resp,
+                            "especialidad": especialidad,
+                            "gc": gc,
+                            "numero": numero,
+                        },
+                    )
+                )
+            if ok:
+                # continuamos para no duplicar el append en el bloque final
+                continue
+        else:
+            ok = True
+
+        if ok:
+            # Sin scoring cuando no usamos términos
+            out.append(
+                (
+                    1,
+                    m.start(),
+                    {
+                        "pregunta": preg,
+                        "respuesta": resp,
+                        "especialidad": especialidad,
+                        "gc": gc,
+                        "numero": numero,
+                    },
+                )
+            )
+            if len(out) >= max_pairs:
+                break
+    # Si usamos términos, out viene con tuplas (matched, start, qa)
+    # Ordenar por mayor cantidad de términos, y por aparición (start) en caso de empate.
+    if terms_l:
+        out_sorted = sorted(out, key=lambda x: (-x[0], x[1]))
+        return [item[2] for item in out_sorted[:max_pairs]]
+    return [item[2] for item in out]
+
+
+def _extract_pregunta_y_respuesta_from_excel_pairs(text, terms=None, query=None, max_chars=1200):
+    """
+    Para archivos Excel extraídos como pares:
+      "Pregunta: ...\\nRespuesta: ..."
+
+    Devuelve dict {pregunta, respuesta, especialidad} para el par cuya Pregunta matchee:
+    - si query viene: substring match en la pregunta
+    - si no: todos los términos aparecen en la pregunta
+    """
+    if not text or not isinstance(text, str):
+        return {"pregunta": "", "respuesta": "", "especialidad": ""}
+    terms = terms or []
+    query = (query or "").strip()
+
+    pattern = re.compile(
+        r"Pregunta:\s*(?P<preg>.*?)\s*Respuesta:\s*(?P<resp>.*?)(?=Pregunta:|$)",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+    q_lower = query.lower()
+    for m in pattern.finditer(text):
+        preg = (m.group("preg") or "").strip()
+        resp = (m.group("resp") or "").strip()
+        if not resp:
+            continue
+
+        preg_l = preg.lower()
+        resp_l = resp.lower()
+        if q_lower:
+            if q_lower in preg_l or q_lower in resp_l:
+                break
+        else:
+            if terms and all((t or "").lower() in preg_l for t in terms):
+                break
+            if terms and all((t or "").lower() in resp_l for t in terms):
+                break
+    else:
+        return {"pregunta": "", "respuesta": "", "especialidad": ""}
+
+    # Especialidad: tomada desde la misma "fila/registro" que contiene Pregunta/Respuesta.
+    # En el texto indexado del Excel suele venir como:
+    #   Especialidad: XYZ
+    #   Pregunta: ...
+    #
+    # Por eso buscamos "especialidad:" lo más cerca posible antes del match.
+    especialidad = ""
+    try:
+        start_pos = m.start()
+        window_start = max(0, start_pos - 500)  # suficiente para cubrir el bloque "Especialidad: ...\n"
+        before_window = text[window_start:start_pos]
+        # Importante: no usar `\s*` porque puede consumir el salto de línea cuando el valor está vacío,
+        # y terminar capturando el siguiente label (ej. "Pregunta: ...") como "especialidad".
+        esp_re = re.search(
+            r"especialidad:[ \t]*(?P<esp>[^\r\n]*)",
+            before_window,
+            flags=re.IGNORECASE,
+        )
+        if esp_re:
+            especialidad = (esp_re.group("esp") or "").strip()
+    except Exception:
+        especialidad = ""
+
+    preg_norm = re.sub(r"\s+", " ", preg).strip()
+    resp_norm = resp.replace("\r\n", "\n").replace("\r", "\n")
+    resp_norm = re.sub(r"[ \t]+", " ", resp_norm)
+    resp_norm = re.sub(r"\n{3,}", "\n\n", resp_norm).strip()
+    especialidad_norm = re.sub(r"\s+", " ", especialidad).strip()
+    if len(especialidad_norm) > 120:
+        especialidad_norm = especialidad_norm[:120].rsplit(" ", 1)[0].strip()
+    if len(resp_norm) > max_chars:
+        resp_norm = resp_norm[:max_chars].rsplit(" ", 1)[0].rstrip() + " …"
+
+    return {"pregunta": preg_norm, "respuesta": resp_norm, "especialidad": especialidad_norm}
+
+
 def _get_main_extract_for_folder(folder):
     """
     Devuelve el extracto donde se buscan Referencia, Responsable y Documento-Archivo en los logs.
@@ -1555,6 +2276,18 @@ def _get_main_extract_for_folder(folder):
         if ff.extracted_text and ff.extracted_text.strip():
             return ff.extracted_text
     return ""
+
+
+def _get_main_document_for_folder(folder):
+    """
+    Devuelve el documento principal asociado a la carpeta para usar valores de BD (ej. status).
+    Heurística: primer documento con content_extract; si no, el primer documento de la carpeta.
+    """
+    docs = list(folder.documents.all())
+    for doc in docs:
+        if doc.content_extract and doc.content_extract.strip():
+            return doc
+    return docs[0] if docs else None
 
 
 def _extract_detalle_documentos_adjuntos_from_text(text):
@@ -1804,6 +2537,7 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
     is_odata_list = "odata" in (code_filter or "").lower()
     for f in folders:
         main_extract = _get_main_extract_for_folder(f)
+        main_doc = _get_main_document_for_folder(f)
         if is_odata_list:
             # Misma lógica que el envío de correo transmittal: referencia = texto del asunto (antes de nota/ítem);
             # documento_archivo = lista de documentos como en el cuerpo (antes de Saludos cordiales, sin Emitido).
@@ -1841,12 +2575,20 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
         doc_arch = _clean_doc_arch(doc_arch)
         if is_odata_list and not referencia:
             referencia = _referencia_solo_para_asunto(_limpiar_referencia_para_asunto(_extract_referencia_from_text(main_extract)))
+        # Estado desde base de datos (Document.status), no desde el extracto del PDF/DOCX
+        if main_doc and getattr(main_doc, "status", None):
+            try:
+                estado = main_doc.get_status_display()
+            except Exception:
+                estado = str(main_doc.status)
+        else:
+            estado = ""
         # Transmittal para listado/Excel/PDF: solo el código (ej. ODATA-ST01-F5-TTAL-PPT-00068), sin " — PROPAMAT-A-ODATA-XX"
         code = (f.code or "").strip()
         transmittal_display = code.split(" — ")[0].strip() if code else ""
         rows.append({
             "folder": f,
-            "document": None,
+            "document": main_doc,
             "transmittal": code,
             "transmittal_title": f.title or "",
             "transmittal_display": transmittal_display,
@@ -1855,7 +2597,7 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
             "fecha_envio": f.date,
             "responsable": _extract_unidad_emisora_from_text(main_extract),
             "documento_archivo": doc_arch,
-            "estado": "",
+            "estado": estado,
             "detalle": "",
             "enviado_a": "",
             "requiere_respuesta": "",
@@ -1886,7 +2628,6 @@ def _format_log_row_for_export(row, request=None):
             link = request.build_absolute_uri(reverse("document_detail", args=[row["document"].pk]))
     return {
         "transmittal": trans,
-        "especialidad": (row.get("descripcion") or "").strip(),
         "referencia": (row.get("referencia") or "—").strip(),
         "fecha_envio": fecha_str,
         "responsable": (row.get("responsable") or "—").strip(),
@@ -1898,7 +2639,7 @@ def _format_log_row_for_export(row, request=None):
 
 def _logs_excel_response(rows, list_name, request=None):
     """
-    Excel para listados de logs (Propamat↔Odata) con las mismas 8 columnas que el template.
+    Excel para listados de logs (Propamat↔Odata) con las mismas columnas que el template.
     Celdas con wrap, márgenes pequeños, filtros automáticos en la fila de encabezado.
     """
     from openpyxl import Workbook
@@ -1913,7 +2654,7 @@ def _logs_excel_response(rows, list_name, request=None):
     ws = wb.active
     ws.title = sheet_title
     headers = [
-        "Transmittal", "Especialidad", "Referencia", "Fecha envío (emisor)",
+        "Transmittal", "Referencia", "Fecha envío (emisor)",
         "Responsable", "Documento - Archivo", "Estado",
     ]
     ws.append(headers)
@@ -1928,7 +2669,6 @@ def _logs_excel_response(rows, list_name, request=None):
         d = _format_log_row_for_export(row, request)
         ws.append([
             d["transmittal"],
-            d["especialidad"],
             d["referencia"],
             d["fecha_envio"],
             d["responsable"],
@@ -1945,17 +2685,16 @@ def _logs_excel_response(rows, list_name, request=None):
                 cell.border = Border(top=light, left=light, right=light, bottom=light)
     # Filtros automáticos en la primera fila (encabezados)
     n_data = len(rows) + 1
-    ws.auto_filter.ref = f"A1:G{n_data}"
+    ws.auto_filter.ref = f"A1:F{n_data}"
     # Márgenes pequeños para más espacio de tabla
     ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.4, bottom=0.4, header=0.2, footer=0.2)
     # Anchos de columna razonables
     ws.column_dimensions["A"].width = 22
-    ws.column_dimensions["B"].width = 18
-    ws.column_dimensions["C"].width = 28
-    ws.column_dimensions["D"].width = 14
-    ws.column_dimensions["E"].width = 20
-    ws.column_dimensions["F"].width = 36
-    ws.column_dimensions["G"].width = 12
+    ws.column_dimensions["B"].width = 28
+    ws.column_dimensions["C"].width = 14
+    ws.column_dimensions["D"].width = 20
+    ws.column_dimensions["E"].width = 36
+    ws.column_dimensions["F"].width = 12
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -1966,7 +2705,7 @@ def _logs_excel_response(rows, list_name, request=None):
 
 def _logs_pdf_response(rows, list_name, inline=False):
     """
-    PDF para listados de logs: mismas 8 columnas que el template.
+    PDF para listados de logs: mismas columnas que el template.
     Orientación horizontal, márgenes pequeños, celdas multilínea (Paragraph), estilo elegante.
     """
     from reportlab.lib import colors
@@ -2009,7 +2748,7 @@ def _logs_pdf_response(rows, list_name, inline=False):
         return Paragraph(s or " ", style)
 
     headers = [
-        "Transmittal", "Especialidad", "Referencia", "Fecha envío (emisor)",
+        "Transmittal", "Referencia", "Fecha envío (emisor)",
         "Responsable", "Documento - Archivo", "Estado",
     ]
     data = [[safe_para(h, para_header) for h in headers]]
@@ -2017,15 +2756,14 @@ def _logs_pdf_response(rows, list_name, inline=False):
         d = _format_log_row_for_export(row, request=None)
         data.append([
             safe_para(d["transmittal"]),
-            safe_para(d["especialidad"]),
             safe_para(d["referencia"]),
             safe_para(d["fecha_envio"]),
             safe_para(d["responsable"]),
             safe_para(d["documento_archivo"]),
             safe_para(d["estado"]),
         ])
-    # Anchos repartidos para landscape A4 (~27.7 cm útil), 7 columnas
-    col_widths = [3.5*cm, 3*cm, 3.5*cm, 2.4*cm, 3*cm, 6.5*cm, 2.2*cm]
+    # Anchos repartidos para landscape A4 (~27.7 cm útil), 6 columnas
+    col_widths = [3.5*cm, 4.0*cm, 2.6*cm, 3.2*cm, 9.8*cm, 2.6*cm]
     t = Table(data, colWidths=col_widths, repeatRows=1)
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2E5090")),

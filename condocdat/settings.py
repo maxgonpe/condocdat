@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'documents',
+    'rdi',
 ]
 
 MIDDLEWARE = [
@@ -133,12 +134,15 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.condocdat.netgogo.cl',
     'http://condocdat.netgogo.cl',
     'http://www.condocdat.netgogo.cl',
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
 ]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-CSRF_COOKIE_SECURE = True
+# En HTTP local, cookies Secure=no se guardan → sesión/CSRF fallan (bucles o POST que no “termina” bien)
+CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SECURE_SSL_REDIRECT = False
@@ -155,3 +159,5 @@ EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1',
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'max.gonzalez@propamat.cl')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')  # Obligatorio en producción vía .env
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+# Evita que el envío SMTP cuelgue indefinidamente (el navegador queda “cargando”)
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '90'))

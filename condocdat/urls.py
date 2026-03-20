@@ -14,6 +14,7 @@ urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', custom_logout, name='logout'),
     path('documentos/', include('documents.urls')),
+    path('rdi/', include('rdi.urls')),
     path('admin/', admin.site.urls),
 ]
 

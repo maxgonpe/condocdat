@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Enviar correo{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Enviar correo</h1>
+  <p class="muted">
+    Envío desde la cuenta <strong>{{ email_from|default:"(no configurada)" }}</strong>.
+    Destinatarios, copia, asunto y cuerpo se pueden guardar en el sistema.
+  </p>
+</header>
+
+<div class="card card--list">
+  <form id="form-enviar-correo" method="post" action="{% url 'enviar_correo' %}" class="form-stack" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-group form-group--checkbox">
+      <label>
+        <input type="checkbox" name="usar_plantilla_transmittal" {% if usar_plantilla_transmittal %}checked{% endif %}>
+        Usar plantilla Transmittal (extraer datos del primer adjunto)
+      </label>
+      <small class="form-hint">Adjunte el PDF/DOCX del transmittal (ej. ODATA-ST01-F5-TTAL-PPT-00093). Se extraerán código, referencia y lista de documentos para rellenar asunto y cuerpo.</small>
+    </div>
+    <div class="form-group">
+      <label for="id_destinatarios">Destinatario(s) <span class="required">*</span></label>
+      <input type="text" id="id_destinatarios" name="destinatarios" class="form-control"
+             placeholder="email1@ejemplo.com, email2@ejemplo.com"
+             value="{{ destinatarios|default:'' }}">
+      <small class="form-hint">Correos sueltos y/o marca grupos abajo. Al menos un destinatario (texto o grupo) es obligatorio.</small>
+    </div>
+    {% if cc_grupos %}
+    <div class="form-group">
+      <label>Incluir en Para / Destinatarios (grupos)</label>
+      <div class="cc-grupos-wrap">
+        {% for g in cc_grupos %}
+        <label class="cc-grupo-item">
+          <input type="checkbox" name="destinatario_grupos" value="{{ g.pk }}">
+          {{ g.nombre }}{% if g.descripcion %} — {{ g.descripcion }}{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      <small class="form-hint">Marca uno o más grupos; todos sus correos irán en Para (destinatarios).</small>
+    </div>
+    {% endif %}
+    <div class="form-group">
+      <label for="id_copia">Copia (CC)</label>
+      <input type="text" id="id_copia" name="copia" class="form-control"
+             placeholder="cc1@ejemplo.com, cc2@ejemplo.com"
+             value="{{ copia|default:'' }}">
+      <small class="form-hint">Correos adicionales sueltos (opcional). Puedes combinar con los grupos de abajo.</small>
+    </div>
+    {% if cc_grupos %}
+    <div class="form-group">
+      <label>Incluir en CC (grupos)</label>
+      <div class="cc-grupos-wrap">
+        {% for g in cc_grupos %}
+        <label class="cc-grupo-item">
+          <input type="checkbox" name="cc_grupos" value="{{ g.pk }}">
+          {{ g.nombre }}{% if g.descripcion %} — {{ g.descripcion }}{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      <small class="form-hint">Marca uno o más grupos; se añadirán todos sus correos a la copia.</small>
+    </div>
+    {% endif %}
+    <div class="form-group">
+      <label for="id_asunto">Asunto <span class="required">*</span></label>
+      <input type="text" id="id_asunto" name="asunto" class="form-control"
+             placeholder="Asunto del correo"
+             value="{{ asunto|default:'' }}"
+             autocomplete="off"
+             aria-required="true">
+      {# sin required HTML: con plantilla Transmittal el asunto llega tras el AJAX; el servidor valida #}
+    </div>
+    <div class="form-group">
+      <label for="id_cuerpo">Cuerpo del mensaje</label>
+      <textarea id="id_cuerpo" name="cuerpo" class="form-control" rows="8"
+                placeholder="Escriba aquí el contenido del correo...">{{ cuerpo|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+      <label for="id_adjuntos">Adjuntos <span class="required">*</span> si usa plantilla Transmittal</label>
+      <input type="file" id="id_adjuntos" name="adjuntos" class="form-control" multiple
+             accept=".pdf,.docx,*/*">
+      <small class="form-hint">Uno o más archivos. Si activó la plantilla Transmittal, el primero debe ser la hoja de transmittal (nombre tipo ODATA-ST01-F5-TTAL-PPT-00023). Tamaño total &lt; 25 MB.</small>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Enviar correo</button>
+      <a href="{% url 'pizarra' %}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<style>
+.form-stack .form-group { margin-bottom: 1rem; }
+.form-stack label { display: block; margin-bottom: 0.25rem; font-weight: 500; }
+.form-hint { font-size: 0.85rem; color: var(--muted, #666); margin-top: 0.25rem; display: block; }
+.form-actions { margin-top: 1.25rem; }
+.form-actions .btn { margin-right: 0.5rem; }
+.required { color: #c00; }
+.cc-grupos-wrap { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; margin-top: 0.35rem; }
+.cc-grupo-item { font-weight: normal; display: inline-flex; align-items: center; gap: 0.35rem; }
+.extract-status { font-size: 0.9rem; margin-top: 0.35rem; }
+.extract-status.loading { color: var(--muted, #666); }
+.extract-status.ok { color: #0a0; }
+.extract-status.err { color: #c00; }
+</style>
+
+<script>
+(function() {
+  var form = document.getElementById('form-enviar-correo');
+  if (!form) return;
+  var checkbox = form.querySelector('input[name="usar_plantilla_transmittal"]');
+  var fileInput = document.getElementById('id_adjuntos');
+  var asuntoInput = document.getElementById('id_asunto');
+  var cuerpoInput = document.getElementById('id_cuerpo');
+  var submitBtn = form.querySelector('button[type="submit"]');
+  var extractUrl = '{% url "extraer_transmittal_ajax" %}';
+  var csrfEl = form.querySelector('[name=csrfmiddlewaretoken]');
+  var csrfToken = csrfEl ? csrfEl.value : '';
+
+  function getCookie(name) {
+    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+
+  function setExtractStatus(msg, type) {
+    var el = document.getElementById('extract-status');
+    if (!el) {
+      el = document.createElement('small');
+      el.id = 'extract-status';
+      el.className = 'form-hint extract-status';
+      fileInput.parentNode.appendChild(el);
+    }
+    el.textContent = msg;
+    el.className = 'form-hint extract-status ' + (type || '');
+  }
+
+  fileInput.addEventListener('change', function() {
+    if (!checkbox || !checkbox.checked) return;
+    var files = fileInput.files;
+    if (!files || files.length === 0) {
+      setExtractStatus('', '');
+      return;
+    }
+    var first = files[0];
+    var fd = new FormData();
+    fd.append('archivo', first);
+    fd.append('csrfmiddlewaretoken', csrfToken);
+    setExtractStatus('Extrayendo datos del transmittal…', 'loading');
+    fetch(extractUrl, {
+      method: 'POST',
+      body: fd,
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function(r) {
+        var ct = (r.headers.get('content-type') || '').toLowerCase();
+        if (!ct.includes('application/json')) {
+          return r.text().then(function(t) {
+            throw new Error('Respuesta no JSON (¿sesión o CSRF? Recarga la página).');
+          });
+        }
+        return r.json();
+      })
+      .then(function(data) {
+        if (data.ok) {
+          asuntoInput.value = data.asunto || '';
+          cuerpoInput.value = data.cuerpo || '';
+          setExtractStatus('Asunto y cuerpo rellenados desde «' + first.name + '».', 'ok');
+        } else {
+          setExtractStatus('Error: ' + (data.error || 'No se pudo extraer.'), 'err');
+        }
+      })
+      .catch(function(err) {
+        setExtractStatus(err.message || 'Error al conectar con el servidor.', 'err');
+      });
+  });
+
+  if (checkbox) {
+    checkbox.addEventListener('change', function() {
+      if (!checkbox.checked && document.getElementById('extract-status')) {
+        setExtractStatus('', '');
+      }
+    });
+  }
+
+  form.addEventListener('submit', function() {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando…';
+    }
+  });
+})();
+</script>
+{% endblock %}

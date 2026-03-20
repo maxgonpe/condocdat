@@ -8,6 +8,7 @@
 
 - **Producción**: las variables deben definirse **en el servidor**, no en un archivo dentro del repo.
   - Opción 1: archivo `.env` en la raíz del proyecto **solo en el servidor**, con el mismo contenido que en local (incluido `EMAIL_HOST_PASSWORD=...`). Asegurarse de que ese `.env` no esté en git.
+  - **Docker:** el `.env` no está dentro del contenedor; las variables de correo deben estar en el `.env` **del host** y figurar en `docker-compose.prod.yml` (p. ej. `EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}`). Tras editar `.env`, recrear el contenedor.
   - Opción 2: exportar antes de arrancar la app, por ejemplo en systemd:
     ```ini
     [Service]

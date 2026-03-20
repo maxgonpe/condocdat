@@ -25,7 +25,6 @@
       <thead>
         <tr>
           <th>Transmittal</th>
-          <th>Especialidad</th>
           <th>Referencia</th>
           <th>Fecha envío (emisor)</th>
           <th>Responsable</th>
@@ -37,7 +36,6 @@
         {% for row in rows %}
         <tr>
           <td>{{ row.transmittal_display|default:row.transmittal|default:"" }}</td>
-          <td>{{ row.descripcion|truncatewords:12|default:"" }}</td>
           <td>{{ row.referencia|truncatewords:20|default:"—" }}</td>
           <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
           <td>{{ row.responsable|default:"—" }}</td>
@@ -46,7 +44,7 @@
         </tr>
         {% empty %}
         <tr class="empty-state">
-          <td colspan="7" class="muted">No hay carpetas Odata.</td>
+          <td colspan="6" class="muted">No hay carpetas Odata.</td>
         </tr>
         {% endfor %}
       </tbody>

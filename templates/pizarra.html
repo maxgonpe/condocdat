@@ -72,6 +72,15 @@
   .pizarra-estatus--odata { border-color: #7b68ee; box-shadow: 0 0 12px rgba(123, 104, 238, 0.4), 0 0 24px rgba(123, 104, 238, 0.2); }
   .pizarra-estatus--odata h2 { color: #a78bfa; text-shadow: 0 0 10px rgba(167, 139, 250, 0.8); }
   .pizarra-estatus-grid--logs { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  /* RDI: queremos el tamaño de fuente tipo "valor" grande (como otros cards),
+     pero conservamos los colores del modificador --text. */
+  .pizarra-stat--text.pizarra-stat--rdi .valor{
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+    word-break: normal;
+  }
 </style>
 {% endblock %}
 
@@ -168,6 +177,22 @@
       <span class="valor">{{ logs_odata.procedimientos|default:0 }}</span>
       <span class="etiqueta">Procedimientos</span>
     </div>
+  </div>
+</div>
+
+<div class="pizarra-estatus card">
+  <h2>Estatus de las RDI</h2>
+  <div class="pizarra-estatus-grid">
+    <div class="pizarra-stat pizarra-stat--total">
+      <span class="valor">{{ rdi_total|default:0 }}</span>
+      <span class="etiqueta">Total RDI</span>
+    </div>
+    {% for s in rdi_stats %}
+      <div class="pizarra-stat pizarra-stat--text pizarra-stat--rdi">
+        <span class="valor">{{ s.count|default:0 }}</span>
+        <span class="etiqueta">{{ s.label }}</span>
+      </div>
+    {% endfor %}
   </div>
 </div>
 {% endblock %}

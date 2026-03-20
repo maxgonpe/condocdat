@@ -37,6 +37,16 @@ python3 -c "from django.core.management.utils import get_random_secret_key; prin
 
 No subas `.env` a git (ya está en `.gitignore`).
 
+**Correo en Docker:** el archivo `.env` **no entra** en la imagen (`.dockerignore`). Django dentro del contenedor solo ve variables que **inyecta** `docker-compose.prod.yml`. Añade en tu `.env` del servidor (misma carpeta que el compose):
+
+```env
+EMAIL_HOST_PASSWORD=tu_contraseña
+EMAIL_HOST_USER=max.gonzalez@propamat.cl
+# opcional: EMAIL_HOST, EMAIL_PORT, DEFAULT_FROM_EMAIL
+```
+
+Luego `docker compose -f docker-compose.prod.yml up -d` (o `--force-recreate`) para que el contenedor reciba esas variables.
+
 ### 3. Directorios para volúmenes
 
 Crea los directorios que monta el compose (el entrypoint también los crea dentro del contenedor, pero es buena práctica tenerlos en el host con permisos correctos):

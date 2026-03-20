@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}RDI{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>RDI</h1>
+  <p class="muted">
+    Listado (vía AJAX) y búsqueda.
+  </p>
+</header>
+
+<div class="card card--list">
+  <div class="form-group" style="max-width: 520px; margin-bottom: 1rem;">
+    <label for="rdi-search">Buscar</label>
+    <input type="text" id="rdi-search" class="form-control" placeholder="Buscar por título, status, compañía, etc..." autocomplete="off">
+  </div>
+
+  <div class="form-group" style="margin-bottom: 1rem;">
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+      <button type="button" id="rdi-excel-btn" class="btn btn-outline">Descargar Excel</button>
+      <button type="button" id="rdi-pdf-btn" class="btn btn-outline">Generar PDF</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table" id="rdi-table">
+      <thead>
+        <tr>
+          <th>CSV ID</th>
+          <th>Titulo</th>
+          <th>Estado</th>
+          <th>Consulta</th>
+          <th>Respuesta</th>
+          <th>Fecha vencimiento</th>
+          <th>Fecha creación</th>
+          <th>Fecha actualización</th>
+        </tr>
+      </thead>
+      <tbody id="rdi-tbody">
+        <tr><td colspan="8" class="muted">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function() {
+  function escapeHtml(s) {
+    if (s == null) return '';
+    var div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+  }
+
+  function fmtDateShort(s) {
+    // Espera ISO: 2026-03-19T...; devolvemos solo YYYY-MM-DD
+    if (!s) return '';
+    return String(s).slice(0, 10);
+  }
+
+  function renderRow(r) {
+    return (
+      '<tr>' +
+        '<td style="width: 90px;">' + escapeHtml(r.csv_id) + '</td>' +
+        '<td style="max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + escapeHtml(r.title) + '</td>' +
+        '<td style="max-width: 160px;">' + escapeHtml(r.status_label || r.status) + '</td>' +
+        '<td style="max-width: 420px; white-space: pre-wrap; max-height: 4.8rem; overflow: auto;">' + escapeHtml(r.question || '') + '</td>' +
+        '<td style="max-width: 520px; white-space: pre-wrap; max-height: 4.8rem; overflow: auto;">' + escapeHtml(r.response || '') + '</td>' +
+        '<td>' + escapeHtml(fmtDateShort(r.due_date)) + '</td>' +
+        '<td>' + escapeHtml(fmtDateShort(r.created_at)) + '</td>' +
+        '<td>' + escapeHtml(fmtDateShort(r.updated_at)) + '</td>' +
+      '</tr>'
+    );
+  }
+
+  var seq = 0; // Evita que respuestas antiguas sobrescriban la tabla
+  var currentQuery = "";
+
+  var excelExportUrl = "{% url 'rdi_export_excel' %}";
+  var pdfExportUrl = "{% url 'rdi_export_pdf' %}";
+
+  function exportExcel() {
+    var q = currentQuery ? String(currentQuery).trim() : "";
+    var url = excelExportUrl;
+    if (q) url += "?q=" + encodeURIComponent(q);
+    window.location.href = url;
+  }
+
+  function exportPdf() {
+    var q = currentQuery ? String(currentQuery).trim() : "";
+    var url = pdfExportUrl;
+    if (q) url += "?q=" + encodeURIComponent(q);
+    window.open(url, "_blank");
+  }
+
+  function bindExportButtons() {
+    var btnExcel = document.getElementById("rdi-excel-btn");
+    var btnPdf = document.getElementById("rdi-pdf-btn");
+    if (btnExcel) btnExcel.onclick = exportExcel;
+    if (btnPdf) btnPdf.onclick = exportPdf;
+  }
+
+  function loadList(q) {
+    seq += 1;
+    var mySeq = seq;
+    currentQuery = q || "";
+    var tbody = document.getElementById('rdi-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Cargando...</td></tr>';
+
+    var url = "{% url 'rdi_records_json' %}";
+    if (q && String(q).trim()) {
+      url += "?q=" + encodeURIComponent(q.trim());
+    }
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (mySeq !== seq) return;
+        var records = (data && data.records) ? data.records : [];
+        if (!records.length) {
+          tbody.innerHTML = '<tr><td colspan="8" class="muted">No hay registros.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = records.map(renderRow).join('');
+      })
+      .catch(function() {
+        if (mySeq !== seq) return;
+        tbody.innerHTML = '<tr><td colspan="8" class="muted">Error cargando registros.</td></tr>';
+      });
+  }
+
+  function initSearch() {
+    var input = document.getElementById('rdi-search');
+    if (!input) {
+      loadList('');
+      return;
+    }
+
+    var debounceTimer;
+    input.addEventListener('input', function() {
+      var q = input.value;
+      currentQuery = q || "";
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        loadList(q);
+      }, 300);
+    });
+
+    // carga inicial
+    loadList(input.value);
+    bindExportButtons();
+  }
+
+  document.addEventListener('DOMContentLoaded', initSearch);
+})();
+</script>
+{% endblock %}
+

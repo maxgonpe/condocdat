@@ -126,11 +126,40 @@ class Document(models.Model):
     STATUS_DRAFT = "DRAFT"
     STATUS_ISSUED = "ISSUED"
     STATUS_OBSOLETE = "OBSOLETE"
+    STATUS_APPROVED = "APPROVED"
+    STATUS_REJECTED = "REJECTED"
+    STATUS_PENDING = "PENDING"
+    # Estados adicionales para flujo documental
+    STATUS_PRELIMINAR = "PRELIMINAR"
+    STATUS_SOLO_INFO = "SOLO_INFO"
+    STATUS_REVISION = "REVISION"
+    STATUS_REV_Y_CONOC = "REV_Y_CONOC"
+    STATUS_CONOCIMIENTO = "CONOCIMIENTO"
+    STATUS_CONSTRUCCION = "CONSTRUCCION"
+    STATUS_COMENTARIOS = "COMENTARIOS"
+    STATUS_DEVUELTO_COM = "DEVUELTO_COM"
+    STATUS_CONOC_CORREC = "CONOC_CORREC"
+    STATUS_CERTIFICADO = "CERTIFICADO"
+    STATUS_ENT_FINAL = "ENT_FINAL"
 
     STATUS_CHOICES = [
         (STATUS_DRAFT, "Borrador"),
         (STATUS_ISSUED, "Emitido"),
         (STATUS_OBSOLETE, "Obsoleto"),
+        (STATUS_APPROVED, "Aprobado"),
+        (STATUS_REJECTED, "Rechazado"),
+        (STATUS_PENDING, "Pendiente"),
+        (STATUS_PRELIMINAR, "Preliminar"),
+        (STATUS_SOLO_INFO, "Solo-Info"),
+        (STATUS_REVISION, "Revisión"),
+        (STATUS_REV_Y_CONOC, "Rev-y-conoc."),
+        (STATUS_CONOCIMIENTO, "Conocimiento"),
+        (STATUS_CONSTRUCCION, "Construcción"),
+        (STATUS_COMENTARIOS, "Comentarios"),
+        (STATUS_DEVUELTO_COM, "Devuelto-Comentarios"),
+        (STATUS_CONOC_CORREC, "Conoc-con-correc."),
+        (STATUS_CERTIFICADO, "Certificado"),
+        (STATUS_ENT_FINAL, "Entrega-Final"),
     ]
 
     project = models.ForeignKey(Project, on_delete=models.PROTECT, related_name="documents")

@@ -52,7 +52,7 @@
 </div>
 
 <div id="contract-context-modal-wrap" class="context-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 1000;" aria-hidden="true" role="dialog" aria-labelledby="contract-context-modal-title">
-  <div class="context-modal-content" style="background: var(--bg-elevated, #fff); border-radius: var(--radius-lg, 12px); max-width: 700px; max-height: 85vh; overflow: auto; box-shadow: var(--shadow-lg); padding: 1.5rem;">
+  <div class="context-modal-content" style="background: var(--bg-elevated, #fff); border-radius: var(--radius-lg, 12px); max-width: 1100px; max-height: 92vh; overflow: auto; box-shadow: var(--shadow-lg); padding: 2rem; font-size: 1.15rem; line-height: 1.65;">
     <h2 id="contract-context-modal-title" style="margin-top: 0; margin-bottom: 1rem;">Contexto en contrato</h2>
     <div id="contract-context-modal-body"></div>
     <p style="margin-top: 1rem; margin-bottom: 0;">
@@ -61,22 +61,55 @@
   </div>
 </div>
 
+<header class="page-header" style="margin-top: 1.75rem;">
+  <h1>Consolidado</h1>
+  <p class="muted">
+    Búsqueda de información solo dentro del documento de la carpeta
+    <strong>{{ consolidado_folder.code|default:"consolidado" }}</strong>.
+  </p>
+</header>
+
+<div class="card card--list">
+  <div class="form-group" style="max-width: 400px; margin-bottom: 1rem;">
+    <label for="consolidado-search">Buscar en consolidado</label>
+    <input type="text" id="consolidado-search" class="form-control" placeholder="Término o frase a buscar..."
+           autocomplete="off">
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table" id="consolidado-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Carpeta</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th>Rev.</th>
+          <th>Archivo</th>
+          <th>Contexto</th>
+        </tr>
+      </thead>
+      <tbody id="consolidado-tbody">
+        {% for doc in consolidado_document_list %}
+        <tr data-id="{{ doc.id }}">
+          <td><a href="{% url 'document_detail' doc.pk %}">{{ doc.code }}</a></td>
+          <td>{% if doc.folder %}<a href="{% url 'folder_detail' doc.folder.pk %}">{{ doc.folder.code }}</a>{% else %}—{% endif %}</td>
+          <td>{{ doc.get_status_display }}</td>
+          <td>{{ doc.date|date:"d/m/Y" }}</td>
+          <td>{{ doc.revision }}</td>
+          <td>{% if doc.file %}<a href="{{ doc.file.url }}" target="_blank" rel="noopener">Ver</a>{% else %}—{% endif %}</td>
+          <td>—</td>
+        </tr>
+        {% empty %}
+        <tr id="consolidado-empty" class="empty-state"><td colspan="7" class="muted">No se encontró el documento de consolidado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <script>
 (function() {
-  var tbody = document.getElementById('contract-tbody');
-  var searchInput = document.getElementById('contract-search');
-  var emptyRow = document.getElementById('contract-empty');
-  var debounceTimer;
-
-  function getCookie(name) {
-    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
-    return v ? v[2] : null;
-  }
-  function getCsrf() {
-    var el = document.querySelector('[name=csrfmiddlewaretoken]');
-    return el ? el.value : getCookie('csrftoken');
-  }
-
   function escapeAttr(s) {
     if (s == null) return '';
     return String(s)
@@ -92,6 +125,26 @@
     var div = document.createElement('div');
     div.textContent = s;
     return div.innerHTML;
+  }
+
+  // Resalta en rojo lo que esté dentro de ¿...?
+  function highlightInvertedQuestionRed(text) {
+    if (text == null) return '';
+    text = String(text);
+    var out = '';
+    var regex = /¿(.*?)\?/g; // busca desde ¿ hasta el primer ?
+    var last = 0;
+    var m;
+    while ((m = regex.exec(text)) !== null) {
+      var before = text.slice(last, m.index);
+      if (before) out += escapeHtml(before);
+      var full = m[0]; // incluye ¿ y ?
+      out += '<span style="color:#ff0000 !important; font-weight:900;">' + escapeHtml(full) + '</span>';
+      last = m.index + full.length;
+    }
+    var tail = text.slice(last);
+    if (tail) out += escapeHtml(tail);
+    return out;
   }
 
   function snippetToHtml(s) {
@@ -129,18 +182,38 @@
     var titleEl = document.getElementById('contract-context-modal-title');
     var bodyEl = document.getElementById('contract-context-modal-body');
     if (!wrap || !titleEl || !bodyEl) return;
-    titleEl.textContent = 'Contexto en contrato — ' + code;
+    titleEl.textContent = 'Contexto — ' + code;
     var html = '';
-    hits.forEach(function(h) {
+    hits.forEach(function(h, idx) {
       var fileName = escapeHtml(h.file_name || 'Archivo');
       var fileLink = h.file_url ? ('<a href="' + escapeHtml(h.file_url) + '" target="_blank" rel="noopener">' + fileName + '</a>') : fileName;
       html += '<div class="context-hit" style="margin-bottom: 1rem;">';
       html += '<div class="context-file" style="font-weight: 600; margin-bottom: 0.35rem;">' + fileLink + '</div>';
-      html += '<div class="context-snippets">';
-      (h.snippets || []).forEach(function(snip) {
-        html += '<div class="context-snippet" style="background: var(--surface-hover, #f5f5f5); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.35rem; font-size: 0.9rem;">' + snippetToHtml(snip) + '</div>';
-      });
-      html += '</div></div>';
+      // Si el Excel está estructurado por filas (Pregunta/Respuesta), mostramos:
+      // Pregunta (contexto) -> Respuesta (fila siguiente)
+      if (h.pregunta && h.respuesta) {
+        html += '<div style="margin-top:0.25rem; background: #fff; border-left: 5px solid #2E5090; padding: 0.85rem 1rem; border-radius: 10px;">';
+        var especialidadSafe = escapeHtml(h.especialidad || '');
+        var numeroSafe = escapeHtml(h.numero || '');
+        var gcSafe = escapeHtml(h.gc || '');
+        var preguntaHeader = 'Pregunta';
+        if (especialidadSafe) preguntaHeader += ' — ' + especialidadSafe;
+        var nToShow = numeroSafe || gcSafe;
+        if (nToShow) preguntaHeader += ' (N°: ' + nToShow + ')';
+        html += '<div style="font-weight:900; margin-bottom:0.35rem;">' + preguntaHeader + '</div>';
+        html += '<div style="white-space:pre-wrap; margin-bottom:0.85rem; font-size:1.05rem;">' + highlightInvertedQuestionRed(h.pregunta) + '</div>';
+        html += '<div style="font-weight:900; color:#ff0000 !important; margin-bottom:0.35rem;">Respuesta</div>';
+        html += '<div style="white-space:pre-wrap; background: #ffecec; padding: 0.9rem 1rem; border-radius: 10px; font-size:1.07rem; color:#ff0000 !important; border: 1px solid rgba(255,0,0,0.25);">' + escapeHtml(h.respuesta) + '</div>';
+        html += '</div>';
+      } else {
+        html += '<div class="context-snippets">';
+        (h.snippets || []).forEach(function(snip) {
+          html += '<div class="context-snippet" style="background: var(--surface-hover, #f5f5f5); padding: 0.75rem 0.9rem; border-radius: 8px; margin-bottom: 0.5rem; font-size: 1.03rem;">' + snippetToHtml(snip) + '</div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
     });
     bodyEl.innerHTML = html || '<p class="muted">Sin fragmentos.</p>';
     wrap.style.display = 'flex';
@@ -152,32 +225,8 @@
     if (wrap) { wrap.style.display = 'none'; wrap.setAttribute('aria-hidden', 'true'); }
   }
 
-  function doSearch() {
-    var q = searchInput.value.trim();
-    var url = '/documentos/contrato/?format=json';
-    if (q) url += '&q=' + encodeURIComponent(q);
-    tbody.innerHTML = '<tr><td colspan="7" class="muted">Buscando en contrato…</td></tr>';
-    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        tbody.innerHTML = '';
-        if (!data.documents || data.documents.length === 0) {
-          tbody.innerHTML = '<tr class="empty-state"><td colspan="7" class="muted">' +
-            (q ? 'No hay coincidencias en el contrato para «' + escapeHtml(q) + '».' : 'No se encontró el documento de contrato.') + '</td></tr>';
-        } else {
-          data.documents.forEach(function(d) {
-            tbody.insertAdjacentHTML('beforeend', renderRow(d));
-          });
-          bindContextButtons();
-        }
-      })
-      .catch(function() {
-        tbody.innerHTML = '<tr><td colspan="7" class="alert alert-error">Error al buscar en contrato.</td></tr>';
-      });
-  }
-
-  function bindContextButtons() {
-    tbody.querySelectorAll('.contract-context').forEach(function(btn) {
+  function bindContextButtons(tbodyEl, buttonClass) {
+    tbodyEl.querySelectorAll('.' + buttonClass).forEach(function(btn) {
       btn.onclick = function() {
         var code = this.getAttribute('data-code');
         var hitsRaw = this.getAttribute('data-hits');
@@ -190,13 +239,71 @@
     });
   }
 
-  searchInput.addEventListener('input', function() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(doSearch, 300);
+  function makeScopedSearch(opts) {
+    var tbodyEl = document.getElementById(opts.tbodyId);
+    var inputEl = document.getElementById(opts.inputId);
+    if (!tbodyEl || !inputEl) return;
+    var debounceTimer;
+    var seq = 0; // Evita que respuestas antiguas de fetch sobrescriban la tabla
+
+    function doSearch() {
+      var q = inputEl.value.trim();
+      seq += 1;
+      var mySeq = seq;
+      var url = opts.jsonUrl;
+      if (q) url += '&q=' + encodeURIComponent(q);
+      tbodyEl.innerHTML = '<tr><td colspan="7" class="muted">' + escapeHtml(opts.loadingText) + '</td></tr>';
+      fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (mySeq !== seq) return; // ya llegó una búsqueda más nueva
+          tbodyEl.innerHTML = '';
+          if (!data.documents || data.documents.length === 0) {
+            tbodyEl.innerHTML = '<tr class="empty-state"><td colspan="7" class="muted">' +
+              (q ? opts.emptyWithQueryPrefix + ' «' + escapeHtml(q) + '».' : opts.emptyNoDocText) + '</td></tr>';
+          } else {
+            data.documents.forEach(function(d) {
+              tbodyEl.insertAdjacentHTML('beforeend', renderRow(d));
+            });
+            bindContextButtons(tbodyEl, opts.buttonClass);
+          }
+        })
+        .catch(function() {
+          if (mySeq !== seq) return;
+          tbodyEl.innerHTML = '<tr><td colspan="7" class="alert alert-error">' + escapeHtml(opts.errorText) + '</td></tr>';
+        });
+    }
+
+    inputEl.addEventListener('input', function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(doSearch, 300);
+    });
+
+    inputEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+    });
+  }
+
+  makeScopedSearch({
+    tbodyId: 'contract-tbody',
+    inputId: 'contract-search',
+    jsonUrl: '/documentos/contrato/?format=json',
+    buttonClass: 'contract-context',
+    loadingText: 'Buscando en contrato…',
+    emptyWithQueryPrefix: 'No hay coincidencias en el contrato para',
+    emptyNoDocText: 'No se encontró el documento de contrato.',
+    errorText: 'Error al buscar en contrato.'
   });
 
-  searchInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  makeScopedSearch({
+    tbodyId: 'consolidado-tbody',
+    inputId: 'consolidado-search',
+    jsonUrl: '/documentos/consolidado/?format=json',
+    buttonClass: 'contract-context',
+    loadingText: 'Buscando en consolidado…',
+    emptyWithQueryPrefix: 'No hay coincidencias en el consolidado para',
+    emptyNoDocText: 'No se encontró el documento de consolidado.',
+    errorText: 'Error al buscar en consolidado.'
   });
 
   document.getElementById('contract-context-modal-close').addEventListener('click', closeContextModal);

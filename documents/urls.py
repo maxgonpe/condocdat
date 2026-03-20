@@ -4,8 +4,10 @@ from . import views
 urlpatterns = [
     path('', views.document_list, name='document_list'),
     path('contrato/', views.contrato_view, name='contrato_view'),
-    path('correo/', views.enviar_correo_view, name='enviar_correo'),
+    path('consolidado/', views.consolidado_view, name='consolidado_view'),
+    # Ruta más específica primero (evita que /correo/ intercepte el AJAX)
     path('correo/extraer-transmittal/', views.extraer_transmittal_ajax, name='extraer_transmittal_ajax'),
+    path('correo/', views.enviar_correo_view, name='enviar_correo'),
     path('buscar/', views.search_unified_view, name='search_unified'),
     path('carpetas/', views.folder_list, name='folder_list'),
     path('carpetas/<int:pk>/', views.folder_detail, name='folder_detail'),
