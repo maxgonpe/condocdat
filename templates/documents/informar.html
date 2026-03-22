@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ page_title|default:"Propamat a Odata" }}{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>{{ page_title|default:"Propamat a Odata" }}</h1>
+  <p class="muted">{{ page_subtitle|default:"Carpetas Propamat, ordenadas de la más reciente a la más antigua por nombre." }}</p>
+</header>
+
+<div class="card card--list">
+  <div class="list-filters" style="display:flex; justify-content:center; margin-bottom:1rem;">
+    <label for="logs-search-odata" class="sr-only">Buscar en los logs</label>
+    <input
+      id="logs-search-odata"
+      type="search"
+      class="input"
+      placeholder="Buscar en cualquier columna…"
+      autocomplete="off"
+      style="max-width:480px; width:100%; padding:0.65rem 1rem; border-radius:999px; border:1px solid #c5ced8; box-shadow:0 1px 3px rgba(15,23,42,0.08);"
+    >
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Transmittal</th>
+          <th>Referencia</th>
+          <th>Fecha envío (emisor)</th>
+          {# <th>Responsable</th> oculto en Informar; row.responsable sigue viniendo de la vista #}
+          <th>Documento - Archivo</th>
+          <th>Informados</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.transmittal_display|default:row.transmittal|default:"" }}</td>
+          <td>{{ row.referencia|truncatewords:20|default:"—" }}</td>
+          <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+          {# <td>{{ row.responsable|default:"—" }}</td> #}
+          <td>{% if row.file_url %}<a href="{{ row.file_url }}" target="_blank" rel="noopener">{{ row.documento_archivo|linebreaksbr }}</a>{% else %}{{ row.documento_archivo|linebreaksbr|default:"—" }}{% endif %}</td>
+          <td>{{ row.informado_display|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr class="empty-state">
+          <td colspan="5" class="muted">No hay carpetas Odata.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const input = document.getElementById("logs-search-odata");
+    if (!input) return;
+    const table = input.closest(".card--list").querySelector("table.data-table tbody");
+    if (!table) return;
+    function normalize(text) {
+      return (text || "").toString().toLowerCase();
+    }
+    function filterRows() {
+      const q = normalize(input.value);
+      const rows = table.querySelectorAll("tr");
+      rows.forEach(function(row) {
+        if (row.classList.contains("empty-state")) return;
+        const cells = row.querySelectorAll("td");
+        let match = !q;
+        if (q) {
+          for (let i = 0; i < cells.length; i++) {
+            const cellText = normalize(cells[i].innerText || cells[i].textContent);
+            if (cellText.indexOf(q) !== -1) {
+              match = true;
+              break;
+            }
+          }
+        }
+        row.style.display = match ? "" : "none";
+      });
+    }
+    let timeoutId = null;
+    input.addEventListener("input", function() {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(filterRows, 150);
+    });
+  })();
+</script>
+
+<nav class="list-actions">
+  <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
+  <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
+  <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
+  <a href="{% url 'informar_list' %}?format=excel" class="btn btn-excel" download>Descargar Excel</a>
+  <a href="{% url 'informar_list' %}?format=pdf&open=1" class="btn btn-pdf" target="_blank" rel="noopener">Abrir PDF</a>
+  <a href="{% url 'informar_list' %}?format=pdf" class="btn btn-pdf" download>Descargar PDF</a>
+</nav>
+{% endblock %}

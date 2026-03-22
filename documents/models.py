@@ -142,6 +142,16 @@ class Document(models.Model):
     STATUS_CERTIFICADO = "CERTIFICADO"
     STATUS_ENT_FINAL = "ENT_FINAL"
 
+    # Seguimiento “Informar” (carpetas ODATA-BUF-* y documentos TRN-PRO-CM-TRN-*)
+    INFORMADO_NO = "no_informados"
+    INFORMADO_SI = "informados"
+    INFORMADO_OTRA = "otra_vez_informados"
+    INFORMADO_CHOICES = [
+        (INFORMADO_NO, "No informados"),
+        (INFORMADO_SI, "Informados"),
+        (INFORMADO_OTRA, "Otra vez informados"),
+    ]
+
     STATUS_CHOICES = [
         (STATUS_DRAFT, "Borrador"),
         (STATUS_ISSUED, "Emitido"),
@@ -179,6 +189,13 @@ class Document(models.Model):
     revision = models.CharField(max_length=20, blank=True, default="0")
     date = models.DateField(default=timezone.now)
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    informado = models.CharField(
+        max_length=32,
+        choices=INFORMADO_CHOICES,
+        default=INFORMADO_NO,
+        db_index=True,
+        help_text="Estado de información para documentos ODATA-BUF / TRN-PRO-CM-TRN-",
+    )
 
     # opcional: adjunto del documento
     file = models.FileField(upload_to="documents/%Y/%m/", blank=True, null=True)

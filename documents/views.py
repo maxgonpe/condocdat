@@ -414,6 +414,15 @@ def pizarra(request):
         rdi_total = 0
         rdi_stats = []
 
+    # Informar: ODATA-BUF-* y TRN-PRO-CM-TRN-*
+    informar_qs = Document.objects.filter(
+        Q(folder__code__icontains="ODATA-BUF") | Q(code__istartswith="TRN-PRO-CM-TRN-")
+    ).distinct()
+    informar_total = informar_qs.count()
+    informar_stats = {code: 0 for code, _ in Document.INFORMADO_CHOICES}
+    for row in informar_qs.values("informado").annotate(n=Count("id")):
+        informar_stats[row["informado"]] = row["n"]
+
     return render(request, "pizarra.html", {
         "cartas_total": total,
         "cartas_propamat_a_odata": propamat_a_odata,
@@ -425,6 +434,8 @@ def pizarra(request):
         "logs_odata": logs_odata,
         "rdi_total": rdi_total,
         "rdi_stats": rdi_stats,
+        "informar_total": informar_total,
+        "informar_stats": informar_stats,
     })
 
 
@@ -1250,10 +1261,27 @@ def enviar_correo_view(request):
     """
     if request.method == 'GET':
         cc_grupos = GrupoCorreo.objects.filter(activo=True).order_by('nombre')
-        return render(request, 'documents/enviar_correo.html', {
+        ctx = {
             'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
             'cc_grupos': cc_grupos,
-        })
+        }
+        # Enlace desde Informar: ?doc=<pk> rellena asunto y cuerpo con referencia al documento
+        doc_pk = request.GET.get('doc')
+        if doc_pk:
+            try:
+                pref = Document.objects.select_related('folder').get(pk=int(doc_pk))
+                link_doc = request.build_absolute_uri(reverse('document_detail', args=[pref.pk]))
+                folder_bit = (pref.folder.code if pref.folder else '') or '—'
+                ctx['destinatarios'] = ''
+                ctx['asunto'] = f"{pref.code}"
+                ctx['cuerpo'] = (
+                    f"Documento: {pref.code}\n"
+                    f"Carpeta / transmittal: {folder_bit}\n"
+                    f"Ver en Condocdat: {link_doc}\n"
+                )
+            except (ValueError, Document.DoesNotExist):
+                pass
+        return render(request, 'documents/enviar_correo.html', ctx)
 
     # POST
     cc_grupos = GrupoCorreo.objects.filter(activo=True).order_by('nombre')
@@ -1321,7 +1349,8 @@ def enviar_correo_view(request):
             'usar_plantilla_transmittal': usar_plantilla,
         })
 
-    if not getattr(settings, 'EMAIL_HOST_PASSWORD', None):
+    _email_pw = (getattr(settings, 'EMAIL_HOST_PASSWORD', None) or '').strip()
+    if not _email_pw:
         messages.error(
             request,
             'No está configurada la contraseña de correo (EMAIL_HOST_PASSWORD en el entorno). '
@@ -2583,6 +2612,14 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
                 estado = str(main_doc.status)
         else:
             estado = ""
+        # Etiqueta del campo Document.informado (p. ej. plantilla Informar); no sustituye "estado" (status del doc).
+        if main_doc:
+            try:
+                informado_display = main_doc.get_informado_display()
+            except Exception:
+                informado_display = getattr(main_doc, "informado", "") or "—"
+        else:
+            informado_display = "—"
         # Transmittal para listado/Excel/PDF: solo el código (ej. ODATA-ST01-F5-TTAL-PPT-00068), sin " — PROPAMAT-A-ODATA-XX"
         code = (f.code or "").strip()
         transmittal_display = code.split(" — ")[0].strip() if code else ""
@@ -2598,6 +2635,7 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
             "responsable": _extract_unidad_emisora_from_text(main_extract),
             "documento_archivo": doc_arch,
             "estado": estado,
+            "informado_display": informado_display,
             "detalle": "",
             "enviado_a": "",
             "requiere_respuesta": "",
@@ -2825,5 +2863,25 @@ def logs_odata_propamat(request):
     return render(
         request,
         "documents/logs_odata_propamat.html",
+        {"rows": rows, "page_title": "Propamat a Odata", "page_subtitle": "Carpetas Propamat."},
+    )
+
+
+@login_required
+@require_GET
+def informar_list(request):
+    """
+    Informar: misma data, columnas y exportación que «Logs Odata a Propamat»
+    (_get_logs_folder_rows("Odata")).
+    """
+    rows = _get_logs_folder_rows("Odata")
+    if request.GET.get("format") == "excel":
+        return _logs_excel_response(rows, list_name="Logs ODATA-ST01 Odata a Propamat", request=request)
+    if request.GET.get("format") == "pdf":
+        open_inline = request.GET.get("open") == "1"
+        return _logs_pdf_response(rows, list_name="Logs ODATA-ST01 Odata a Propamat", inline=open_inline)
+    return render(
+        request,
+        "documents/informar.html",
         {"rows": rows, "page_title": "Propamat a Odata", "page_subtitle": "Carpetas Propamat."},
     )

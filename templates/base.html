@@ -54,6 +54,7 @@
           <a href="{% url 'cartas_status' %}" class="{% if request.resolver_match.url_name == 'cartas_status' %}active{% endif %}">Estatus Cartas</a>
           <a href="{% url 'logs_odata_propamat' %}" class="{% if request.resolver_match.url_name == 'logs_odata_propamat' %}active{% endif %}">Logs Propamat a Odata</a>
           <a href="{% url 'logs_propamat_odata' %}" class="{% if request.resolver_match.url_name == 'logs_propamat_odata' %}active{% endif %}">Logs Odata a Propamat</a>
+          <a href="{% url 'informar_list' %}" class="{% if request.resolver_match.url_name == 'informar_list' %}active{% endif %}">Informar</a>
           <a href="{% url 'rdi_list' %}" class="{% if request.resolver_match.url_name == 'rdi_list' %}active{% endif %}">RDI</a>
           <a href="{% url 'search_unified' %}" class="{% if request.resolver_match.url_name == 'search_unified' %}active{% endif %}">Buscar</a>
           <a href="{% url 'enviar_correo' %}" class="{% if request.resolver_match.url_name == 'enviar_correo' %}active{% endif %}">Enviar correo</a>

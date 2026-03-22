@@ -40,8 +40,8 @@ class DocumentSequenceAdmin(admin.ModelAdmin):
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('code', 'title', 'project', 'company', 'process', 'doc_type', 'folder', 'status', 'date')
-    list_filter = ('project', 'status', 'doc_type', 'folder')
+    list_display = ('code', 'title', 'project', 'company', 'process', 'doc_type', 'folder', 'status', 'informado', 'date')
+    list_filter = ('project', 'status', 'informado', 'doc_type', 'folder')
     search_fields = ('code', 'title', 'description', 'content_extract')
     readonly_fields = ('code', 'created_at', 'updated_at')
     inlines = [DocumentAttachmentInline]
