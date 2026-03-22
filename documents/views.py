@@ -20,6 +20,103 @@ from .models import Document, Folder, FolderFile, DocumentAttachment, CorreoEnvi
 from .search_backend import search_unified, _normalize_terms
 from .snippets import extract_snippets, extract_snippets_multi_term
 
+from rdi.models import (
+    RDIRecord,
+    RDI_INFORMADO_NO,
+    RDI_INFORMADO_SI,
+    RDI_INFORMADO_OTRA,
+)
+
+
+def _format_datetime_correo_es(dt):
+    if not dt:
+        return "—"
+    try:
+        if timezone.is_aware(dt):
+            dt = timezone.localtime(dt)
+        return dt.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return str(dt)
+
+
+def _bool_carta_es(val):
+    if val is None:
+        return "No indicado"
+    return "Sí" if val else "No"
+
+
+def _cuerpo_correo_desde_rdi_record(rdi: RDIRecord, request) -> str:
+    """
+    Texto tipo carta con todos los campos visibles del registro RDI (BIM).
+    """
+    status_labels = dict(RDIRecord._meta.get_field("status").choices)
+    try:
+        informado_txt = rdi.get_informado_display()
+    except Exception:
+        informado_txt = str(rdi.informado or "—")
+
+    def t(s):
+        return (s or "").strip()
+
+    lines = [
+        "Estimados,",
+        "",
+        "Por medio del presente se informa el siguiente registro RDI (origen BIM) para su conocimiento y gestión:",
+        "",
+        "─── Datos generales ───",
+        f"Identificador (CSV): {rdi.csv_id}",
+    ]
+    if t(rdi.title):
+        lines.append(f"Asunto / título: {t(rdi.title)}")
+    lines.append(f"Estado del RDI: {status_labels.get(rdi.status, rdi.status)}")
+    lines.append(f"Estado «Informar»: {informado_txt}")
+    lines.append(f"Compañía: {t(rdi.company) or '—'}")
+    lines.append(f"Prioridad: {t(rdi.priority) or '—'}")
+    lines.append(f"Disciplina: {t(rdi.discipline) or '—'}")
+    lines.append(f"Categoría: {t(rdi.category) or '—'}")
+    lines.append(f"Referencia: {t(rdi.reference) or '—'}")
+    lines.append(f"Impacto en costo: {t(rdi.cost_impact) or '—'}")
+    lines.append(f"Impacto en cronograma: {t(rdi.schedule_impact) or '—'}")
+    lines.append(f"¿Asociado a documento?: {_bool_carta_es(rdi.associated_to_document)}")
+    lines.append(f"Fecha de vencimiento: {_format_datetime_correo_es(rdi.due_date)}")
+    lines.extend(["", "─── Consulta ───", t(rdi.question) or "(Sin texto)", ""])
+    lines.extend(["─── Respuesta sugerida ───", t(rdi.suggested_answer) or "(Sin texto)", ""])
+    lines.extend(["─── Ubicación / detalle ───", t(rdi.location_details) or "(Sin texto)", ""])
+    lines.extend(["─── Respuesta registrada ───", t(rdi.response) or "(Sin texto)", ""])
+    lines.extend(
+        [
+            "─── Asignación ───",
+            f"Asignado a: {t(rdi.assigned_to) or '—'}",
+            f"Tipo de asignación: {t(rdi.assignee_type) or '—'}",
+            f"Lista de distribución: {t(rdi.distribution_list) or '—'}",
+            "",
+            "─── Trazabilidad ───",
+            f"Creado: {_format_datetime_correo_es(rdi.created_at)}   Por: {t(rdi.created_by) or '—'}",
+            f"Actualizado: {_format_datetime_correo_es(rdi.updated_at)}   Por: {t(rdi.updated_by) or '—'}",
+        ]
+    )
+    if rdi.last_snapshot_datetime:
+        lines.append(
+            f"Última versión de archivo (importación): {_format_datetime_correo_es(rdi.last_snapshot_datetime)}"
+        )
+    if getattr(rdi, "last_import_id", None) and rdi.last_import:
+        lines.append(f"Archivo CSV de origen: {t(rdi.last_import.original_filename) or '—'}")
+    if t(rdi.last_diff_fields):
+        lines.append(f"Últimos campos modificados (sistema): {rdi.last_diff_fields}")
+    lines.append("")
+    try:
+        admin_url = request.build_absolute_uri(reverse("admin:rdi_rdirecord_change", args=[rdi.pk]))
+        lines.append(f"Ficha en administración Condocdat: {admin_url}")
+    except Exception:
+        pass
+    try:
+        bim_url = request.build_absolute_uri(reverse("informar_bim_list"))
+        lines.append(f"Listado «Informar desde BIM»: {bim_url}")
+    except Exception:
+        pass
+    lines.extend(["", "Atentamente,"])
+    return "\n".join(lines)
+
 
 def _parse_requiere_respuesta(content_extract):
     """
@@ -1265,9 +1362,10 @@ def enviar_correo_view(request):
             'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
             'cc_grupos': cc_grupos,
         }
-        # Enlace desde Informar: ?doc=<pk> rellena asunto y cuerpo con referencia al documento
+        # Enlace desde Informar documento: ?doc=<pk>  |  desde BIM: ?rdi=<csv_id>
         doc_pk = request.GET.get('doc')
         ctx['documento_informar_id'] = ''
+        ctx['rdi_informar_csv_id'] = ''
         if doc_pk:
             try:
                 pref = Document.objects.select_related('folder').get(pk=int(doc_pk))
@@ -1283,12 +1381,24 @@ def enviar_correo_view(request):
                 )
             except (ValueError, Document.DoesNotExist):
                 pass
+        elif request.GET.get('rdi'):
+            try:
+                csv_id = int(request.GET['rdi'])
+                rdi = RDIRecord.objects.select_related('last_import').get(csv_id=csv_id)
+                ctx['rdi_informar_csv_id'] = str(rdi.csv_id)
+                ctx['destinatarios'] = ''
+                tit = (rdi.title or '').strip()
+                ctx['asunto'] = f"RDI (BIM) #{rdi.csv_id}" + (f" — {tit[:120]}" if tit else "")
+                ctx['cuerpo'] = _cuerpo_correo_desde_rdi_record(rdi, request)
+            except (ValueError, RDIRecord.DoesNotExist):
+                pass
         return render(request, 'documents/enviar_correo.html', ctx)
 
     # POST
     cc_grupos = GrupoCorreo.objects.filter(activo=True).order_by('nombre')
     usar_plantilla = request.POST.get('usar_plantilla_transmittal') == 'on'
     documento_informar_id = (request.POST.get('documento_informar_id') or '').strip()
+    rdi_informar_csv_id = (request.POST.get('rdi_informar_csv_id') or '').strip()
     destinatarios_raw = (request.POST.get('destinatarios') or '').strip()
     copia_raw = (request.POST.get('copia') or '').strip()
     destinatario_grupos_ids = request.POST.getlist('destinatario_grupos')
@@ -1326,6 +1436,7 @@ def enviar_correo_view(request):
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': usar_plantilla,
             'documento_informar_id': documento_informar_id,
+            'rdi_informar_csv_id': rdi_informar_csv_id,
         })
     if not asunto:
         messages.error(request, 'El asunto no puede estar vacío.')
@@ -1338,6 +1449,7 @@ def enviar_correo_view(request):
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': usar_plantilla,
             'documento_informar_id': documento_informar_id,
+            'rdi_informar_csv_id': rdi_informar_csv_id,
         })
 
     _email_pw = (getattr(settings, 'EMAIL_HOST_PASSWORD', None) or '').strip()
@@ -1356,6 +1468,7 @@ def enviar_correo_view(request):
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': usar_plantilla,
             'documento_informar_id': documento_informar_id,
+            'rdi_informar_csv_id': rdi_informar_csv_id,
         })
 
     if usar_plantilla and not adjuntos_list:
@@ -1369,6 +1482,7 @@ def enviar_correo_view(request):
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': True,
             'documento_informar_id': documento_informar_id,
+            'rdi_informar_csv_id': rdi_informar_csv_id,
         })
 
     adjuntos_nombres = [t[0] for t in adjuntos_list]
@@ -1407,8 +1521,21 @@ def enviar_correo_view(request):
                     doc_inf.informado = Document.INFORMADO_OTRA
                 if doc_inf.informado != prev:
                     doc_inf.save(update_fields=["informado", "updated_at"])
-                    informar_note = f" Estado Informar: «{doc_inf.get_informado_display()}»."
+                    informar_note += f" Estado Informar (documento): «{doc_inf.get_informado_display()}»."
             except Document.DoesNotExist:
+                pass
+        if rdi_informar_csv_id.isdigit():
+            try:
+                rdi_inf = RDIRecord.objects.get(csv_id=int(rdi_informar_csv_id))
+                prev_r = rdi_inf.informado
+                if prev_r == RDI_INFORMADO_NO:
+                    rdi_inf.informado = RDI_INFORMADO_SI
+                elif prev_r == RDI_INFORMADO_SI:
+                    rdi_inf.informado = RDI_INFORMADO_OTRA
+                if rdi_inf.informado != prev_r:
+                    rdi_inf.save(update_fields=["informado", "updated_at"])
+                    informar_note += f" Estado Informar (RDI): «{rdi_inf.get_informado_display()}»."
+            except (ValueError, RDIRecord.DoesNotExist):
                 pass
         messages.success(
             request,
@@ -1429,6 +1556,7 @@ def enviar_correo_view(request):
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': usar_plantilla,
             'documento_informar_id': documento_informar_id,
+            'rdi_informar_csv_id': rdi_informar_csv_id,
         })
 
 
@@ -2894,5 +3022,5 @@ def informar_list(request):
     return render(
         request,
         "documents/informar.html",
-        {"rows": rows, "page_title": "Propamat a Odata", "page_subtitle": "Carpetas Propamat."},
+        {"rows": rows, "page_title": "Informar de Odata", "page_subtitle": "Carpetas Propamat."},
     )

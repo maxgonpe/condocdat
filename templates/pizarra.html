@@ -181,7 +181,7 @@
 </div>
 
 <div class="pizarra-estatus card" style="border-color: #14b8a6; box-shadow: 0 0 12px rgba(20, 184, 166, 0.25);">
-  <h2 style="color: #2dd4bf; text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);">Informar</h2>
+  <h2 style="color: #2dd4bf; text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);">Informar de Odata</h2>
   <p class="muted" style="margin: -0.5rem 0 1rem 0; font-size: 0.9rem;">ODATA-BUF-* y TRN-PRO-CM-TRN-*</p>
   <div class="pizarra-estatus-grid pizarra-estatus-grid--logs">
     <div class="pizarra-stat pizarra-stat--total">
@@ -201,7 +201,17 @@
       <span class="etiqueta">Otra vez informados</span>
     </div>
     <div class="pizarra-stat pizarra-stat--text" style="grid-column: 1 / -1;">
-      <a href="{% url 'informar_list' %}" class="btn btn-outline" style="display: inline-block; margin-top: 0.25rem;">Abrir listado Informar</a>
+      <a href="{% url 'informar_list' %}" class="btn btn-outline" style="display: inline-block; margin-top: 0.25rem;">Abrir listado Informar de Odata</a>
+    </div>
+  </div>
+</div>
+
+<div class="pizarra-estatus card" style="border-color: #6366f1; box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);">
+  <h2 style="color: #a5b4fc; text-shadow: 0 0 10px rgba(165, 180, 252, 0.45);">Informar desde BIM</h2>
+  <p class="muted" style="margin: -0.5rem 0 1rem 0; font-size: 0.9rem;">Listado alineado con RDI (BIM).</p>
+  <div class="pizarra-estatus-grid pizarra-estatus-grid--logs">
+    <div class="pizarra-stat pizarra-stat--text" style="grid-column: 1 / -1;">
+      <a href="{% url 'informar_bim_list' %}" class="btn btn-outline" style="display: inline-block; margin-top: 0.25rem;">Abrir Informar desde BIM</a>
     </div>
   </div>
 </div>

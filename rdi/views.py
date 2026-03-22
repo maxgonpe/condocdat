@@ -203,6 +203,13 @@ def rdi_list_view(request):
 
 
 @login_required
+@require_GET
+def informar_bim_list_view(request):
+    """Listado tipo RDI para «Informar desde BIM» (misma fuente AJAX que RDI)."""
+    return render(request, "rdi/informar_bim_list.html")
+
+
+@login_required
 @require_POST
 def rdi_import_view(request):
     uploaded = request.FILES.get("file")
