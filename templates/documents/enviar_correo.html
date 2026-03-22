@@ -14,12 +14,13 @@
 <div class="card card--list">
   <form method="post" action="{% url 'enviar_correo' %}" class="form-stack" enctype="multipart/form-data">
     {% csrf_token %}
+    <input type="hidden" name="documento_informar_id" value="{{ documento_informar_id|default:'' }}">
     <div class="form-group form-group--checkbox">
       <label>
         <input type="checkbox" name="usar_plantilla_transmittal" {% if usar_plantilla_transmittal %}checked{% endif %}>
         Usar plantilla Transmittal (extraer datos del primer adjunto)
       </label>
-      <small class="form-hint">Adjunte el PDF/DOCX del transmittal (ej. ODATA-ST01-F5-TTAL-PPT-00093). Se extraerán código, referencia y lista de documentos para rellenar asunto y cuerpo.</small>
+      <small class="form-hint">Al elegir archivos, se rellenan asunto y cuerpo automáticamente; <strong>puede editarlos</strong> antes de enviar. Se envía exactamente lo que figure en el formulario (no se vuelve a extraer al pulsar «Enviar correo»).</small>
     </div>
     <div class="form-group">
       <label for="id_destinatarios">Destinatario(s) <span class="required">*</span></label>

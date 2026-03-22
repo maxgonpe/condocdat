@@ -30,6 +30,7 @@
           {# <th>Responsable</th> oculto en Informar; row.responsable sigue viniendo de la vista #}
           <th>Documento - Archivo</th>
           <th>Informados</th>
+          <th>Correo</th>
         </tr>
       </thead>
       <tbody>
@@ -41,10 +42,15 @@
           {# <td>{{ row.responsable|default:"—" }}</td> #}
           <td>{% if row.file_url %}<a href="{{ row.file_url }}" target="_blank" rel="noopener">{{ row.documento_archivo|linebreaksbr }}</a>{% else %}{{ row.documento_archivo|linebreaksbr|default:"—" }}{% endif %}</td>
           <td>{{ row.informado_display|default:"—" }}</td>
+          <td>
+            {% if row.document %}
+            <a href="{% url 'enviar_correo' %}?doc={{ row.document.pk }}" class="btn btn-outline" style="font-size:0.85rem; white-space:nowrap;">Enviar correo</a>
+            {% else %}—{% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr class="empty-state">
-          <td colspan="5" class="muted">No hay carpetas Odata.</td>
+          <td colspan="6" class="muted">No hay carpetas Odata.</td>
         </tr>
         {% endfor %}
       </tbody>

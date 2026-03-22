@@ -20,6 +20,16 @@ RDI_STATUS_CHOICES = [
     (RDI_STATUS_NULA, "Nula"),
 ]
 
+# Mismas opciones que Document.informado (seguimiento «Informar»)
+RDI_INFORMADO_NO = "no_informados"
+RDI_INFORMADO_SI = "informados"
+RDI_INFORMADO_OTRA = "otra_vez_informados"
+RDI_INFORMADO_CHOICES = [
+    (RDI_INFORMADO_NO, "No informados"),
+    (RDI_INFORMADO_SI, "Informados"),
+    (RDI_INFORMADO_OTRA, "Otra vez informados"),
+]
+
 
 class RDIImport(models.Model):
     """
@@ -53,6 +63,13 @@ class RDIRecord(models.Model):
     location_details = models.TextField(blank=True, default="")
     status = models.CharField(
         max_length=12, choices=RDI_STATUS_CHOICES, default=RDI_STATUS_NULA
+    )
+    informado = models.CharField(
+        max_length=32,
+        choices=RDI_INFORMADO_CHOICES,
+        default=RDI_INFORMADO_NO,
+        db_index=True,
+        help_text="Estado de información (mismo criterio que documentos Informar).",
     )
     response = models.TextField(blank=True, default="")
     assigned_to = models.CharField(max_length=255, blank=True, default="")

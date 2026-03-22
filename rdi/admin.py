@@ -16,13 +16,14 @@ class RDIRecordAdmin(admin.ModelAdmin):
         "csv_id",
         "title",
         "status",
+        "informado",
         "due_date",
         "created_at",
         "updated_at",
         "associated_to_document",
         "last_snapshot_datetime",
     )
-    list_filter = ("status",)
+    list_filter = ("status", "informado")
     search_fields = ("title", "question", "response")
     ordering = ("csv_id",)
 

@@ -1267,9 +1267,11 @@ def enviar_correo_view(request):
         }
         # Enlace desde Informar: ?doc=<pk> rellena asunto y cuerpo con referencia al documento
         doc_pk = request.GET.get('doc')
+        ctx['documento_informar_id'] = ''
         if doc_pk:
             try:
                 pref = Document.objects.select_related('folder').get(pk=int(doc_pk))
+                ctx['documento_informar_id'] = str(pref.pk)
                 link_doc = request.build_absolute_uri(reverse('document_detail', args=[pref.pk]))
                 folder_bit = (pref.folder.code if pref.folder else '') or '—'
                 ctx['destinatarios'] = ''
@@ -1286,34 +1288,21 @@ def enviar_correo_view(request):
     # POST
     cc_grupos = GrupoCorreo.objects.filter(activo=True).order_by('nombre')
     usar_plantilla = request.POST.get('usar_plantilla_transmittal') == 'on'
+    documento_informar_id = (request.POST.get('documento_informar_id') or '').strip()
     destinatarios_raw = (request.POST.get('destinatarios') or '').strip()
     copia_raw = (request.POST.get('copia') or '').strip()
     destinatario_grupos_ids = request.POST.getlist('destinatario_grupos')
     cc_grupos_ids = request.POST.getlist('cc_grupos')
+    # Siempre se envía lo editado en el formulario (asunto/cuerpo). La plantilla solo rellena vía JS al elegir archivo.
     asunto = (request.POST.get('asunto') or '').strip()
     cuerpo = (request.POST.get('cuerpo') or '').strip()
 
-    # Leer todos los adjuntos en memoria (para poder reutilizar si usamos plantilla)
+    # Adjuntos para el correo (no se re-extrae transmittal en servidor: prevalecen las correcciones del usuario).
     adjuntos_list = []
     for f in request.FILES.getlist('adjuntos'):
         if f and f.name:
             contenido = f.read()
             adjuntos_list.append((f.name, contenido, getattr(f, 'content_type', None) or 'application/octet-stream'))
-
-    # Si "Usar plantilla transmittal": extraer del primer adjunto y prellenar asunto/cuerpo (cuerpo con link si hay carpeta)
-    if usar_plantilla and adjuntos_list:
-        from io import BytesIO
-        first_name, first_content, _ = adjuntos_list[0]
-        class _FakeFile:
-            def __init__(self, c, n):
-                self._c, self._n = c, n
-            def read(self): return self._c
-            name = property(lambda self: self._n)
-        fake = _FakeFile(first_content, first_name)
-        text = _extract_text_from_uploaded_file(fake)
-        data = _parse_transmittal_extract(text, first_name)
-        asunto = _build_asunto_transmittal(data)
-        cuerpo = _build_cuerpo_transmittal(data, request=request)
 
     to_list = list(_parse_emails(destinatarios_raw))
     for g in GrupoCorreo.objects.filter(pk__in=destinatario_grupos_ids, activo=True):
@@ -1336,6 +1325,7 @@ def enviar_correo_view(request):
             'asunto': asunto,
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': usar_plantilla,
+            'documento_informar_id': documento_informar_id,
         })
     if not asunto:
         messages.error(request, 'El asunto no puede estar vacío.')
@@ -1347,6 +1337,7 @@ def enviar_correo_view(request):
             'asunto': asunto,
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': usar_plantilla,
+            'documento_informar_id': documento_informar_id,
         })
 
     _email_pw = (getattr(settings, 'EMAIL_HOST_PASSWORD', None) or '').strip()
@@ -1364,6 +1355,7 @@ def enviar_correo_view(request):
             'asunto': asunto,
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': usar_plantilla,
+            'documento_informar_id': documento_informar_id,
         })
 
     if usar_plantilla and not adjuntos_list:
@@ -1376,6 +1368,7 @@ def enviar_correo_view(request):
             'asunto': asunto,
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': True,
+            'documento_informar_id': documento_informar_id,
         })
 
     adjuntos_nombres = [t[0] for t in adjuntos_list]
@@ -1403,7 +1396,24 @@ def enviar_correo_view(request):
         msg.send(fail_silently=False)
         registro.enviado_ok = True
         registro.save()
-        messages.success(request, f'Correo enviado correctamente a {", ".join(to_list)}.')
+        informar_note = ""
+        if documento_informar_id.isdigit():
+            try:
+                doc_inf = Document.objects.get(pk=int(documento_informar_id))
+                prev = doc_inf.informado
+                if prev == Document.INFORMADO_NO:
+                    doc_inf.informado = Document.INFORMADO_SI
+                elif prev == Document.INFORMADO_SI:
+                    doc_inf.informado = Document.INFORMADO_OTRA
+                if doc_inf.informado != prev:
+                    doc_inf.save(update_fields=["informado", "updated_at"])
+                    informar_note = f" Estado Informar: «{doc_inf.get_informado_display()}»."
+            except Document.DoesNotExist:
+                pass
+        messages.success(
+            request,
+            f'Correo enviado correctamente a {", ".join(to_list)}.{informar_note}',
+        )
         return redirect('enviar_correo')
     except Exception as e:
         registro.enviado_ok = False
@@ -1418,6 +1428,7 @@ def enviar_correo_view(request):
             'asunto': asunto,
             'cuerpo': cuerpo,
             'usar_plantilla_transmittal': usar_plantilla,
+            'documento_informar_id': documento_informar_id,
         })
 
 
