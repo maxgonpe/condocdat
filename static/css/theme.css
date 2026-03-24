@@ -47,6 +47,28 @@
   --shadow-md: 0 4px 6px -1px rgba(75, 0, 130, 0.14), 0 2px 4px -2px rgba(75, 0, 130, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(75, 0, 130, 0.15), 0 4px 6px -4px rgba(75, 0, 130, 0.1);
 
+  /* Botones — notorios (Excel verde, PDF rojo, resto acentuados) */
+  --btn-font-weight: 600;
+  --btn-letter-spacing: 0.02em;
+  --btn-shadow: 0 2px 6px rgba(75, 0, 130, 0.18);
+  --btn-shadow-hover: 0 4px 14px rgba(75, 0, 130, 0.28);
+  --btn-primary-glow: 0 2px 12px rgba(118, 48, 255, 0.42);
+  --btn-excel-bg: #16a34a;
+  --btn-excel-border: #15803d;
+  --btn-excel-hover: #15803d;
+  --btn-excel-text: #ffffff;
+  --btn-excel-glow: 0 2px 12px rgba(22, 163, 74, 0.55);
+  --btn-pdf-bg: #dc2626;
+  --btn-pdf-border: #b91c1c;
+  --btn-pdf-hover: #b91c1c;
+  --btn-pdf-text: #ffffff;
+  --btn-pdf-glow: 0 2px 12px rgba(220, 38, 38, 0.5);
+  --btn-outline-bg: rgba(255, 255, 255, 0.72);
+  --btn-outline-border: var(--border);
+  --btn-outline-hover-border: var(--accent);
+  --btn-danger-glow: 0 2px 12px rgba(220, 38, 38, 0.45);
+  --btn-info-glow: 0 2px 12px rgba(234, 179, 8, 0.45);
+
   /* Radios */
   --radius-sm: 6px;
   --radius: 10px;
@@ -89,6 +111,27 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+
+  --btn-font-weight: 600;
+  --btn-letter-spacing: 0.02em;
+  --btn-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --btn-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --btn-primary-glow: 0 2px 14px rgba(88, 166, 255, 0.45);
+  --btn-excel-bg: #22c55e;
+  --btn-excel-border: #16a34a;
+  --btn-excel-hover: #16a34a;
+  --btn-excel-text: #0f172a;
+  --btn-excel-glow: 0 2px 14px rgba(34, 197, 94, 0.55);
+  --btn-pdf-bg: #ef4444;
+  --btn-pdf-border: #dc2626;
+  --btn-pdf-hover: #dc2626;
+  --btn-pdf-text: #ffffff;
+  --btn-pdf-glow: 0 2px 14px rgba(239, 68, 68, 0.55);
+  --btn-outline-bg: rgba(255, 255, 255, 0.08);
+  --btn-outline-border: var(--border);
+  --btn-outline-hover-border: #58a6ff;
+  --btn-danger-glow: 0 2px 14px rgba(248, 81, 73, 0.45);
+  --btn-info-glow: 0 2px 14px rgba(210, 153, 34, 0.45);
 }
 
 /* Tema oscuro: texto legible en filas pendiente/respondida (fondo claro) */
@@ -145,6 +188,27 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+  --btn-font-weight: 600;
+  --btn-letter-spacing: 0.02em;
+  --btn-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
+  --btn-shadow-hover: 0 4px 14px rgba(37, 99, 235, 0.28);
+  --btn-primary-glow: 0 2px 12px rgba(37, 99, 235, 0.38);
+  --btn-excel-bg: #059669;
+  --btn-excel-border: #047857;
+  --btn-excel-hover: #047857;
+  --btn-excel-text: #ffffff;
+  --btn-excel-glow: 0 2px 12px rgba(5, 150, 105, 0.5);
+  --btn-pdf-bg: #dc2626;
+  --btn-pdf-border: #b91c1c;
+  --btn-pdf-hover: #b91c1c;
+  --btn-pdf-text: #ffffff;
+  --btn-pdf-glow: 0 2px 12px rgba(220, 38, 38, 0.48);
+  --btn-outline-bg: #ffffff;
+  --btn-outline-border: #cbd5e1;
+  --btn-outline-hover-border: #2563eb;
+  --btn-danger-glow: 0 2px 12px rgba(220, 38, 38, 0.4);
+  --btn-info-glow: 0 2px 12px rgba(217, 119, 6, 0.4);
 }
 
 /* ========== RESET Y BASE ========== */
@@ -424,47 +488,69 @@ body[data-sidebar="closed"] .sidebar {
 /* ========== BOTONES ========== */
 .btn {
   display: inline-block;
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1.1rem;
   font-family: inherit;
   font-size: 0.9rem;
-  font-weight: 500;
-  line-height: 1.4;
+  font-weight: var(--btn-font-weight, 600);
+  letter-spacing: var(--btn-letter-spacing, 0.02em);
+  line-height: 1.35;
   text-align: center;
   text-decoration: none;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  box-shadow: var(--btn-shadow);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    box-shadow var(--transition),
+    transform 0.12s ease;
 }
 
-a.btn {
+/* Primario (enlaces, envíos y botones .btn sin variante) */
+a.btn:not(.btn-outline):not(.btn-excel):not(.btn-pdf):not(.btn-danger):not(.btn-info-action),
+button.btn:not(.btn-outline):not(.btn-excel):not(.btn-pdf):not(.btn-danger):not(.btn-info-action) {
   color: var(--accent-text);
   background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: var(--btn-shadow), var(--btn-primary-glow);
 }
 
-a.btn:hover {
+a.btn:not(.btn-outline):not(.btn-excel):not(.btn-pdf):not(.btn-danger):not(.btn-info-action):hover,
+button.btn:not(.btn-outline):not(.btn-excel):not(.btn-pdf):not(.btn-danger):not(.btn-info-action):hover {
   background: var(--accent-hover);
+  border-color: var(--accent-hover);
   color: var(--accent-text);
   text-decoration: none;
+  box-shadow: var(--btn-shadow-hover), var(--btn-primary-glow);
+}
+
+a.btn:not(.btn-outline):not(.btn-excel):not(.btn-pdf):not(.btn-danger):not(.btn-info-action):active,
+button.btn:not(.btn-outline):not(.btn-excel):not(.btn-pdf):not(.btn-danger):not(.btn-info-action):active {
+  transform: translateY(1px);
 }
 
 .btn-outline {
-  background: transparent;
-  border: 1px solid var(--border);
+  background: var(--btn-outline-bg);
+  border: 2px solid var(--btn-outline-border);
   color: var(--text);
+  box-shadow: var(--btn-shadow);
 }
 
 a.btn-outline {
-  background: transparent;
-  border: 1px solid var(--border);
+  background: var(--btn-outline-bg);
+  border: 2px solid var(--btn-outline-border);
   color: var(--text);
 }
 
-a.btn-outline:hover {
+a.btn-outline:hover,
+.btn-outline:hover {
   background: var(--surface-hover);
-  border-color: var(--text-muted);
+  border-color: var(--btn-outline-hover-border);
   color: var(--text);
   text-decoration: none;
+  box-shadow: var(--btn-shadow-hover);
 }
 
 .btn + .btn,
@@ -474,57 +560,64 @@ a.btn + a.btn {
   margin-left: 0.5rem;
 }
 
-/* Botón Excel (verde) */
+/* Excel — verde llamativo */
 a.btn-excel,
 .btn-excel {
-  background: #059669;
-  border-color: #059669;
-  color: #fff;
+  background: var(--btn-excel-bg);
+  border: 2px solid var(--btn-excel-border);
+  color: var(--btn-excel-text);
+  box-shadow: var(--btn-shadow), var(--btn-excel-glow);
 }
 a.btn-excel:hover,
 .btn-excel:hover {
-  background: #047857;
-  border-color: #047857;
-  color: #fff;
+  background: var(--btn-excel-hover);
+  border-color: var(--btn-excel-hover);
+  color: var(--btn-excel-text);
   text-decoration: none;
+  box-shadow: var(--btn-shadow-hover), var(--btn-excel-glow);
 }
 
-/* Botón PDF (rojo) */
+/* PDF — rojo llamativo */
 a.btn-pdf,
 .btn-pdf {
-  background: #dc2626;
-  border-color: #dc2626;
-  color: #fff;
+  background: var(--btn-pdf-bg);
+  border: 2px solid var(--btn-pdf-border);
+  color: var(--btn-pdf-text);
+  box-shadow: var(--btn-shadow), var(--btn-pdf-glow);
 }
 a.btn-pdf:hover,
 .btn-pdf:hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
-  color: #fff;
+  background: var(--btn-pdf-hover);
+  border-color: var(--btn-pdf-hover);
+  color: var(--btn-pdf-text);
   text-decoration: none;
+  box-shadow: var(--btn-shadow-hover), var(--btn-pdf-glow);
 }
 
-/* Botón Eliminar (rojo) en listados */
+/* Eliminar — rojo */
 a.btn-danger,
 .btn-danger {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: var(--error);
+  border: 2px solid var(--error);
   color: #fff;
+  box-shadow: var(--btn-shadow), var(--btn-danger-glow);
 }
 a.btn-danger:hover,
 .btn-danger:hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: var(--btn-pdf-hover);
+  border-color: var(--btn-pdf-hover);
   color: #fff;
   text-decoration: none;
+  box-shadow: var(--btn-shadow-hover), var(--btn-danger-glow);
 }
 
-/* Botón Info (amarillo) en listados */
+/* Info / atención — ámbar */
 a.btn-info-action,
 .btn-info-action {
   background: #eab308;
-  border-color: #ca8a04;
+  border: 2px solid #ca8a04;
   color: #1c1917;
+  box-shadow: var(--btn-shadow), var(--btn-info-glow);
 }
 a.btn-info-action:hover,
 .btn-info-action:hover {
@@ -532,6 +625,7 @@ a.btn-info-action:hover,
   border-color: #a16207;
   color: #1c1917;
   text-decoration: none;
+  box-shadow: var(--btn-shadow-hover), var(--btn-info-glow);
 }
 
 /* ========== BOTONES DE ACCIÓN EN TABLAS (fijos, sin variables) ========== */

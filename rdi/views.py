@@ -4,7 +4,11 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from .services import attach_rdi_csv, get_rdi_records_for_ajax
+from .services import (
+    attach_rdi_csv,
+    get_rdi_records_for_ajax,
+    get_rdi_cost_schedule_impacts_for_ajax,
+)
 
 
 def _date_short(value):
@@ -210,6 +214,15 @@ def informar_bim_list_view(request):
 
 
 @login_required
+@require_GET
+def rdi_increments_decrements_view(request):
+    """
+    Listado de RDI con impacto en costo o plazo (yes/si).
+    """
+    return render(request, "rdi/rdi_increments_decrements.html")
+
+
+@login_required
 @require_POST
 def rdi_import_view(request):
     uploaded = request.FILES.get("file")
@@ -236,5 +249,13 @@ def rdi_import_view(request):
 def rdi_records_json(request):
     q = request.GET.get("q", "").strip()
     data = get_rdi_records_for_ajax(q=q)
+    return JsonResponse({"records": data})
+
+
+@login_required
+@require_GET
+def rdi_increments_decrements_json(request):
+    q = request.GET.get("q", "").strip()
+    data = get_rdi_cost_schedule_impacts_for_ajax(q=q)
     return JsonResponse({"records": data})
 

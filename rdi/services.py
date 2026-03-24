@@ -320,3 +320,86 @@ def get_rdi_records_for_ajax(q: str = "", limit: int = 200):
         )
     return out
 
+
+def get_rdi_cost_schedule_impacts_for_ajax(q: str = "", limit: int = 300):
+    """
+    Devuelve registros RDI filtrados por impacto (costo o plazo = yes/si/sí),
+    para el listado "Aumentos/disminuciones".
+    """
+    from django.db.models import Q
+
+    qs = RDIRecord.objects.select_related("last_import").filter(
+        Q(cost_impact__iregex=r"^\s*(yes|si|sí)\s*$")
+        | Q(schedule_impact__iregex=r"^\s*(yes|si|sí)\s*$")
+    )
+
+    query = (q or "").strip()
+    if query:
+        terms = [t for t in re.split(r"\s+", query) if t]
+        if terms:
+            combined = None
+            for t in terms:
+                term_q = (
+                    Q(title__icontains=t)
+                    | Q(location_details__icontains=t)
+                    | Q(cost_impact__icontains=t)
+                    | Q(schedule_impact__icontains=t)
+                    | Q(discipline__icontains=t)
+                    | Q(priority__icontains=t)
+                    | Q(status__icontains=t)
+                )
+                if t.isdigit():
+                    try:
+                        term_q |= Q(csv_id=int(t))
+                    except Exception:
+                        pass
+                combined = term_q if combined is None else (combined & term_q)
+            if combined is not None:
+                qs = qs.filter(combined)
+
+    records = qs.order_by("-last_snapshot_datetime", "-csv_id")[:limit]
+    status_label_map = dict(RDIRecord._meta.get_field("status").choices)
+
+    def _translate_term_es(value: str) -> str:
+        v = (value or "").strip()
+        if not v:
+            return ""
+        key = v.lower()
+        translations = {
+            "yes": "Sí",
+            "no": "No",
+            "high": "Alta",
+            "hight": "Alta",
+            "medium": "Media",
+            "low": "Baja",
+            "critical": "Crítica",
+            "open": "Abierta",
+            "closed": "Cerrada",
+            "answered": "Respondida",
+            "draft": "Borrador",
+        }
+        return translations.get(key, v)
+
+    out = []
+    for r in records:
+        out.append(
+            {
+                "csv_id": r.csv_id,
+                "title": r.title,
+                "status": r.status,
+                "status_label": status_label_map.get(r.status, r.status),
+                "location_details": r.location_details,
+                "cost_impact": r.cost_impact,
+                "cost_impact_label": _translate_term_es(r.cost_impact),
+                "schedule_impact": r.schedule_impact,
+                "schedule_impact_label": _translate_term_es(r.schedule_impact),
+                "discipline": r.discipline,
+                "priority": r.priority,
+                "priority_label": _translate_term_es(r.priority),
+                "question": r.question,
+                "response": r.response,
+                "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            }
+        )
+    return out
+

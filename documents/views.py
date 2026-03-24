@@ -1062,7 +1062,9 @@ def _parse_emails(raw):
 # --- Plantilla correo Transmittal (ODATA-ST01-F5-TTAL-PPT-?????) ---
 TRANSMITTAL_ASUNTO_TEMPLATE = "ODATA ST01 EXP 05-E2 |   {{ referencia }}   | {{ transmittal }}"
 # Plantilla SharePoint: la carpeta del transmittal existe siempre en este repositorio; solo cambia el código.
-SHAREPOINT_TRANSMITTAL_BASE_PATH = "/sites/GestorDocumentalProyectoODATA/Documentos compartidos/1. ODATA ST01/4. EXP05 - FASE 5.2/4.1 Comunicaciones/4.1.1 Transmittal/PROPAMAT/PROPAMAT a ODATA/"
+# Ojo: la ruta dentro de SharePoint DEBE coincidir exacto con el link que funciona.
+# En la URL correcta aparece ".../PROPAMAT/PROP a ODATA/...".
+SHAREPOINT_TRANSMITTAL_BASE_PATH = "/sites/GestorDocumentalProyectoODATA/Documentos compartidos/1. ODATA ST01/4. EXP05 - FASE 5.2/4.1 Comunicaciones/4.1.1 Transmittal/PROPAMAT/PROP a ODATA/"
 SHAREPOINT_TRANSMITTAL_VIEWID = "d9a3f383-3cf1-43be-85e9-c0a8cafec845"
 SHAREPOINT_TRANSMITTAL_BASE_URL = (
     "https://bufferconsultores.sharepoint.com/sites/GestorDocumentalProyectoODATA/Documentos%20compartidos/Forms/AllItems.aspx"
@@ -1302,7 +1304,7 @@ def _build_cuerpo_transmittal(data, request=None):
         transmittal_bold = "<strong>%s</strong>" % trans
         path = SHAREPOINT_TRANSMITTAL_BASE_PATH + trans
         id_param = quote(path, safe="")
-        transmittal_link = '<a href="%s?id=%s&viewid=%s&p=true">%s</a>' % (
+        transmittal_link = '<a href="%s?id=%s&viewid=%s&p=true&startedResponseCatch=true">%s</a>' % (
             SHAREPOINT_TRANSMITTAL_BASE_URL,
             id_param,
             quote(SHAREPOINT_TRANSMITTAL_VIEWID, safe=""),
@@ -1318,8 +1320,9 @@ def _build_cuerpo_transmittal(data, request=None):
         .replace("{{ referencia }}", ref)
         .replace("{{ documentos }}", documentos_bloque)
     )
-    if request and trans and (transmittal_bold != trans or transmittal_link != trans):
-        body = body.replace("\n", "<br>\n")
+    # Importante:
+    # - En el UI (textarea) queremos mostrar saltos de línea como texto normal (sin etiquetas <br>).
+    # - Para que el email renderice bien, convertimos \n a <br> justo antes de enviar.
     return body
 
 
@@ -1337,7 +1340,9 @@ def extraer_transmittal_ajax(request):
         text = _extract_text_from_uploaded_file(archivo)
         data = _parse_transmittal_extract(text, archivo.name)
         asunto = _build_asunto_transmittal(data)
-        cuerpo = _build_cuerpo_transmittal(data)
+        # Importante: pasamos `request` para que _build_cuerpo_transmittal genere HTML
+        # (transmittal con <strong> y enlace <a href=...> hacia SharePoint).
+        cuerpo = _build_cuerpo_transmittal(data, request=request)
         return JsonResponse({
             "ok": True,
             "asunto": asunto,
@@ -1503,8 +1508,13 @@ def enviar_correo_view(request):
             to=to_list,
             cc=cc_list,
         )
+        # Si el cuerpo contiene HTML (anchor/link), lo enviamos como HTML.
+        # Para evitar que el usuario vea <br> en el textarea, convertimos \n -> <br>
+        # únicamente en el envío (y solo si aún no hay <br>).
         if "<a href=" in cuerpo or "<br>" in cuerpo:
             msg.content_subtype = "html"
+            if "<br" not in cuerpo:
+                msg.body = cuerpo.replace("\n", "<br>\n")
         for name, contenido, mimetype in adjuntos_list:
             msg.attach(name, contenido, mimetype or 'application/octet-stream')
         msg.send(fail_silently=False)

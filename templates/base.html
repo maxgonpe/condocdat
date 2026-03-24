@@ -56,6 +56,7 @@
           <a href="{% url 'logs_odata_propamat' %}" class="{% if request.resolver_match.url_name == 'logs_odata_propamat' %}active{% endif %}">Logs Propamat a Odata</a>
           <a href="{% url 'logs_propamat_odata' %}" class="{% if request.resolver_match.url_name == 'logs_propamat_odata' %}active{% endif %}">Logs Odata a Propamat</a>
           <a href="{% url 'rdi_list' %}" class="{% if request.resolver_match.url_name == 'rdi_list' %}active{% endif %}">RDI</a>
+          <a href="{% url 'rdi_increments_decrements' %}" class="{% if request.resolver_match.url_name == 'rdi_increments_decrements' %}active{% endif %}">Aumentos/disminuciones</a>
           <hr class="sidebar-nav-sep" aria-hidden="true">
           <a href="{% url 'informar_list' %}" class="{% if request.resolver_match.url_name == 'informar_list' %}active{% endif %}">Informar de Odata</a>
           <a href="{% url 'informar_bim_list' %}" class="{% if request.resolver_match.url_name == 'informar_bim_list' %}active{% endif %}">Informar desde BIM</a>

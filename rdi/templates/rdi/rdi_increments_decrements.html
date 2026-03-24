@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Aumentos/disminuciones{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Aumentos/disminuciones</h1>
+  <p class="muted">
+    Registros RDI con impacto en costo o plazo = Yes/Si.
+  </p>
+</header>
+
+<div class="card card--list">
+  <div class="form-group" style="max-width: 520px; margin-bottom: 1rem;">
+    <label for="rdi-impact-search">Buscar</label>
+    <input type="text" id="rdi-impact-search" class="form-control" placeholder="Buscar por ubicacion, disciplina, prioridad..." autocomplete="off">
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table" id="rdi-impact-table">
+      <thead>
+        <tr>
+          <th>CSV ID</th>
+          <th>Estado</th>
+          <th>Ubicacion</th>
+          <th>Impacto de costo</th>
+          <th>Impacto de plazo</th>
+          <th>Disciplina</th>
+          <th>Prioridad</th>
+          <th>Detalle</th>
+        </tr>
+      </thead>
+      <tbody id="rdi-impact-tbody">
+        <tr><td colspan="8" class="muted">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="impact-detail-modal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(15,23,42,0.55);">
+  <div class="card" style="max-width:900px; width:92%; margin:5vh auto; max-height:90vh; overflow:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+      <h2 style="margin:0;">Detalle RDI</h2>
+      <button type="button" class="btn btn-outline" id="impact-detail-close">Cerrar</button>
+    </div>
+    <p class="muted" id="impact-detail-meta" style="margin-top:0.5rem;"></p>
+    <div class="card" style="margin-top:0.5rem;">
+      <h3 style="margin:0 0 0.5rem 0;">Pregunta</h3>
+      <p id="impact-detail-question" style="white-space:pre-wrap; margin:0;"></p>
+    </div>
+    <div class="card" style="margin-top:0.5rem;">
+      <h3 style="margin:0 0 0.5rem 0;">Respuesta</h3>
+      <p id="impact-detail-response" style="white-space:pre-wrap; margin:0;"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  function escapeHtml(s) {
+    if (s == null) return '';
+    var div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+  }
+
+  function renderRow(r) {
+    var payload = encodeURIComponent(JSON.stringify({
+      csv_id: r.csv_id,
+      title: r.title || "",
+      question: r.question || "",
+      response: r.response || "",
+      status: r.status_label || r.status || "",
+      priority: r.priority_label || r.priority || "",
+      discipline: r.discipline || "",
+    }));
+    return (
+      '<tr>' +
+        '<td style="width: 90px;">' + escapeHtml(r.csv_id) + '</td>' +
+        '<td style="max-width: 150px;">' + escapeHtml(r.status_label || r.status) + '</td>' +
+        '<td style="max-width: 420px; white-space: pre-wrap; max-height: 6rem; overflow: auto;">' + escapeHtml(r.location_details || '') + '</td>' +
+        '<td style="max-width: 160px;">' + escapeHtml(r.cost_impact_label || r.cost_impact || '') + '</td>' +
+        '<td style="max-width: 160px;">' + escapeHtml(r.schedule_impact_label || r.schedule_impact || '') + '</td>' +
+        '<td style="max-width: 200px;">' + escapeHtml(r.discipline || '') + '</td>' +
+        '<td style="max-width: 160px;">' + escapeHtml(r.priority_label || r.priority || '') + '</td>' +
+        '<td><button type="button" class="btn btn-outline impact-detail-btn" data-detail="' + payload + '" style="font-size:0.82rem;">Ver detalle</button></td>' +
+      '</tr>'
+    );
+  }
+
+  var seq = 0;
+  function loadList(q) {
+    seq += 1;
+    var mySeq = seq;
+    var tbody = document.getElementById('rdi-impact-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Cargando...</td></tr>';
+
+    var url = "{% url 'rdi_increments_decrements_json' %}";
+    if (q && String(q).trim()) {
+      url += "?q=" + encodeURIComponent(q.trim());
+    }
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (mySeq !== seq) return;
+        var records = (data && data.records) ? data.records : [];
+        if (!records.length) {
+          tbody.innerHTML = '<tr><td colspan="8" class="muted">No hay registros con impacto yes/si.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = records.map(renderRow).join('');
+        bindDetailButtons();
+      })
+      .catch(function() {
+        if (mySeq !== seq) return;
+        tbody.innerHTML = '<tr><td colspan="8" class="muted">Error cargando registros.</td></tr>';
+      });
+  }
+
+  function openDetailModal(item) {
+    var modal = document.getElementById('impact-detail-modal');
+    if (!modal) return;
+    document.getElementById('impact-detail-meta').textContent =
+      'RDI #' + (item.csv_id || '') + ' · Estado: ' + (item.status || '—') +
+      ' · Prioridad: ' + (item.priority || '—') + ' · Disciplina: ' + (item.discipline || '—');
+    document.getElementById('impact-detail-question').textContent = item.question || '(Sin pregunta)';
+    document.getElementById('impact-detail-response').textContent = item.response || '(Sin respuesta)';
+    modal.style.display = 'block';
+  }
+
+  function closeDetailModal() {
+    var modal = document.getElementById('impact-detail-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function bindDetailButtons() {
+    var buttons = document.querySelectorAll('.impact-detail-btn');
+    buttons.forEach(function(btn) {
+      btn.onclick = function() {
+        try {
+          var raw = decodeURIComponent(btn.getAttribute('data-detail') || '');
+          openDetailModal(JSON.parse(raw));
+        } catch (e) {
+          openDetailModal({});
+        }
+      };
+    });
+  }
+
+  function initSearch() {
+    var closeBtn = document.getElementById('impact-detail-close');
+    if (closeBtn) closeBtn.onclick = closeDetailModal;
+    var modal = document.getElementById('impact-detail-modal');
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeDetailModal();
+      });
+    }
+    var input = document.getElementById('rdi-impact-search');
+    if (!input) {
+      loadList('');
+      return;
+    }
+    var debounceTimer;
+    input.addEventListener('input', function() {
+      var q = input.value;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        loadList(q);
+      }, 300);
+    });
+    loadList(input.value);
+  }
+
+  document.addEventListener('DOMContentLoaded', initSearch);
+})();
+</script>
+{% endblock %}
+
