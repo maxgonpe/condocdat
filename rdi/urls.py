@@ -18,6 +18,16 @@ urlpatterns = [
         views.rdi_increments_decrements_json,
         name="rdi_increments_decrements_json",
     ),
+    path(
+        "export/aumentos-disminuciones/excel/",
+        views.rdi_increments_decrements_export_excel,
+        name="rdi_increments_decrements_export_excel",
+    ),
+    path(
+        "export/aumentos-disminuciones/pdf/",
+        views.rdi_increments_decrements_export_pdf,
+        name="rdi_increments_decrements_export_pdf",
+    ),
     path("export/excel/", views.rdi_export_excel, name="rdi_export_excel"),
     path("export/pdf/", views.rdi_export_pdf, name="rdi_export_pdf"),
 ]

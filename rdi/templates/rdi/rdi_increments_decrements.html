@@ -15,6 +15,12 @@
     <label for="rdi-impact-search">Buscar</label>
     <input type="text" id="rdi-impact-search" class="form-control" placeholder="Buscar por ubicacion, disciplina, prioridad..." autocomplete="off">
   </div>
+  <div class="form-group" style="margin-bottom: 1rem;">
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+      <button type="button" id="rdi-impact-excel-btn" class="btn btn-excel">Descargar Excel</button>
+      <button type="button" id="rdi-impact-pdf-btn" class="btn btn-pdf">Generar PDF</button>
+    </div>
+  </div>
 
   <div class="table-wrap">
     <table class="data-table" id="rdi-impact-table">
@@ -89,9 +95,35 @@
   }
 
   var seq = 0;
+  var currentQuery = "";
+  var excelExportUrl = "{% url 'rdi_increments_decrements_export_excel' %}";
+  var pdfExportUrl = "{% url 'rdi_increments_decrements_export_pdf' %}";
+
+  function exportExcel() {
+    var q = currentQuery ? String(currentQuery).trim() : "";
+    var url = excelExportUrl;
+    if (q) url += "?q=" + encodeURIComponent(q);
+    window.location.href = url;
+  }
+
+  function exportPdf() {
+    var q = currentQuery ? String(currentQuery).trim() : "";
+    var url = pdfExportUrl;
+    if (q) url += "?q=" + encodeURIComponent(q);
+    window.open(url, "_blank");
+  }
+
+  function bindExportButtons() {
+    var btnExcel = document.getElementById("rdi-impact-excel-btn");
+    var btnPdf = document.getElementById("rdi-impact-pdf-btn");
+    if (btnExcel) btnExcel.onclick = exportExcel;
+    if (btnPdf) btnPdf.onclick = exportPdf;
+  }
+
   function loadList(q) {
     seq += 1;
     var mySeq = seq;
+    currentQuery = q || "";
     var tbody = document.getElementById('rdi-impact-tbody');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="8" class="muted">Cargando...</td></tr>';
@@ -161,6 +193,7 @@
     var input = document.getElementById('rdi-impact-search');
     if (!input) {
       loadList('');
+      bindExportButtons();
       return;
     }
     var debounceTimer;
@@ -172,6 +205,7 @@
       }, 300);
     });
     loadList(input.value);
+    bindExportButtons();
   }
 
   document.addEventListener('DOMContentLoaded', initSearch);

@@ -3,17 +3,18 @@ Backend de búsqueda unificada — solo PostgreSQL.
 
 Documentos: se exigen SIEMPRE todos los términos (o la frase completa).
 - Frase completa en códigos o en algún adjunto (icontains).
-- content_extract contiene TODOS los términos (icontains).
-- Algún adjunto tiene TODOS los términos en extracted_text (icontains).
+- content_extract: cada término como palabra completa (PostgreSQL \\m\\M + iregex).
+- Adjuntos: cada término como palabra completa en extracted_text (iregex).
 No se usa FTS suelto para documentos para evitar coincidencias con una sola palabra.
 Carpetas y archivos de carpeta: FTS con todos los términos o frase exacta.
 """
 import re
 from django.db import connection
-from django.db.models import Q, F
+from django.db.models import Q, F, Prefetch
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 
 from .models import Document, Folder, FolderFile, DocumentAttachment
+from .text_search_match import pg_word_anchored_regex, text_matches_all_terms_as_words
 
 
 def _normalize_terms(query):
@@ -41,7 +42,7 @@ def _document_ids_with_attachment_containing_all_terms(terms):
     qs = DocumentAttachment.objects.all()
     for t in terms:
         if t:
-            qs = qs.filter(extracted_text__icontains=t)
+            qs = qs.filter(extracted_text__iregex=pg_word_anchored_regex(t))
     return set(qs.values_list("document_id", flat=True).distinct())
 
 
@@ -73,7 +74,7 @@ def search_unified(query, limit=200):
     content_has_all = Q(content_extract__isnull=False) & ~Q(content_extract="")
     for t in terms:
         if t:
-            content_has_all = content_has_all & Q(content_extract__icontains=t)
+            content_has_all = content_has_all & Q(content_extract__iregex=pg_word_anchored_regex(t))
     # (3) Algún adjunto tiene todos los términos en extracted_text
     doc_ids_attachment = _document_ids_with_attachment_containing_all_terms(terms)
     doc_filter = doc_related | content_has_all
@@ -132,7 +133,7 @@ def search_unified(query, limit=200):
     file_content_all = Q(extracted_text__isnull=False) & ~Q(extracted_text="")
     for t in terms:
         if t:
-            file_content_all = file_content_all & Q(extracted_text__icontains=t)
+            file_content_all = file_content_all & Q(extracted_text__iregex=pg_word_anchored_regex(t))
     file_filter = file_filter | file_content_all
     folder_files = list(
         FolderFile.objects.annotate(search=file_vector)
@@ -141,4 +142,50 @@ def search_unified(query, limit=200):
         .order_by("folder__code", "name")[:limit]
     )
 
+    if len(terms) > 1:
+        documents = _strict_multi_term_document_order(documents, terms)
+        folders = [
+            f
+            for f in folders
+            if text_matches_all_terms_as_words(
+                "\n".join(x for x in (f.code, f.title or "", f.description or "") if x),
+                terms,
+            )
+        ]
+        folder_files = [
+            ff
+            for ff in folder_files
+            if text_matches_all_terms_as_words(
+                "\n".join(x for x in (ff.name or "", ff.extracted_text or "") if x),
+                terms,
+            )
+        ]
+
     return {"documents": documents, "folders": folders, "folder_files": folder_files}
+
+
+def _strict_multi_term_document_order(documents, terms):
+    """Refina coincidencias multi-término (heurística anti-OCR) conservando el orden."""
+    if not documents:
+        return documents
+    order = [d.pk for d in documents]
+    loaded = (
+        Document.objects.filter(pk__in=order)
+        .prefetch_related(
+            Prefetch(
+                "attachments",
+                queryset=DocumentAttachment.objects.only("extracted_text", "document_id"),
+            )
+        )
+        .only("id", "content_extract")
+    )
+    allowed = set()
+    for d in loaded:
+        parts = [d.content_extract or ""]
+        for a in d.attachments.all():
+            if a.extracted_text:
+                parts.append(a.extracted_text)
+        blob = "\n".join(parts)
+        if text_matches_all_terms_as_words(blob, terms):
+            allowed.add(d.pk)
+    return [d for d in documents if d.pk in allowed]

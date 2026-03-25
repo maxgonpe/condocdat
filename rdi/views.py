@@ -223,6 +223,159 @@ def rdi_increments_decrements_view(request):
 
 
 @login_required
+@require_GET
+def rdi_increments_decrements_export_excel(request):
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    from django.utils import timezone
+
+    q = request.GET.get("q", "").strip()
+    records = get_rdi_cost_schedule_impacts_for_ajax(q=q, limit=1000)
+    headers = [
+        "CSV ID",
+        "Estado",
+        "Ubicacion",
+        "Impacto de costo",
+        "Impacto de plazo",
+        "Disciplina",
+        "Prioridad",
+        "Pregunta",
+        "Respuesta",
+    ]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Aumentos-Disminuciones"
+    fecha_str = timezone.now().strftime("%d-%m-%Y")
+    filtro_str = (f"Filtro: {q}" if q else "Filtro: (vacío)")
+    ws["A1"] = filtro_str + f" | Generado: {fecha_str}"
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    ws.append(headers)
+
+    for r in records:
+        ws.append(
+            [
+                r.get("csv_id", ""),
+                r.get("status_label", r.get("status", "")),
+                r.get("location_details", ""),
+                r.get("cost_impact_label", r.get("cost_impact", "")),
+                r.get("schedule_impact_label", r.get("schedule_impact", "")),
+                r.get("discipline", ""),
+                r.get("priority_label", r.get("priority", "")),
+                r.get("question", ""),
+                r.get("response", ""),
+            ]
+        )
+
+    wrap_text = openpyxl.styles.Alignment(wrap_text=True, vertical="top")
+    for col in range(1, len(headers) + 1):
+        letter = get_column_letter(col)
+        ws.column_dimensions[letter].width = 18 if col in (1, 2, 4, 5, 7) else 38
+
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=len(headers)):
+        for cell in row:
+            cell.alignment = wrap_text
+
+    ws.freeze_panes = "A3"
+    last_col_letter = get_column_letter(len(headers))
+    n_data = len(records) + 2
+    ws.auto_filter.ref = f"A2:{last_col_letter}{n_data}"
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"Aumentos-disminuciones-{fecha_str}.xlsx"
+    resp = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+@login_required
+@require_GET
+def rdi_increments_decrements_export_pdf(request):
+    from io import BytesIO
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+    q = request.GET.get("q", "").strip()
+    records = get_rdi_cost_schedule_impacts_for_ajax(q=q, limit=600)
+    headers = [
+        "CSV ID",
+        "Estado",
+        "Ubicacion",
+        "Impacto costo",
+        "Impacto plazo",
+        "Disciplina",
+        "Prioridad",
+    ]
+
+    styles = getSampleStyleSheet()
+    style_title = styles["Title"]
+    style_body = styles["BodyText"]
+    style_cell = ParagraphStyle("cell", parent=style_body, fontSize=8.5, leading=10.5, wordWrap="CJK")
+    style_cell_bold = ParagraphStyle("cell_bold", parent=style_body, fontSize=8.5, leading=10.5, textColor=colors.white)
+
+    def cell_paragraph(txt, bold=False, max_chars=500):
+        if txt is None:
+            txt = ""
+        txt = str(txt)
+        if len(txt) > max_chars:
+            txt = txt[:max_chars] + " …"
+        txt = _escape_html_for_paragraph(txt)
+        return Paragraph(txt, style_cell_bold if bold else style_cell)
+
+    pdf_buf = BytesIO()
+    doc = SimpleDocTemplate(
+        pdf_buf,
+        pagesize=landscape(A4),
+        rightMargin=18,
+        leftMargin=18,
+        topMargin=18,
+        bottomMargin=18,
+    )
+    title = Paragraph("Aumentos/disminuciones - RDI", style_title)
+    filtro = Paragraph(f"Filtro: {q}" if q else "Filtro: (vacío)", style_body)
+    data = [[cell_paragraph(h, bold=True, max_chars=180) for h in headers]]
+    for r in records:
+        data.append(
+            [
+                cell_paragraph(r.get("csv_id", "")),
+                cell_paragraph(r.get("status_label", r.get("status", "")), max_chars=60),
+                cell_paragraph(r.get("location_details", ""), max_chars=280),
+                cell_paragraph(r.get("cost_impact_label", r.get("cost_impact", "")), max_chars=60),
+                cell_paragraph(r.get("schedule_impact_label", r.get("schedule_impact", "")), max_chars=60),
+                cell_paragraph(r.get("discipline", ""), max_chars=90),
+                cell_paragraph(r.get("priority_label", r.get("priority", "")), max_chars=60),
+            ]
+        )
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2E5090")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+            ]
+        )
+    )
+
+    doc.build([title, Spacer(1, 8), filtro, Spacer(1, 10), table])
+    pdf_buf.seek(0)
+    resp = HttpResponse(pdf_buf.read(), content_type="application/pdf")
+    resp["Content-Disposition"] = 'inline; filename="Aumentos-disminuciones-RDI.pdf"'
+    return resp
+
+
+@login_required
 @require_POST
 def rdi_import_view(request):
     uploaded = request.FILES.get("file")

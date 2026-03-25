@@ -1,6 +1,7 @@
 import re
 from django.db import models, transaction
 from django.db.models import F
+from django.conf import settings
 from django.utils import timezone
 
 
@@ -360,3 +361,40 @@ class GrupoCorreo(models.Model):
             if email and "@" in email:
                 out.add(email)
         return sorted(out)
+
+
+class UserSessionLog(models.Model):
+    """
+    Registro de inicio/fin de sesión (login/logout) para auditoría.
+
+    Nota: el sistema lo usa principalmente para usuarios `staff`.
+    """
+
+    ACTION_LOGIN = "LOGIN"
+    ACTION_LOGOUT = "LOGOUT"
+
+    ACTION_CHOICES = [
+        (ACTION_LOGIN, "Inicio de sesión"),
+        (ACTION_LOGOUT, "Fin de sesión"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="session_logs",
+    )
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES, db_index=True)
+    occurred_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    # Utilidad para depurar; no se exige para funcionar
+    session_key = models.CharField(max_length=40, blank=True, default="")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=512, blank=True, default="")
+
+    class Meta:
+        verbose_name = "Log de sesión"
+        verbose_name_plural = "Logs de sesión"
+        ordering = ["-occurred_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} {self.action} {self.occurred_at:%Y-%m-%d %H:%M:%S}"

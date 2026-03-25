@@ -2,103 +2,113 @@
 Extracción de fragmentos de texto (snippets) alrededor del término buscado
 para mostrar contexto: N palabras antes y después con el match resaltado.
 
-- extract_snippets: frase exacta (una cadena), 10 palabras antes/después.
-- extract_snippets_multi_term: varios términos en cualquier orden; encuentra la ventana
-  mínima que contiene todos y devuelve 10 palabras antes y 10 después de esa ventana.
+- extract_snippets: frase con espacios = subcadena contigua; una sola palabra = límite de palabra.
+- extract_snippets_multi_term: varios términos como palabras completas; ventana mínima que los contiene.
 """
 import re
 from itertools import product
 
+from .text_search_match import list_term_spans, MAX_TERM_OCCURRENCES
+
 
 DEFAULT_CONTEXT_WORDS = 10
 DEFAULT_MAX_SNIPPETS = 5
+# Evita explosión combinatoria al enlazar varias ocurrencias por término
+MAX_OCCURRENCES_PER_TERM_FOR_COMBO = 14
 
 
-def _word_boundaries(text, position):
-    """Devuelve (start, end) del token (palabra) que contiene position."""
-    if not text or position < 0 or position >= len(text):
-        return 0, len(text or "")
-    # Ir al inicio de la palabra
-    start = position
-    while start > 0 and text[start - 1].isalnum() or text[start - 1] in "'-_":
-        start -= 1
-    end = position
-    while end < len(text) and (text[end].isalnum() or text[end] in "'-_"):
-        end += 1
-    return start, end
+def _snippet_around_span(full_text, pos, end, context_words):
+    before_text = full_text[:pos]
+    after_text = full_text[end:]
+    words_before = re.findall(r"\S+", before_text)
+    words_after = re.findall(r"\S+", after_text)
+    before_10 = words_before[-context_words:] if len(words_before) > context_words else words_before
+    after_10 = words_after[:context_words] if len(words_after) > context_words else words_after
+    match_phrase = full_text[pos:end]
+    prefix = "… " if len(words_before) > context_words else ""
+    suffix = " …" if len(words_after) > context_words else ""
+    return prefix + " ".join(before_10) + " **" + match_phrase + "** " + " ".join(after_10) + suffix
 
 
 def extract_snippets(full_text, query, context_words=DEFAULT_CONTEXT_WORDS, max_snippets=DEFAULT_MAX_SNIPPETS):
     """
-    Fragmentos con la frase exacta buscada y contexto (N palabras antes/después).
+    Fragmentos con la frase o palabra buscada y contexto (N palabras antes/después).
 
-    - full_text: texto completo extraído del archivo
-    - query: término o frase buscada (se busca en minúsculas)
-    - context_words: palabras anteriores y posteriores al match (por defecto 10)
-    - max_snippets: máximo de fragmentos por archivo (por defecto 5)
-
-    Retorna lista de strings con **texto encontrado** para resaltar en el frontend.
+    - Varios tokens separados por espacio: subcadena contigua (comportamiento anterior).
+    - Una sola palabra: solo coincidencias con límite de palabra (evita matches dentro de tokens OCR).
     """
     if not full_text or not query:
         return []
     query = query.strip()
     if not query:
         return []
-    text_lower = full_text.lower()
-    query_lower = query.lower()
-    if query_lower not in text_lower:
+    if re.search(r"\s", query):
+        text_lower = full_text.lower()
+        query_lower = query.lower()
+        if query_lower not in text_lower:
+            return []
+        snippets = []
+        start = 0
+        while len(snippets) < max_snippets:
+            pos = text_lower.find(query_lower, start)
+            if pos < 0:
+                break
+            end = pos + len(query)
+            snippets.append(_snippet_around_span(full_text, pos, end, context_words))
+            start = pos + 1
+        return snippets
+
+    spans = list_term_spans(full_text, query, max_occurrences=max_snippets)
+    return [_snippet_around_span(full_text, pos, end, context_words) for pos, end in spans]
+
+
+def _merge_overlapping_spans(spans):
+    spans = sorted(spans)
+    if not spans:
         return []
-    snippets = []
-    start = 0
-    while len(snippets) < max_snippets:
-        pos = text_lower.find(query_lower, start)
-        if pos < 0:
-            break
-        end = pos + len(query)
-        before_text = full_text[:pos]
-        after_text = full_text[end:]
-        words_before = re.findall(r"\S+", before_text)
-        words_after = re.findall(r"\S+", after_text)
-        before_10 = words_before[-context_words:] if len(words_before) > context_words else words_before
-        after_10 = words_after[:context_words] if len(words_after) > context_words else words_after
-        match_phrase = full_text[pos:end]
-        prefix = "… " if len(words_before) > context_words else ""
-        suffix = " …" if len(words_after) > context_words else ""
-        snip = prefix + " ".join(before_10) + " **" + match_phrase + "** " + " ".join(after_10) + suffix
-        snippets.append(snip)
-        start = pos + 1
-    return snippets
+    out = [[spans[0][0], spans[0][1]]]
+    for s, e in spans[1:]:
+        if s <= out[-1][1]:
+            out[-1][1] = max(out[-1][1], e)
+        else:
+            out.append([s, e])
+    return [tuple(x) for x in out]
+
+
+def _highlight_word_bounded_terms(span_text, terms):
+    mtc = len(terms) > 1
+    spans = []
+    for t in terms:
+        spans.extend(
+            list_term_spans(
+                span_text,
+                t,
+                max_occurrences=MAX_TERM_OCCURRENCES,
+                multi_term_context=mtc,
+            )
+        )
+    merged = _merge_overlapping_spans(spans)
+    out = span_text
+    for s, e in reversed(merged):
+        out = out[:s] + "**" + out[s:e] + "**" + out[e:]
+    return out
 
 
 def extract_snippets_multi_term(full_text, terms, context_words=DEFAULT_CONTEXT_WORDS, max_snippets=DEFAULT_MAX_SNIPPETS):
     """
-    Fragmentos cuando la búsqueda tiene varios términos: encuentra la ventana mínima
-    que contiene TODOS los términos (en cualquier orden) y devuelve context_words
-    palabras antes y después. Los términos se marcan con ** en el snippet.
-
-    - full_text: texto completo (content_extract o extracted_text)
-    - terms: lista de cadenas (ej. ["ley", "trabajo"])
-    - context_words: palabras de contexto antes/después (por defecto 10)
-    - max_snippets: máximo de fragmentos (por defecto 5)
+    Varios términos: cada uno debe aparecer como palabra completa. Ventana mínima que contiene
+    todos los términos (cualquier orden) y context_words palabras antes/después.
     """
     if not full_text or not terms:
         return []
     terms = [t.strip() for t in terms if t and t.strip()]
     if not terms:
         return []
-    text_lower = full_text.lower()
-    # Todas las ocurrencias (pos_start, pos_end) por término
-    occs = {}
-    for t in terms:
-        tl = t.lower()
-        occs[t] = []
-        pos = 0
-        while True:
-            idx = text_lower.find(tl, pos)
-            if idx < 0:
-                break
-            occs[t].append((idx, idx + len(t)))
-            pos = idx + 1
+    cap = min(MAX_OCCURRENCES_PER_TERM_FOR_COMBO, MAX_TERM_OCCURRENCES)
+    occs = {
+        t: list_term_spans(full_text, t, max_occurrences=cap, multi_term_context=True)
+        for t in terms
+    }
     if any(not occs[t] for t in terms):
         return []
     words = list(re.finditer(r"\S+", full_text))
@@ -106,7 +116,6 @@ def extract_snippets_multi_term(full_text, terms, context_words=DEFAULT_CONTEXT_
     if not word_spans:
         return []
 
-    # Candidatos: una ventana (min_s, max_e) por combinación de una ocurrencia de cada término
     combos = product(*(occs[t] for t in terms))
     candidates = []
     for combo in combos:
@@ -123,18 +132,7 @@ def extract_snippets_multi_term(full_text, terms, context_words=DEFAULT_CONTEXT_
         before_str = " ".join(w for _, _, w in word_spans[n_before:i_start])
         after_str = " ".join(w for _, _, w in word_spans[i_end + 1:n_after])
         span_text = full_text[min_s:max_e]
-        span_lower = span_text.lower()
-        for t in terms:
-            tl = t.lower()
-            idx = 0
-            while True:
-                p = span_lower.find(tl, idx)
-                if p < 0:
-                    break
-                orig = span_text[p : p + len(t)]
-                span_text = span_text[:p] + "**" + orig + "**" + span_text[p + len(t) :]
-                span_lower = span_text.lower()
-                idx = p + len(orig) + 4
+        span_text = _highlight_word_bounded_terms(span_text, terms)
         prefix = "… " if n_before > 0 else ""
         suffix = " …" if n_after < len(word_spans) else ""
         snip = prefix + before_str + " " + span_text + " " + after_str + suffix

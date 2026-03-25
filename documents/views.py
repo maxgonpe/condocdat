@@ -8,6 +8,9 @@ from django.views.decorators.http import require_GET, require_POST
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, Count
 from django.utils import timezone
+from django.contrib.sessions.models import Session
+from django.contrib.sessions.backends.db import SessionStore
+from django.contrib.auth import get_user_model
 import os
 import re
 from datetime import date
@@ -16,9 +19,18 @@ from urllib.parse import quote
 from django.core.mail import EmailMessage
 from django.conf import settings
 
-from .models import Document, Folder, FolderFile, DocumentAttachment, CorreoEnviado, GrupoCorreo
+from .models import (
+    Document,
+    Folder,
+    FolderFile,
+    DocumentAttachment,
+    CorreoEnviado,
+    GrupoCorreo,
+    UserSessionLog,
+)
 from .search_backend import search_unified, _normalize_terms
 from .snippets import extract_snippets, extract_snippets_multi_term
+from .text_search_match import text_matches_all_terms_as_words, text_matches_single_query
 
 from rdi.models import (
     RDIRecord,
@@ -127,10 +139,18 @@ def _parse_requiere_respuesta(content_extract):
     if not content_extract or not isinstance(content_extract, str):
         return ""
 
-    t = content_extract.upper().replace("\r\n", " ").replace("\n", " ")
+    t = content_extract.upper()
+    t = t.replace("\r\n", " ").replace("\n", " ")
     t = t.replace("\u00CD", "I").replace("Í", "I")
-    for char in ("\u2713", "\u2714", "\u2612", "\u2611", "\u25A0"):
+    # Algunos OCR marcan la casilla con símbolos distintos a "X"
+    for char in ("\u2713", "\u2714", "\u2612", "\u2611", "\u25A0", "□", "■", "✗", "✕", "✖", "×", "✘"):
         t = t.replace(char, "X")
+    # Normalizar espacios para hacer match más estable
+    t = re.sub(r"\s+", " ", t).strip()
+
+    # OCR común: "S I" / "N O" en vez de "SI" / "NO"
+    t = re.sub(r"\bS\s*I\b", "SI", t)
+    t = re.sub(r"\bN\s*O\b", "NO", t)
 
     def find_word(seg, word):
         i = 0
@@ -149,33 +169,47 @@ def _parse_requiere_respuesta(content_extract):
         if len(segment) < 5:
             return ""
         pos_si = find_word(segment, "SI")
-        if pos_si < 0:
-            pos_si = find_word(segment, " SI ")
-        pos_no = find_word(segment, " NO ")
-        if pos_no < 0:
-            pos_no = find_word(segment, "NO")
+        pos_no = find_word(segment, "NO")
         if pos_si < 0 or pos_no < 0:
             return ""
+
+        # Heurística principal: patrones de casilla típicos
+        # - SI X NO  => requiere "SI"
+        # - SI NO X  => requiere "NO"
+        # - (análogos invertidos)
+        seg = segment
+        try:
+            if re.search(r"(?<!\w)SI(?!\w)\s*X\s*(?<!\w)NO(?!\w)", seg):
+                return "SI"
+            if re.search(r"(?<!\w)NO(?!\w)\s*X\s*(?<!\w)SI(?!\w)", seg):
+                return "NO"
+            if re.search(r"(?<!\w)SI(?!\w)\s*(?<!\w)NO(?!\w)\s*(?<!\w)X(?!\w)", seg):
+                return "NO"
+            if re.search(r"(?<!\w)NO(?!\w)\s*(?<!\w)SI(?!\w)\s*(?<!\w)X(?!\w)", seg):
+                return "SI"
+        except Exception:
+            pass
+
+        # Fallback: orden de apariciones (mantener lo existente pero más acotado)
         pos_x = -1
-        j = max(0, pos_si)
-        while j < len(segment):
-            x_pos = segment.find("X", j)
-            if x_pos < 0:
-                break
-            if x_pos <= pos_no + 50 or x_pos < pos_si + 120:
+        for m in re.finditer(r"(?<!\w)X(?!\w)", seg):
+            x_pos = m.start()
+            # X cerca de la casilla: entre SI y NO o muy próximo
+            if (pos_si <= x_pos <= pos_no) or (pos_no <= x_pos <= pos_si) or abs(x_pos - pos_si) < 200:
                 pos_x = x_pos
                 break
-            j = x_pos + 1
         if pos_x < 0:
             return ""
+
         orden = sorted([(pos_si, "SI"), (pos_no, "NO"), (pos_x, "X")], key=lambda x: x[0])
         secuencia = [eti for _, eti in orden]
+        if secuencia == ["SI", "X", "NO"] or secuencia == ["NO", "X", "SI"]:
+            return "SI" if secuencia[0] == "SI" else "NO"
+        # Si queda X al final, generalmente marcó el último label
         if secuencia[-1] == "X":
-            return "NO"
-        if secuencia[1] == "X":
-            return "SI"
-        if secuencia[0] == "X":
-            return "SI"
+            return "NO" if secuencia[0] == "SI" else "SI"
+        if "X" in secuencia[1:2]:
+            return "SI" if secuencia[0] == "SI" else "NO"
         return ""
 
     # 1) Tras "REQUIERE RESPUESTA" si existe
@@ -538,8 +572,43 @@ def pizarra(request):
 
 @login_required
 def dashboard(request):
-    """Panel principal del proyecto. Solo usuarios autenticados."""
-    return render(request, "dashboard.html")
+    """Panel principal del proyecto (solo para `staff`)."""
+    if not request.user.is_staff:
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied
+
+    # Usuarios en línea: se cuentan sesiones no expiradas con `_auth_user_id`.
+    now = timezone.now()
+    online_user_ids = set()
+    session_keys = Session.objects.filter(expire_date__gt=now).values_list("session_key", flat=True)
+    for key in session_keys:
+        try:
+            data = SessionStore(session_key=key).load()
+            uid = data.get("_auth_user_id")
+            if uid:
+                online_user_ids.add(int(uid))
+        except Exception:
+            continue
+
+    user_model = get_user_model()
+    online_users_count = len(online_user_ids)
+    online_staff_users_count = user_model.objects.filter(id__in=online_user_ids, is_staff=True).count()
+
+    session_logs = (
+        UserSessionLog.objects.select_related("user")
+        .order_by("-occurred_at")[:200]
+    )
+
+    return render(
+        request,
+        "dashboard.html",
+        {
+            "online_users_count": online_users_count,
+            "online_staff_users_count": online_staff_users_count,
+            "session_logs": session_logs,
+        },
+    )
 
 
 # ---------- Listado de documentos (CRUD: listar, ver, borrar) ----------
@@ -567,10 +636,9 @@ def document_list(request):
         for d in qs_json:
             hits = []
             if q and d.content_extract:
-                text_lower = d.content_extract.lower()
-                if use_multi and all(t.lower() in text_lower for t in terms):
+                if use_multi and text_matches_all_terms_as_words(d.content_extract, terms):
                     snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=10, max_snippets=5)
-                elif not use_multi and q.lower() in text_lower:
+                elif not use_multi and text_matches_single_query(d.content_extract, q):
                     snippets = extract_snippets(d.content_extract, q, context_words=10, max_snippets=5)
                 else:
                     snippets = []
@@ -578,7 +646,7 @@ def document_list(request):
                     file_name = d.file.name if d.file else 'Documento principal'
                     qa = _extract_qa_from_delimiters(
                         d.content_extract,
-                        query=None if use_multi else query,
+                        query=None if use_multi else q,
                         terms=terms if use_multi else [],
                     )
                     pregunta = qa.get("pregunta", "")
@@ -600,10 +668,9 @@ def document_list(request):
                     })
             for att in d.attachments.all():
                 if q and att.extracted_text:
-                    text_lower = att.extracted_text.lower()
-                    if use_multi and all(t.lower() in text_lower for t in terms):
+                    if use_multi and text_matches_all_terms_as_words(att.extracted_text, terms):
                         snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=10, max_snippets=5)
-                    elif not use_multi and q.lower() in text_lower:
+                    elif not use_multi and text_matches_single_query(att.extracted_text, q):
                         snippets = extract_snippets(att.extracted_text, q, context_words=10, max_snippets=5)
                     else:
                         snippets = []
@@ -689,8 +756,7 @@ def contrato_view(request):
                             })
                     else:
                         # 2) Fallback: snippets tradicionales (PDF/DOCX u otros)
-                        text_lower = d.content_extract.lower()
-                        if all(t.lower() in text_lower for t in terms):
+                        if text_matches_all_terms_as_words(d.content_extract, terms):
                             snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=10, max_snippets=8)
                         else:
                             snippets = []
@@ -722,8 +788,7 @@ def contrato_view(request):
                         })
                     else:
                         # 2) Fallback: snippets tradicionales (PDF/DOCX u otros)
-                        text_lower = d.content_extract.lower()
-                        if query.lower() in text_lower:
+                        if text_matches_single_query(d.content_extract, query):
                             snippets = extract_snippets(d.content_extract, query, context_words=10, max_snippets=8)
                         else:
                             snippets = []
@@ -760,8 +825,7 @@ def contrato_view(request):
                                 })
                         else:
                             # 2) Fallback snippets
-                            text_lower = att.extracted_text.lower()
-                            if all(t.lower() in text_lower for t in terms):
+                            if text_matches_all_terms_as_words(att.extracted_text, terms):
                                 snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=10, max_snippets=8)
                             else:
                                 snippets = []
@@ -793,8 +857,7 @@ def contrato_view(request):
                             })
                         else:
                             # 2) Fallback snippets
-                            text_lower = att.extracted_text.lower()
-                            if query.lower() in text_lower:
+                            if text_matches_single_query(att.extracted_text, query):
                                 snippets = extract_snippets(att.extracted_text, query, context_words=10, max_snippets=8)
                             else:
                                 snippets = []
@@ -890,8 +953,7 @@ def consolidado_view(request):
                                 'gc': qa.get("gc", ""),
                             })
                     else:
-                        text_lower = d.content_extract.lower()
-                        if all(t.lower() in text_lower for t in terms):
+                        if text_matches_all_terms_as_words(d.content_extract, terms):
                             snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=10, max_snippets=8)
                         else:
                             snippets = []
@@ -922,8 +984,7 @@ def consolidado_view(request):
                             'gc': qa.get("gc", ""),
                         })
                     else:
-                        text_lower = d.content_extract.lower()
-                        if q.lower() in text_lower:
+                        if text_matches_single_query(d.content_extract, q):
                             snippets = extract_snippets(d.content_extract, q, context_words=10, max_snippets=8)
                         else:
                             snippets = []
@@ -958,8 +1019,7 @@ def consolidado_view(request):
                                     'gc': qa.get("gc", ""),
                                 })
                         else:
-                            text_lower = att.extracted_text.lower()
-                            if all(t.lower() in text_lower for t in terms):
+                            if text_matches_all_terms_as_words(att.extracted_text, terms):
                                 snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=10, max_snippets=8)
                             else:
                                 snippets = []
@@ -990,8 +1050,7 @@ def consolidado_view(request):
                                 'gc': qa.get("gc", ""),
                             })
                         else:
-                            text_lower = att.extracted_text.lower()
-                            if q.lower() in text_lower:
+                            if text_matches_single_query(att.extracted_text, q):
                                 snippets = extract_snippets(att.extracted_text, q, context_words=10, max_snippets=8)
                             else:
                                 snippets = []
@@ -1664,10 +1723,9 @@ def search_unified_view(request):
         for d in qs_docs:
             hits = []
             if q and d.content_extract:
-                text_lower = d.content_extract.lower()
-                if use_multi and all(t.lower() in text_lower for t in terms):
+                if use_multi and text_matches_all_terms_as_words(d.content_extract, terms):
                     snippets = extract_snippets_multi_term(d.content_extract, terms, context_words=10, max_snippets=5)
-                elif not use_multi and q.lower() in text_lower:
+                elif not use_multi and text_matches_single_query(d.content_extract, q):
                     snippets = extract_snippets(d.content_extract, q, context_words=10, max_snippets=5)
                 else:
                     snippets = []
@@ -1681,10 +1739,9 @@ def search_unified_view(request):
                     })
             for att in d.attachments.all():
                 if q and att.extracted_text:
-                    text_lower = att.extracted_text.lower()
-                    if use_multi and all(t.lower() in text_lower for t in terms):
+                    if use_multi and text_matches_all_terms_as_words(att.extracted_text, terms):
                         snippets = extract_snippets_multi_term(att.extracted_text, terms, context_words=10, max_snippets=5)
-                    elif not use_multi and q.lower() in text_lower:
+                    elif not use_multi and text_matches_single_query(att.extracted_text, q):
                         snippets = extract_snippets(att.extracted_text, q, context_words=10, max_snippets=5)
                     else:
                         snippets = []
@@ -1716,10 +1773,9 @@ def search_unified_view(request):
         for ff in result['folder_files']:
             hits = []
             if q and ff.extracted_text:
-                text_lower = ff.extracted_text.lower()
-                if use_multi and all(t.lower() in text_lower for t in terms):
+                if use_multi and text_matches_all_terms_as_words(ff.extracted_text, terms):
                     snippets = extract_snippets_multi_term(ff.extracted_text, terms, context_words=10, max_snippets=5)
-                elif not use_multi and q.lower() in text_lower:
+                elif not use_multi and text_matches_single_query(ff.extracted_text, q):
                     snippets = extract_snippets(ff.extracted_text, q, context_words=10, max_snippets=5)
                 else:
                     snippets = []

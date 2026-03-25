@@ -37,6 +37,13 @@
     <div class="header-right">
       <a href="{% url 'admin:index' %}" class="header-link">Administración</a>
       {% if user.is_authenticated %}
+        <span class="header-link" aria-label="Usuario actual">
+          {% if user.first_name or user.last_name %}
+            {{ user.first_name }} {{ user.last_name }}
+          {% else %}
+            {{ user.username }}
+          {% endif %}
+        </span>
         <a href="{% url 'logout' %}" class="header-link">Salir</a>
       {% endif %}
     </div>
@@ -47,7 +54,9 @@
       <nav class="sidebar-nav">
         {% if user.is_authenticated %}
           <a href="{% url 'pizarra' %}" class="{% if request.resolver_match.url_name == 'pizarra' %}active{% endif %}">Pizarra</a>
-          <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Panel</a>
+          {% if user.is_staff %}
+            <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Panel</a>
+          {% endif %}
           <a href="{% url 'folder_list' %}" class="{% if request.resolver_match.url_name == 'folder_list' or request.resolver_match.url_name == 'folder_detail' %}active{% endif %}">Carpetas</a>
           <a href="{% url 'document_list' %}" class="{% if request.resolver_match.url_name == 'document_list' or request.resolver_match.url_name == 'document_detail' %}active{% endif %}">Documentos</a>
           <a href="{% url 'contrato_view' %}" class="{% if request.resolver_match.url_name == 'contrato_view' %}active{% endif %}">Contrato</a>
