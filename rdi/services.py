@@ -300,22 +300,44 @@ def get_rdi_records_for_ajax(q: str = "", limit: int = 200):
 
     out = []
     for r in records:
+        status_label = dict(RDIRecord._meta.get_field("status").choices).get(r.status, r.status)
+        informado_label = dict(RDIRecord._meta.get_field("informado").choices).get(
+            r.informado, r.informado
+        )
         out.append(
             {
+                "id": r.id,
                 "csv_id": r.csv_id,
                 "title": r.title,
                 "status": r.status,
-                "status_label": dict(RDIRecord._meta.get_field("status").choices).get(
-                    r.status, r.status
-                ),
+                "status_label": status_label,
+                "informado": r.informado,
+                "informado_label": informado_label,
                 "question": r.question,
+                "suggested_answer": r.suggested_answer,
+                "location_details": r.location_details,
                 "response": r.response,
+                "assigned_to": r.assigned_to,
+                "assignee_type": r.assignee_type,
+                "company": r.company,
                 "due_date": r.due_date.isoformat() if r.due_date else None,
+                "associated_to_document": r.associated_to_document,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
+                "created_by": r.created_by,
                 "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+                "updated_by": r.updated_by,
+                "distribution_list": r.distribution_list,
+                "cost_impact": r.cost_impact,
+                "schedule_impact": r.schedule_impact,
+                "priority": r.priority,
+                "discipline": r.discipline,
+                "category": r.category,
+                "reference": r.reference,
                 "last_snapshot_datetime": (
                     r.last_snapshot_datetime.isoformat() if r.last_snapshot_datetime else None
                 ),
+                "last_diff_fields": r.last_diff_fields,
+                "last_import_id": r.last_import_id,
             }
         )
     return out

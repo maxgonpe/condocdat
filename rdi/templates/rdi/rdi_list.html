@@ -32,7 +32,8 @@
           <th>Estado</th>
           <th>Consulta</th>
           <th>Respuesta</th>
-          <th>Fecha vencimiento</th>
+          {% comment %}<th>Fecha vencimiento</th>{% endcomment %}
+          <th>Disciplina</th>
           <th>Fecha creación</th>
           <th>Fecha actualización</th>
         </tr>
@@ -67,7 +68,7 @@
         '<td style="max-width: 160px;">' + escapeHtml(r.status_label || r.status) + '</td>' +
         '<td style="max-width: 420px; white-space: pre-wrap; max-height: 4.8rem; overflow: auto;">' + escapeHtml(r.question || '') + '</td>' +
         '<td style="max-width: 520px; white-space: pre-wrap; max-height: 4.8rem; overflow: auto;">' + escapeHtml(r.response || '') + '</td>' +
-        '<td>' + escapeHtml(fmtDateShort(r.due_date)) + '</td>' +
+        '<td style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + escapeHtml(r.discipline || '') + '</td>' +
         '<td>' + escapeHtml(fmtDateShort(r.created_at)) + '</td>' +
         '<td>' + escapeHtml(fmtDateShort(r.updated_at)) + '</td>' +
       '</tr>'

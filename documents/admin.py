@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     Project, ExecutingCompany, Process, DocumentType, DocumentSequence,
     Document, Folder, FolderFile, DocumentAttachment, CorreoEnviado, GrupoCorreo,
+    UserSessionLog, UserPresence,
 )
 
 
@@ -78,3 +79,18 @@ class GrupoCorreoAdmin(admin.ModelAdmin):
     def email_count(self, obj):
         return len(obj.lista_emails())
     email_count.short_description = "Correos"
+
+
+@admin.register(UserSessionLog)
+class UserSessionLogAdmin(admin.ModelAdmin):
+    list_display = ("occurred_at", "user", "action", "ip_address", "session_key")
+    list_filter = ("action", "occurred_at")
+    search_fields = ("user__username", "user__first_name", "user__last_name", "ip_address", "session_key", "user_agent")
+    readonly_fields = ("occurred_at",)
+
+
+@admin.register(UserPresence)
+class UserPresenceAdmin(admin.ModelAdmin):
+    list_display = ("user", "last_seen")
+    list_filter = ("last_seen",)
+    search_fields = ("user__username", "user__first_name", "user__last_name")

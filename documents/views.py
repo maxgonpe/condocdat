@@ -8,8 +8,6 @@ from django.views.decorators.http import require_GET, require_POST
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, Count
 from django.utils import timezone
-from django.contrib.sessions.models import Session
-from django.contrib.sessions.backends.db import SessionStore
 from django.contrib.auth import get_user_model
 import os
 import re
@@ -27,6 +25,7 @@ from .models import (
     CorreoEnviado,
     GrupoCorreo,
     UserSessionLog,
+    UserPresence,
 )
 from .search_backend import search_unified, _normalize_terms
 from .snippets import extract_snippets, extract_snippets_multi_term
@@ -578,22 +577,19 @@ def dashboard(request):
 
         raise PermissionDenied
 
-    # Usuarios en línea: se cuentan sesiones no expiradas con `_auth_user_id`.
-    now = timezone.now()
-    online_user_ids = set()
-    session_keys = Session.objects.filter(expire_date__gt=now).values_list("session_key", flat=True)
-    for key in session_keys:
-        try:
-            data = SessionStore(session_key=key).load()
-            uid = data.get("_auth_user_id")
-            if uid:
-                online_user_ids.add(int(uid))
-        except Exception:
-            continue
-
     user_model = get_user_model()
-    online_users_count = len(online_user_ids)
-    online_staff_users_count = user_model.objects.filter(id__in=online_user_ids, is_staff=True).count()
+    # Usuarios "en línea": actividad reciente (últimos 10 minutos)
+    now = timezone.now()
+    online_window_minutes = 10
+    cutoff = now - timezone.timedelta(minutes=online_window_minutes)
+    presences = (
+        UserPresence.objects.select_related("user")
+        .filter(last_seen__gte=cutoff)
+        .order_by("-last_seen")
+    )
+    online_users_count = presences.count()
+    online_staff_users_count = presences.filter(user__is_staff=True).count()
+    online_users = [p.user for p in presences[:200]]
 
     session_logs = (
         UserSessionLog.objects.select_related("user")
@@ -606,6 +602,8 @@ def dashboard(request):
         {
             "online_users_count": online_users_count,
             "online_staff_users_count": online_staff_users_count,
+            "online_users": online_users,
+            "online_window_minutes": online_window_minutes,
             "session_logs": session_logs,
         },
     )

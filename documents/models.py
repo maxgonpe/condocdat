@@ -398,3 +398,26 @@ class UserSessionLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} {self.action} {self.occurred_at:%Y-%m-%d %H:%M:%S}"
+
+
+class UserPresence(models.Model):
+    """
+    Presencia / última actividad del usuario (para calcular "en línea").
+
+    Se actualiza vía middleware por cada request autenticada.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="presence",
+    )
+    last_seen = models.DateTimeField(db_index=True)
+
+    class Meta:
+        verbose_name = "Presencia de usuario"
+        verbose_name_plural = "Presencias de usuarios"
+        ordering = ["-last_seen"]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} last_seen={self.last_seen:%Y-%m-%d %H:%M:%S}"

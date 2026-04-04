@@ -52,6 +52,26 @@ def rdi_export_excel(request):
         "Fecha vencimiento",
         "Fecha creación",
         "Fecha actualización",
+        "Disciplina",
+        "Empresa",
+        "Asignado a",
+        "Tipo asignación",
+        "Respuesta sugerida",
+        "Ubicación detalle",
+        "Creado por",
+        "Actualizado por",
+        "Lista distribución",
+        "Impacto costo",
+        "Impacto plazo",
+        "Prioridad",
+        "Categoría",
+        "Referencia",
+        "Asociado a documento",
+        "Informado (código)",
+        "Informado",
+        "ID interno",
+        "Last diff fields",
+        "Last import ID",
     ]
 
     wb = openpyxl.Workbook()
@@ -80,6 +100,26 @@ def rdi_export_excel(request):
             _date_short(r.get("due_date")),
             _date_short(r.get("created_at")),
             _date_short(r.get("updated_at")),
+            r.get("discipline", ""),
+            r.get("company", ""),
+            r.get("assigned_to", ""),
+            r.get("assignee_type", ""),
+            r.get("suggested_answer", ""),
+            r.get("location_details", ""),
+            r.get("created_by", ""),
+            r.get("updated_by", ""),
+            r.get("distribution_list", ""),
+            r.get("cost_impact", ""),
+            r.get("schedule_impact", ""),
+            r.get("priority", ""),
+            r.get("category", ""),
+            r.get("reference", ""),
+            "Sí" if r.get("associated_to_document") is True else ("No" if r.get("associated_to_document") is False else ""),
+            r.get("informado", ""),
+            r.get("informado_label", ""),
+            r.get("id", ""),
+            r.get("last_diff_fields", ""),
+            r.get("last_import_id", ""),
         ])
 
     # Estilos y ancho simple + wrap
@@ -87,7 +127,7 @@ def rdi_export_excel(request):
     for col in range(1, len(headers) + 1):
         letter = get_column_letter(col)
         # Anchos aproximados
-        ws.column_dimensions[letter].width = 18 if col in (1, 2, 7, 8, 9, 4) else 28
+        ws.column_dimensions[letter].width = 18 if col in (1, 2, 4, 7, 8, 9, 24, 25, 26, 27, 28, 29) else 28
 
     # Alinea y activa wrap en todas las filas excepto A1 (fusionado)
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=len(headers)):

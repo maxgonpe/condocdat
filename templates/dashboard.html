@@ -27,9 +27,26 @@
 <div class="card">
   <h2>Estado del sistema (staff)</h2>
   <p class="muted">
-    Usuarios en línea: <strong>{{ online_users_count }}</strong><br>
+    Usuarios en línea (últimos {{ online_window_minutes }} min): <strong>{{ online_users_count }}</strong><br>
     Staff en línea: <strong>{{ online_staff_users_count }}</strong>
   </p>
+  {% if online_users %}
+    <p class="muted" style="margin-top: 0.75rem;">Activos ahora:</p>
+    <ul class="muted" style="margin-top: 0.25rem;">
+      {% for u in online_users %}
+        <li>
+          {% if u.first_name or u.last_name %}
+            {{ u.first_name }} {{ u.last_name }}
+          {% else %}
+            {{ u.username }}
+          {% endif %}
+          {% if u.is_staff %}<strong>(staff)</strong>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted" style="margin-top: 0.75rem;">No hay usuarios activos en la ventana actual.</p>
+  {% endif %}
 </div>
 
 <div class="card">
