@@ -3,87 +3,6 @@
 
 {% block title %}Pizarra{% endblock %}
 
-{% block extra_css %}
-<style>
-  .pizarra-estatus {
-    --neon-cyan: #00f5ff;
-    --neon-magenta: #ff00aa;
-    --neon-green: #39ff14;
-    --neon-amber: #ffbf00;
-    --neon-bg: rgba(0, 0, 0, 0.75);
-    background: var(--neon-bg);
-    border: 2px solid var(--neon-cyan);
-    border-radius: 16px;
-    padding: 1.5rem 2rem;
-    margin-bottom: 1.5rem;
-    box-shadow:
-      0 0 10px rgba(0, 245, 255, 0.4),
-      0 0 20px rgba(0, 245, 255, 0.2),
-      inset 0 0 30px rgba(0, 245, 255, 0.05);
-  }
-  [data-theme="light"] .pizarra-estatus {
-    background: linear-gradient(135deg, #1a0a2e 0%, #16213e 100%);
-    border-color: var(--neon-cyan);
-  }
-  .pizarra-estatus h2 {
-    margin: 0 0 1rem 0;
-    font-size: 1.25rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--neon-cyan);
-    text-shadow: 0 0 10px rgba(0, 245, 255, 0.8);
-  }
-  .pizarra-estatus-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 1.25rem;
-  }
-  .pizarra-stat {
-    text-align: center;
-    padding: 0.75rem;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(0, 245, 255, 0.25);
-  }
-  .pizarra-stat .valor {
-    display: block;
-    font-size: 2.5rem;
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: 0.02em;
-    margin-bottom: 0.25rem;
-  }
-  .pizarra-stat .etiqueta {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255, 255, 255, 0.7);
-  }
-  .pizarra-stat--total .valor { color: var(--neon-cyan); text-shadow: 0 0 12px rgba(0, 245, 255, 0.7); }
-  .pizarra-stat--propamat .valor { color: var(--neon-magenta); text-shadow: 0 0 12px rgba(255, 0, 170, 0.6); }
-  .pizarra-stat--odata .valor { color: #7b68ee; text-shadow: 0 0 12px rgba(123, 104, 238, 0.6); }
-  .pizarra-stat--requieren .valor { color: var(--neon-amber); text-shadow: 0 0 12px rgba(255, 191, 0, 0.6); }
-  .pizarra-stat--pendientes .valor { color: #ff6b6b; text-shadow: 0 0 12px rgba(255, 107, 107, 0.6); }
-  .pizarra-stat--respondidas .valor { color: var(--neon-green); text-shadow: 0 0 12px rgba(57, 255, 20, 0.6); }
-  .pizarra-stat--text .valor { font-size: 0.95rem; font-weight: 600; word-break: break-all; color: #fff; text-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 255, 255, 0.5); }
-  .pizarra-estatus--propamat { border-color: var(--neon-amber); box-shadow: 0 0 12px rgba(255, 191, 0, 0.35), 0 0 24px rgba(255, 191, 0, 0.15); }
-  .pizarra-estatus--propamat h2 { color: var(--neon-amber); text-shadow: 0 0 10px rgba(255, 191, 0, 0.8); }
-  .pizarra-estatus--odata { border-color: #7b68ee; box-shadow: 0 0 12px rgba(123, 104, 238, 0.4), 0 0 24px rgba(123, 104, 238, 0.2); }
-  .pizarra-estatus--odata h2 { color: #a78bfa; text-shadow: 0 0 10px rgba(167, 139, 250, 0.8); }
-  .pizarra-estatus-grid--logs { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-  /* RDI: queremos el tamaño de fuente tipo "valor" grande (como otros cards),
-     pero conservamos los colores del modificador --text. */
-  .pizarra-stat--text.pizarra-stat--rdi .valor{
-    font-size: 2.5rem !important;
-    font-weight: 800 !important;
-    line-height: 1.1;
-    letter-spacing: 0.02em;
-    word-break: normal;
-  }
-</style>
-{% endblock %}
-
 {% block content %}
 <header class="page-header">
   <h1>Pizarra</h1>
@@ -180,55 +99,62 @@
   </div>
 </div>
 
-<div class="pizarra-estatus card" style="border-color: #14b8a6; box-shadow: 0 0 12px rgba(20, 184, 166, 0.25);">
-  <h2 style="color: #2dd4bf; text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);">Informar de Odata</h2>
-  <p class="muted" style="margin: -0.5rem 0 1rem 0; font-size: 0.9rem;">ODATA-BUF-* y TRN-PRO-CM-TRN-*</p>
-  <div class="pizarra-estatus-grid pizarra-estatus-grid--logs">
-    <div class="pizarra-stat pizarra-stat--total">
-      <span class="valor">{{ informar_total|default:0 }}</span>
-      <span class="etiqueta">Total</span>
-    </div>
-    <div class="pizarra-stat pizarra-stat--pendientes">
-      <span class="valor">{{ informar_stats.no_informados|default:0 }}</span>
-      <span class="etiqueta">No informados</span>
-    </div>
-    <div class="pizarra-stat pizarra-stat--respondidas">
-      <span class="valor">{{ informar_stats.informados|default:0 }}</span>
-      <span class="etiqueta">Informados</span>
-    </div>
-    <div class="pizarra-stat pizarra-stat--odata">
-      <span class="valor">{{ informar_stats.otra_vez_informados|default:0 }}</span>
-      <span class="etiqueta">Otra vez informados</span>
-    </div>
-    <div class="pizarra-stat pizarra-stat--text" style="grid-column: 1 / -1;">
-      <a href="{% url 'informar_list' %}" class="btn btn-outline" style="display: inline-block; margin-top: 0.25rem;">Abrir listado Informar de Odata</a>
-    </div>
-  </div>
-</div>
-
-<div class="pizarra-estatus card" style="border-color: #6366f1; box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);">
-  <h2 style="color: #a5b4fc; text-shadow: 0 0 10px rgba(165, 180, 252, 0.45);">Informar desde BIM</h2>
-  <p class="muted" style="margin: -0.5rem 0 1rem 0; font-size: 0.9rem;">Listado alineado con RDI (BIM).</p>
-  <div class="pizarra-estatus-grid pizarra-estatus-grid--logs">
-    <div class="pizarra-stat pizarra-stat--text" style="grid-column: 1 / -1;">
-      <a href="{% url 'informar_bim_list' %}" class="btn btn-outline" style="display: inline-block; margin-top: 0.25rem;">Abrir Informar desde BIM</a>
-    </div>
-  </div>
-</div>
-
-<div class="pizarra-estatus card">
+<div class="pizarra-estatus card pizarra-estatus--rdi-full">
   <h2>Estatus de las RDI</h2>
-  <div class="pizarra-estatus-grid">
-    <div class="pizarra-stat pizarra-stat--total">
-      <span class="valor">{{ rdi_total|default:0 }}</span>
-      <span class="etiqueta">Total RDI</span>
+  <p class="muted" style="font-size: 0.85rem; margin: -0.35rem 0 0.75rem;">Universo con actividad en 2026 o posteriores. Desglose de estado sin Borrador, Remitida ni Nula; tabla por disciplina igual criterio que el panel staff{% if user.is_staff %} (<a href="{% url 'dashboard' %}">abrir panel</a>){% endif %}.</p>
+
+  <div class="dashboard-rdi-metrics" aria-label="Estadísticas RDI">
+    <div class="dashboard-rdi-metrics__block">
+      <h3 class="dashboard-rdi-metrics__title">Estado</h3>
+      <p class="dashboard-rdi-metrics__total muted">Total universo: <strong>{{ rdi_total|default:0 }}</strong></p>
+      <p class="muted dashboard-rdi-metrics__hint" style="margin-top: -0.25rem;">Desglose sin Borrador, Remitida ni Nula.</p>
+      {% if rdi_stats %}
+      <ul class="dashboard-rdi-metrics__list">
+        {% for row in rdi_stats %}
+        <li><span class="dashboard-rdi-metrics__label">{{ row.label }}</span> <span class="dashboard-rdi-metrics__num">{{ row.count }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Sin registros en ese desglose.</p>
+      {% endif %}
     </div>
-    {% for s in rdi_stats %}
-      <div class="pizarra-stat pizarra-stat--text pizarra-stat--rdi">
-        <span class="valor">{{ s.count|default:0 }}</span>
-        <span class="etiqueta">{{ s.label }}</span>
+
+    <div class="dashboard-rdi-metrics__block dashboard-rdi-metrics__block--span-all">
+      <h3 class="dashboard-rdi-metrics__title">Disciplina / especialidad</h3>
+      <p class="muted dashboard-rdi-metrics__hint">Solo disciplinas presentes en el universo. Con/sin respuesta según el campo respuesta (suman el total de la fila). Vencimiento según fecha de vencimiento.</p>
+      {% if rdi_discipline_rows %}
+      <div class="dashboard-rdi-table-wrap">
+        <table class="dashboard-rdi-table">
+          <thead>
+            <tr>
+              <th scope="col">Disciplina</th>
+              <th scope="col">Total</th>
+              <th scope="col">Con respuesta</th>
+              <th scope="col">Sin respuesta</th>
+              <th scope="col">Vencidas</th>
+              <th scope="col">Dentro plazo</th>
+              <th scope="col">Sin fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rdi_discipline_rows %}
+            <tr>
+              <th scope="row"><span class="dashboard-rdi-table__disc" title="{{ row.full|escape }}">{{ row.label }}</span></th>
+              <td>{{ row.total }}</td>
+              <td>{{ row.con_respuesta }}</td>
+              <td>{{ row.sin_respuesta }}</td>
+              <td>{{ row.vencidas }}</td>
+              <td>{{ row.vigentes }}</td>
+              <td>{{ row.sin_fecha }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-    {% endfor %}
+      {% else %}
+      <p class="muted">Sin datos por disciplina (o ningún registro con disciplina informada).</p>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}

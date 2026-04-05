@@ -16,6 +16,7 @@ urlpatterns = [
     path('logs-propamat-odata/', views.logs_propamat_odata, name='logs_propamat_odata'),
     path('logs-odata-propamat/', views.logs_odata_propamat, name='logs_odata_propamat'),
     path('informar/', views.informar_list, name='informar_list'),
+    path('trazabilidad/', views.trazabilidad_view, name='trazabilidad'),
     path('<int:pk>/', views.document_detail, name='document_detail'),
     path('<int:pk>/adjuntos/', views.document_upload_attachments, name='document_upload_attachments'),
     path('<int:pk>/eliminar/', views.document_delete, name='document_delete'),

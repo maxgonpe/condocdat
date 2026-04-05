@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 import os
 import re
-from datetime import date
+from datetime import date, datetime
 from urllib.parse import quote
 
 from django.core.mail import EmailMessage
@@ -30,13 +30,100 @@ from .models import (
 from .search_backend import search_unified, _normalize_terms
 from .snippets import extract_snippets, extract_snippets_multi_term
 from .text_search_match import text_matches_all_terms_as_words, text_matches_single_query
+from .traceability import build_journeys_for_query
 
 from rdi.models import (
     RDIRecord,
     RDI_INFORMADO_NO,
     RDI_INFORMADO_SI,
     RDI_INFORMADO_OTRA,
+    RDI_STATUS_BORRADOR,
+    RDI_STATUS_NULA,
+    RDI_STATUS_REMITIDA,
+    RDI_STATUS_RESPONDIDA,
 )
+
+# Estados no mostrados en el desglose del panel RDI
+RDI_PANEL_STATUS_EXCLUDE = frozenset(
+    {RDI_STATUS_BORRADOR, RDI_STATUS_REMITIDA, RDI_STATUS_NULA}
+)
+
+
+def _rdi_discipline_rows(rdi_universe, now):
+    """
+    Por valor de `discipline` no vacío: totales, respuesta según el campo `response`
+    (con texto vs vacío; siempre suman el total de la fila) y vencimiento.
+    Registros sin disciplina se omiten.
+    """
+    from collections import defaultdict
+
+    buckets = defaultdict(
+        lambda: {
+            "total": 0,
+            "con_respuesta": 0,
+            "sin_respuesta": 0,
+            "vencidas": 0,
+            "vigentes": 0,
+            "sin_fecha": 0,
+        }
+    )
+    for discipline, response, due_date in rdi_universe.values_list(
+        "discipline", "response", "due_date"
+    ):
+        raw = (discipline or "").strip()
+        if not raw:
+            continue
+        key = raw
+        b = buckets[key]
+        b["total"] += 1
+        if (response or "").strip():
+            b["con_respuesta"] += 1
+        else:
+            b["sin_respuesta"] += 1
+        if due_date is None:
+            b["sin_fecha"] += 1
+        elif due_date < now:
+            b["vencidas"] += 1
+        else:
+            b["vigentes"] += 1
+
+    rows = []
+    for key, b in buckets.items():
+        short = key if len(key) <= 64 else key[:61] + "…"
+        rows.append(
+            {
+                "label": short,
+                "full": key,
+                "total": b["total"],
+                "con_respuesta": b["con_respuesta"],
+                "sin_respuesta": b["sin_respuesta"],
+                "vencidas": b["vencidas"],
+                "vigentes": b["vigentes"],
+                "sin_fecha": b["sin_fecha"],
+            }
+        )
+    rows.sort(key=lambda r: (-r["total"], r["full"].lower()))
+    return rows
+
+
+def _rdi_panel_universe():
+    """RDI con actividad en 2026 o posteriores (mismo criterio que panel staff y pizarra)."""
+    start_2026 = timezone.make_aware(datetime(2026, 1, 1, 0, 0, 0))
+    return RDIRecord.objects.filter(
+        Q(created_at__gte=start_2026)
+        | Q(created_at__isnull=True, updated_at__gte=start_2026)
+        | Q(
+            created_at__isnull=True,
+            updated_at__isnull=True,
+            last_snapshot_datetime__gte=start_2026,
+        )
+        | Q(
+            created_at__isnull=True,
+            updated_at__isnull=True,
+            last_snapshot_datetime__isnull=True,
+            due_date__gte=start_2026,
+        )
+    )
 
 
 def _format_datetime_correo_es(dt):
@@ -525,33 +612,33 @@ def pizarra(request):
     logs_propamat = _log_rows_stats(rows_propamat)
     logs_odata = _log_rows_stats(rows_odata)
 
-    # Estadísticas RDI por estado (status)
+    # Estadísticas RDI (mismo universo, estados y tabla por disciplina que el panel staff)
     try:
-        from rdi.models import RDIRecord, RDI_STATUS_CHOICES
-
-        rdi_total = RDIRecord.objects.count()
+        now = timezone.now()
+        rdi_universe = _rdi_panel_universe()
+        rdi_total = rdi_universe.count()
+        status_labels = dict(RDIRecord._meta.get_field("status").choices)
         rdi_stats = []
-        for code, label in RDI_STATUS_CHOICES:
+        for row in (
+            rdi_universe.exclude(status__in=RDI_PANEL_STATUS_EXCLUDE)
+            .values("status")
+            .annotate(c=Count("id"))
+            .order_by("-c", "status")
+        ):
+            code = row["status"]
             rdi_stats.append(
                 {
                     "code": code,
-                    "label": label,
-                    "count": RDIRecord.objects.filter(status=code).count(),
+                    "label": status_labels.get(code, code),
+                    "count": row["c"],
                 }
             )
+        rdi_discipline_rows = _rdi_discipline_rows(rdi_universe, now)
     except Exception:
         # Si RDI aún no está instalado en este entorno, no rompemos la pizarra.
         rdi_total = 0
         rdi_stats = []
-
-    # Informar: ODATA-BUF-* y TRN-PRO-CM-TRN-*
-    informar_qs = Document.objects.filter(
-        Q(folder__code__icontains="ODATA-BUF") | Q(code__istartswith="TRN-PRO-CM-TRN-")
-    ).distinct()
-    informar_total = informar_qs.count()
-    informar_stats = {code: 0 for code, _ in Document.INFORMADO_CHOICES}
-    for row in informar_qs.values("informado").annotate(n=Count("id")):
-        informar_stats[row["informado"]] = row["n"]
+        rdi_discipline_rows = []
 
     return render(request, "pizarra.html", {
         "cartas_total": total,
@@ -564,8 +651,7 @@ def pizarra(request):
         "logs_odata": logs_odata,
         "rdi_total": rdi_total,
         "rdi_stats": rdi_stats,
-        "informar_total": informar_total,
-        "informar_stats": informar_stats,
+        "rdi_discipline_rows": rdi_discipline_rows,
     })
 
 
@@ -596,6 +682,24 @@ def dashboard(request):
         .order_by("-occurred_at")[:200]
     )
 
+    # Estadísticas RDI (panel): universo = actividad en 2026 en adelante
+    rdi_universe = _rdi_panel_universe()
+    rdi_total = rdi_universe.count()
+    status_labels = dict(RDIRecord._meta.get_field("status").choices)
+    rdi_stats_status = []
+    for row in (
+        rdi_universe.exclude(status__in=RDI_PANEL_STATUS_EXCLUDE)
+        .values("status")
+        .annotate(c=Count("id"))
+        .order_by("-c", "status")
+    ):
+        code = row["status"]
+        rdi_stats_status.append(
+            {"label": status_labels.get(code, code), "code": code, "count": row["c"]}
+        )
+
+    rdi_discipline_rows = _rdi_discipline_rows(rdi_universe, now)
+
     return render(
         request,
         "dashboard.html",
@@ -605,6 +709,29 @@ def dashboard(request):
             "online_users": online_users,
             "online_window_minutes": online_window_minutes,
             "session_logs": session_logs,
+            "rdi_total": rdi_total,
+            "rdi_stats_status": rdi_stats_status,
+            "rdi_discipline_rows": rdi_discipline_rows,
+        },
+    )
+
+
+@login_required
+@require_GET
+def trazabilidad_view(request):
+    """
+    Trazabilidad en carpetas ODATA-ST01-F5-TTAL-PPT-*, ODATA-BUF-* y TRN-PRO-CM-TRN-*.
+    Agrupa por título base; orden del trazo por fecha/hora de creación del documento.
+    """
+    q = request.GET.get("q", "").strip()
+    journeys, summary = build_journeys_for_query(q)
+    return render(
+        request,
+        "documents/trazabilidad.html",
+        {
+            "q": q,
+            "journeys": journeys,
+            "summary": summary,
         },
     )
 

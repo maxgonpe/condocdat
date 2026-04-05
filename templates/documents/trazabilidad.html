@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Trazabilidad{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/trazabilidad.css' %}">
+{% endblock %}
+
+{% block content %}
+<header class="page-header trace-hero">
+  <div class="trace-hero__icon" aria-hidden="true">◇</div>
+  <div>
+    <h1>Trazabilidad</h1>
+    <p class="muted trace-hero__lead">
+      Seguimiento en carpetas <strong>ODATA-ST01-F5-TTAL-PPT-*</strong>, <strong>ODATA-BUF-*</strong> y <strong>TRN-PRO-CM-TRN-*</strong>:
+      cada recorrido va en una tarjeta, <strong>del documento más reciente por fecha de creación (arriba) al más antiguo (abajo)</strong>. Busque por título, código o nombre de archivo (adjuntos y archivos de carpeta).
+    </p>
+  </div>
+</header>
+
+<form method="get" action="{% url 'trazabilidad' %}" class="card trace-search">
+  <div class="form-group" style="max-width: 640px;">
+    <label for="trace-q">Buscar documento o referencia</label>
+    <input type="search" id="trace-q" name="q" class="form-control" value="{{ q|escape }}"
+           placeholder="Ej: ING-BMS-PT-09 · ING-CLIMA-PT-02 · TRN-PRO-CM-TRN-0066 · ODATA-ST01-F5-TTAL-PPT-00177">
+  </div>
+  <div class="trace-search__actions">
+    <button type="submit" class="btn btn-primary">Resumir trazabilidad</button>
+    {% if q %}
+      <a href="{% url 'trazabilidad' %}" class="btn btn-outline">Limpiar</a>
+    {% endif %}
+  </div>
+</form>
+
+<div class="trace-stats card">
+  <div class="trace-stat trace-stat--odata">
+    <span class="trace-stat__icon" aria-hidden="true">◉</span>
+    <div>
+      <div class="trace-stat__label">Docs en carpetas ODATA (PPT + BUF)</div>
+      <div class="trace-stat__value">{{ summary.odata_docs|default:0 }}</div>
+    </div>
+  </div>
+  <div class="trace-stat trace-stat--trn">
+    <span class="trace-stat__icon" aria-hidden="true">◆</span>
+    <div>
+      <div class="trace-stat__label">Docs en carpetas TRN</div>
+      <div class="trace-stat__value">{{ summary.trn_docs|default:0 }}</div>
+    </div>
+  </div>
+  <div class="trace-stat trace-stat--all">
+    <span class="trace-stat__icon" aria-hidden="true">▣</span>
+    <div>
+      <div class="trace-stat__label">Ámbito analizado (documentos)</div>
+      <div class="trace-stat__value">{{ summary.scope_documents|default:0 }}</div>
+    </div>
+  </div>
+</div>
+
+{% if summary.needs_query %}
+  <div class="card trace-empty">
+    <p class="muted">Escriba un término de búsqueda y pulse <strong>Resumir trazabilidad</strong> para ver el recorrido agrupado por título base (mismas piezas con distinta revisión o transmittal).</p>
+  </div>
+{% elif not journeys %}
+  <div class="card trace-empty">
+    <p class="muted">No se encontraron coincidencias en el ámbito ODATA/TRN. Pruebe con parte del título, el código de documento o un código de transmittal.</p>
+  </div>
+{% else %}
+  <p class="muted trace-count">Mostrando <strong>{{ summary.journeys_shown }}</strong> recorrido(s) relacionado(s) con «{{ q|escape }}».</p>
+
+  {% for j in journeys %}
+  <article class="card trace-journey">
+    <header class="trace-journey__head">
+      <h2 class="trace-journey__title">{{ j.title_hint|truncatewords:25 }}</h2>
+      <span class="trace-journey__badge">{{ j.n_steps }} versión(es) / aparición(es)</span>
+    </header>
+    <p class="trace-journey__legend muted">
+      <span class="trace-journey__legend-i trace-journey__legend-i--new">↑</span> Más reciente (creación del documento)
+      <span class="trace-journey__legend-sep">·</span>
+      <span class="trace-journey__legend-i trace-journey__legend-i--old">↓</span> Origen (inicio del flujo en el sistema)
+    </p>
+
+    <div class="trace-timeline trace-timeline--in-card" role="list">
+      {% for s in j.steps %}
+      <div class="trace-node trace-node--{{ s.side }}{% if s.is_search_hit %} trace-node--hit{% endif %}" role="listitem">
+        <div class="trace-node__rail" aria-hidden="true"></div>
+        <div class="trace-node__icon" aria-hidden="true">
+          {% if s.side == "odata" %}☁{% elif s.side == "trn" %}⮕{% else %}📄{% endif %}
+        </div>
+        <div class="trace-node__body">
+          <div class="trace-node__meta">
+            {% if s.step_label %}
+              <span class="trace-pill trace-pill--step">{{ s.step_label }}</span>
+            {% endif %}
+            <span class="trace-pill trace-pill--side">{{ s.side_label }}</span>
+            {% if s.folder_code %}
+              <a href="{% url 'folder_detail' s.folder_id %}" class="trace-link">{{ s.folder_code }}</a>
+            {% endif %}
+            <span class="muted">·</span>
+            {% if s.trace_instant %}
+              <time datetime="{{ s.trace_instant|date:'c' }}" title="Orden por fecha y hora de creación del documento (created_at).">{{ s.trace_instant|date:"d/m/Y H:i" }}</time>
+            {% elif s.folder_date %}
+              <time datetime="{{ s.folder_date|date:'Y-m-d' }}">{{ s.folder_date|date:"d/m/Y" }}</time>
+            {% elif s.date %}
+              <time datetime="{{ s.date|date:'Y-m-d' }}">{{ s.date|date:"d/m/Y" }}</time>
+            {% else %}
+              <span class="muted">sin fecha</span>
+            {% endif %}
+            {% if s.date and s.folder_date and s.date != s.folder_date %}
+              <span class="muted" title="Fecha del documento">· doc. {{ s.date|date:"d/m/Y" }}</span>
+            {% endif %}
+            {% if s.revision %}
+              <span class="trace-pill">Rev. {{ s.revision }}</span>
+            {% endif %}
+          </div>
+          <div class="trace-node__title">
+            <a href="{% url 'document_detail' s.document_id %}">{{ s.title|default:s.code }}</a>
+            <span class="muted">— {{ s.code }}</span>
+          </div>
+          <div class="trace-node__state">
+            <span class="trace-chip">{{ s.status_display }}</span>
+            <span class="trace-chip trace-chip--soft">Informar: {{ s.informado_display }}</span>
+          </div>
+          {% if s.refs_trn or s.refs_odata %}
+          <div class="trace-refs">
+            <span class="muted">Referencias en texto/adjuntos:</span>
+            {% for c in s.refs_odata %}
+              <span class="trace-ref trace-ref--odata">{{ c }}</span>
+            {% endfor %}
+            {% for c in s.refs_trn %}
+              <span class="trace-ref trace-ref--trn">{{ c }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if s.attachments %}
+          <div class="trace-files trace-files--doc">
+            <div class="trace-files__label">Documento y adjuntos</div>
+            <ul class="trace-files__list">
+              {% for f in s.attachments %}
+              <li class="trace-file{% if f.highlight %} trace-file--hit{% endif %}">
+                {% if f.kind == "principal" %}<span class="trace-file__kind">Principal</span>{% elif f.kind == "adjunto" %}<span class="trace-file__kind">Adjunto</span>{% endif %}
+                {% if f.url %}<a href="{{ f.url }}">{{ f.name }}</a>{% else %}<span>{{ f.name }}</span>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          {% if s.folder_files %}
+          <div class="trace-files trace-files--folder">
+            <div class="trace-files__label">Archivos en la carpeta del transmittal</div>
+            <ul class="trace-files__list">
+              {% for f in s.folder_files %}
+              <li class="trace-file{% if f.highlight %} trace-file--hit{% endif %}">
+                {% if f.url %}<a href="{{ f.url }}">{{ f.name }}</a>{% else %}<span>{{ f.name }}</span>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+  {% endfor %}
+{% endif %}
+
+<nav class="list-actions">
+  <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
+  <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
+  <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
+</nav>
+{% endblock %}

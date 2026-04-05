@@ -4,24 +4,137 @@
 
 {% block content %}
 <h1>Panel principal</h1>
-<p class="muted">Control de documentos — datacenter en construcción</p>
+<p class="muted dashboard-lead">Accesos agrupados por función. La misma estructura está en el menú lateral.</p>
 
-<div class="card">
-  <h2>Bienvenido</h2>
-  <p>Desde aquí podrás desarrollar y enlazar el resto del sistema. Este es el template principal del proyecto.</p>
-  <p>
-    <a href="{% url 'admin:index' %}" class="btn">Ir al admin</a>
-    <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
-    <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
-    <a href="{% url 'cartas_status' %}" class="btn btn-outline">Estatus Cartas</a>
-    <a href="{% url 'logs_odata_propamat' %}" class="btn btn-outline">Logs Propamat a Odata</a>
-    <a href="{% url 'logs_propamat_odata' %}" class="btn btn-outline">Logs Odata a Propamat</a>
-    <a href="{% url 'informar_list' %}" class="btn btn-outline">Informar de Odata</a>
-    <a href="{% url 'informar_bim_list' %}" class="btn btn-outline">Informar desde BIM</a>
-    <a href="{% url 'rdi_list' %}" class="btn btn-outline">RDI</a>
-    <a href="{% url 'rdi_increments_decrements' %}" class="btn btn-outline">Aumentos/disminuciones</a>
-    <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
-  </p>
+<div class="dashboard-groups">
+  <section class="card dashboard-group">
+    <h2>Inicio</h2>
+    <p class="dashboard-group__desc">Resumen, panel de control, correo e informes ODATA/BIM (staff).</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'pizarra' %}" class="btn btn-outline">Pizarra</a>
+      <a href="{% url 'dashboard' %}" class="btn btn-outline" aria-current="page">Panel</a>
+      <a href="{% url 'enviar_correo' %}" class="btn btn-outline">Enviar correo</a>
+      <a href="{% url 'informar_list' %}" class="btn btn-outline">Informar de Odata</a>
+      <a href="{% url 'informar_bim_list' %}" class="btn btn-outline">Informar desde BIM</a>
+    </div>
+  </section>
+
+  <section class="card dashboard-group">
+    <h2>Núcleo documental</h2>
+    <p class="dashboard-group__desc">Carpetas y documentos.</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
+      <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
+    </div>
+  </section>
+
+  <section class="card dashboard-group">
+    <h2>Buscar y seguimiento</h2>
+    <p class="dashboard-group__desc">Búsqueda global, contrato y trazabilidad ODATA/TRN.</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
+      <a href="{% url 'contrato_view' %}" class="btn btn-outline">Contrato</a>
+      <a href="{% url 'trazabilidad' %}" class="btn btn-outline">Trazabilidad</a>
+    </div>
+  </section>
+
+  <section class="card dashboard-group">
+    <h2>ODATA ↔ Propamat</h2>
+    <p class="dashboard-group__desc">Cartas y logs de comunicación.</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'cartas_status' %}" class="btn btn-outline">Estatus cartas</a>
+      <a href="{% url 'logs_odata_propamat' %}" class="btn btn-outline">Logs Propamat a Odata</a>
+      <a href="{% url 'logs_propamat_odata' %}" class="btn btn-outline">Logs Odata a Propamat</a>
+    </div>
+  </section>
+
+  <section class="card dashboard-group dashboard-group--rdi" data-panel-rdi-version="2026-universe-v2">
+    <h2>RDI y cantidades <span class="muted" style="font-size:0.78rem;font-weight:700;letter-spacing:0.02em;">· Universo 2026+</span></h2>
+    <p class="dashboard-group__desc">Resumen de registros RDI (universo 2026 en adelante), variaciones e importación CSV.</p>
+    <p class="muted" style="font-size: 0.85rem; margin: -0.25rem 0 0.75rem;">Universo: registros con fecha de creación, actualización, importación o vencimiento en <strong>2026 o posteriores</strong>. Las estadísticas usan solo ese conjunto.</p>
+
+    <div class="dashboard-rdi-metrics" aria-label="Estadísticas RDI">
+      <div class="dashboard-rdi-metrics__block">
+        <h3 class="dashboard-rdi-metrics__title">Estado</h3>
+        <p class="dashboard-rdi-metrics__total muted">Total universo: <strong>{{ rdi_total|default:0 }}</strong></p>
+        <p class="muted dashboard-rdi-metrics__hint" style="margin-top: -0.25rem;">Desglose sin Borrador, Remitida ni Nula.</p>
+        {% if rdi_stats_status %}
+        <ul class="dashboard-rdi-metrics__list">
+          {% for row in rdi_stats_status %}
+          <li><span class="dashboard-rdi-metrics__label">{{ row.label }}</span> <span class="dashboard-rdi-metrics__num">{{ row.count }}</span></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">Sin registros.</p>
+        {% endif %}
+      </div>
+
+      <div class="dashboard-rdi-metrics__block dashboard-rdi-metrics__block--span-all">
+        <h3 class="dashboard-rdi-metrics__title">Disciplina / especialidad</h3>
+        <p class="muted dashboard-rdi-metrics__hint">Solo disciplinas presentes en el universo. «Con respuesta» / «Sin respuesta» se basan en el campo respuesta (texto o vacío) y suman el total de la fila. Vencimiento según fecha de vencimiento.</p>
+        {% if rdi_discipline_rows %}
+        <div class="dashboard-rdi-table-wrap">
+          <table class="dashboard-rdi-table">
+            <thead>
+              <tr>
+                <th scope="col">Disciplina</th>
+                <th scope="col">Total</th>
+                <th scope="col">Con respuesta</th>
+                <th scope="col">Sin respuesta</th>
+                <th scope="col">Vencidas</th>
+                <th scope="col">Dentro plazo</th>
+                <th scope="col">Sin fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rdi_discipline_rows %}
+              <tr>
+                <th scope="row"><span class="dashboard-rdi-table__disc" title="{{ row.full|escape }}">{{ row.label }}</span></th>
+                <td>{{ row.total }}</td>
+                <td>{{ row.con_respuesta }}</td>
+                <td>{{ row.sin_respuesta }}</td>
+                <td>{{ row.vencidas }}</td>
+                <td>{{ row.vigentes }}</td>
+                <td>{{ row.sin_fecha }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="muted">Sin datos.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="dashboard-actions">
+      <a href="{% url 'rdi_list' %}" class="btn btn-outline">RDI</a>
+      <a href="{% url 'rdi_increments_decrements' %}" class="btn btn-outline">Aumentos/disminuciones</a>
+    </div>
+    <div class="rdi-import-form">
+      <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.85rem;">Importar RDI: adjunta el CSV; el sistema extrae fecha/hora desde el nombre del archivo.</p>
+      <form action="{% url 'rdi_import' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group" style="max-width: 100%; margin-bottom: 0.5rem;">
+          <label for="rdi-file">Adjuntar CSV</label>
+          <input type="file" id="rdi-file" name="file" accept=".csv" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="card dashboard-group">
+    <h2>Administración y catálogo</h2>
+    <p class="dashboard-group__desc">Administración Django y tablas maestras.</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'admin:index' %}" class="btn btn-primary">Ir al admin</a>
+      <a href="{% url 'admin:documents_project_changelist' %}" class="btn btn-outline">Proyectos</a>
+      <a href="{% url 'admin:documents_executingcompany_changelist' %}" class="btn btn-outline">EECC</a>
+      <a href="{% url 'admin:documents_process_changelist' %}" class="btn btn-outline">Procesos</a>
+      <a href="{% url 'admin:documents_documenttype_changelist' %}" class="btn btn-outline">Tipos de documento</a>
+    </div>
+  </section>
 </div>
 
 <div class="card">
@@ -80,38 +193,6 @@
     </tbody>
   </table>
   <p class="muted">Mostrando hasta las últimas 200 entradas.</p>
-</div>
-
-<div class="card">
-  <h2>Accesos rápidos</h2>
-  <p>
-    <a href="{% url 'admin:documents_project_changelist' %}" class="btn btn-outline">Proyectos</a>
-    <a href="{% url 'document_list' %}" class="btn btn-outline">Documentos</a>
-    <a href="{% url 'folder_list' %}" class="btn btn-outline">Carpetas</a>
-    <a href="{% url 'cartas_status' %}" class="btn btn-outline">Estatus Cartas</a>
-    <a href="{% url 'logs_odata_propamat' %}" class="btn btn-outline">Logs Propamat a Odata</a>
-    <a href="{% url 'logs_propamat_odata' %}" class="btn btn-outline">Logs Odata a Propamat</a>
-    <a href="{% url 'informar_list' %}" class="btn btn-outline">Informar de Odata</a>
-    <a href="{% url 'informar_bim_list' %}" class="btn btn-outline">Informar desde BIM</a>
-    <a href="{% url 'rdi_increments_decrements' %}" class="btn btn-outline">Aumentos/disminuciones</a>
-    <a href="{% url 'search_unified' %}" class="btn btn-outline">Buscar</a>
-    <a href="{% url 'admin:documents_executingcompany_changelist' %}" class="btn btn-outline">EECC</a>
-    <a href="{% url 'admin:documents_process_changelist' %}" class="btn btn-outline">Procesos</a>
-    <a href="{% url 'admin:documents_documenttype_changelist' %}" class="btn btn-outline">Tipos de documento</a>
-  </p>
-</div>
-
-<div class="card">
-  <h2>Importar RDI (CSV)</h2>
-  <p class="muted">Adjunta el CSV y el sistema extrae fecha/hora desde el nombre del archivo.</p>
-  <form action="{% url 'rdi_import' %}" method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <div class="form-group" style="max-width: 520px;">
-      <label for="rdi-file">Adjuntar CSV</label>
-      <input type="file" id="rdi-file" name="file" accept=".csv" class="form-control" required>
-    </div>
-    <button type="submit" class="btn btn-primary" style="margin-top: 0.75rem;">Importar</button>
-  </form>
 </div>
 
 {% block dashboard_extra %}{% endblock %}
