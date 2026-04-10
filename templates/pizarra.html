@@ -50,23 +50,20 @@
       <span class="valor" title="{{ logs_propamat.ultimo_transmittal }}">{{ logs_propamat.ultimo_transmittal|default:"—" }}</span>
       <span class="etiqueta">Último transmittal</span>
     </div>
-    <div class="pizarra-stat pizarra-stat--requieren">
-      <span class="valor">{{ logs_propamat.acreditaciones|default:0 }}</span>
-      <span class="etiqueta">Acreditaciones</span>
-    </div>
-    <div class="pizarra-stat pizarra-stat--respondidas">
-      <span class="valor">{{ logs_propamat.acreditacion_personal|default:0 }}</span>
-      <span class="etiqueta">Acred. personal</span>
-    </div>
-    <div class="pizarra-stat pizarra-stat--odata">
-      <span class="valor">{{ logs_propamat.acreditacion_equipos|default:0 }}</span>
-      <span class="etiqueta">Acred. equipos</span>
-    </div>
     <div class="pizarra-stat pizarra-stat--propamat">
       <span class="valor">{{ logs_propamat.procedimientos|default:0 }}</span>
       <span class="etiqueta">Procedimientos</span>
     </div>
+    <div class="pizarra-stat pizarra-stat--respondidas">
+      <span class="valor">{{ logs_propamat.protocolos|default:0 }}</span>
+      <span class="etiqueta">Protocolos</span>
+    </div>
+    <div class="pizarra-stat pizarra-stat--odata">
+      <span class="valor">{{ logs_propamat.informacion|default:0 }}</span>
+      <span class="etiqueta">Información</span>
+    </div>
   </div>
+  <p class="muted pizarra-logs-part-hint" style="font-size: 0.82rem; margin: 0.65rem 0 0;">Procedimientos + Protocolos + Información = {{ logs_propamat.total|default:0 }}. Incluye listado, bloques «Título/Descripción documento» y «Detalle documentos adjuntos» del extracto, y nombres/texto de adjuntos (documento y carpeta). Si hay procedimiento y protocolo, cuenta como procedimiento.</p>
 </div>
 
 <div class="pizarra-estatus pizarra-estatus--odata card">
@@ -96,7 +93,12 @@
       <span class="valor">{{ logs_odata.procedimientos|default:0 }}</span>
       <span class="etiqueta">Procedimientos</span>
     </div>
+    <div class="pizarra-stat pizarra-stat--odata">
+      <span class="valor">{{ logs_odata.informacion|default:0 }}</span>
+      <span class="etiqueta">Información</span>
+    </div>
   </div>
+  <p class="muted pizarra-logs-part-hint" style="font-size: 0.82rem; margin: 0.65rem 0 0;">Acreditaciones + Procedimientos + Información = {{ logs_odata.total|default:0 }} (un log, una categoría: acreditación incluye la palabra o «cv …»; si no aplica, procedimiento; si no, información).</p>
 </div>
 
 <div class="pizarra-estatus card pizarra-estatus--rdi-full">

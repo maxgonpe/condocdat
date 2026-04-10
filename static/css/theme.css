@@ -362,9 +362,53 @@ body[data-sidebar="closed"] .sidebar {
   padding: 0.75rem 0;
 }
 
+.sidebar-accordion-group + .sidebar-accordion-group {
+  margin-top: 0.25rem;
+}
+
+.sidebar-accordion-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 0.55rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.sidebar-accordion-toggle::after {
+  content: '▸';
+  font-size: 0.78rem;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform var(--transition);
+}
+
+.sidebar-accordion-toggle[aria-expanded="true"]::after {
+  transform: rotate(90deg);
+}
+
+.sidebar-accordion-toggle:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.sidebar-accordion-panel {
+  padding-bottom: 0.25rem;
+}
+
 .sidebar-nav a {
   display: block;
-  padding: 0.6rem 1rem;
+  padding: 0.55rem 1rem 0.55rem 1.55rem;
   color: var(--text-muted);
   text-decoration: none;
   transition: background var(--transition), color var(--transition);
@@ -398,6 +442,30 @@ body[data-sidebar="closed"] .sidebar {
 
 .sidebar-nav-label:first-child {
   padding-top: 0.25rem;
+}
+
+/* Sidebar: texto un poco más oscuro que --text-muted (solo claro y sistema; no tema oscuro) */
+[data-theme="light"] .sidebar-nav a,
+[data-theme="light"] .sidebar-nav-label,
+[data-theme="light"] .sidebar-accordion-toggle,
+[data-theme="light"] .theme-switcher label {
+  color: #475569;
+}
+
+[data-theme="system"] .sidebar-nav a,
+[data-theme="system"] .sidebar-nav-label,
+[data-theme="system"] .sidebar-accordion-toggle,
+[data-theme="system"] .theme-switcher label {
+  color: #334155;
+}
+
+[data-theme="light"] .sidebar-nav a:hover,
+[data-theme="light"] .sidebar-nav a.active,
+[data-theme="light"] .sidebar-accordion-toggle:hover,
+[data-theme="system"] .sidebar-nav a:hover,
+[data-theme="system"] .sidebar-nav a.active,
+[data-theme="system"] .sidebar-accordion-toggle:hover {
+  color: var(--text);
 }
 
 /* ========== PANEL (DASHBOARD) — bloques agrupados ========== */
@@ -1317,6 +1385,16 @@ table.data-table a.btn + .btn {
 }
 .pizarra-estatus-grid--logs {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.pizarra-estatus-grid--partition {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  margin-top: 0.25rem;
+}
+
+.pizarra-logs-part-hint {
+  line-height: 1.45;
+  opacity: 0.92;
 }
 
 .pizarra-stat--text.pizarra-stat--rdi .valor {

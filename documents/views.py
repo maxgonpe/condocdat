@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 import os
 import re
+import unicodedata
 from datetime import date, datetime
 from urllib.parse import quote
 
@@ -563,29 +564,135 @@ def custom_logout(request):
     return redirect('login')
 
 
+def _normalize_log_text_for_match(s):
+    """
+    Minúsculas y sin tildes/diacríticos para buscar palabras de forma uniforme
+    (p. ej. acreditación / acreditacion / ACREDITACIONES).
+    """
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFD", str(s))
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return s.lower()
+
+
+def _log_row_combined_text(r):
+    return " ".join(
+        [
+            str(r.get("referencia") or ""),
+            str(r.get("descripcion") or ""),
+            str(r.get("documento_archivo") or ""),
+            str(r.get("transmittal_display") or ""),
+            str(r.get("transmittal_title") or ""),
+        ]
+    )
+
+
+def _log_row_text_odata_a_propamat(r):
+    """
+    Transmittals Odata→Propamat (TRN): además del listado visible, incluye lo que en el
+    PDF no va solo al encabezado: bloque «Título / Descripción Documento», «Detalle
+    documentos adjuntos», y archivos adjuntos (nombre + texto extraído del adjunto en
+    documento y en carpeta). No se indexa el extracto completo del maestro para no
+    inflar «procedimiento» con párrafos genéricos.
+    """
+    parts = [
+        str(r.get("referencia") or ""),
+        str(r.get("documento_archivo") or ""),
+        str(r.get("transmittal") or ""),
+        str(r.get("transmittal_display") or ""),
+        str(r.get("transmittal_title") or ""),
+        str(r.get("descripcion") or ""),
+    ]
+    ex = str(r.get("extracto_log") or "")
+    if ex:
+        parts.append(_extract_titulo_descripcion_documento_from_text(ex))
+        parts.append(_extract_detalle_documentos_adjuntos_from_text(ex))
+
+    doc = r.get("document")
+    if doc:
+        try:
+            for att in doc.attachments.all():
+                if att.file:
+                    parts.append(os.path.basename(att.file.name or ""))
+                parts.append((att.extracted_text or "")[:4000])
+        except Exception:
+            pass
+
+    folder = r.get("folder")
+    if folder:
+        try:
+            for ff in folder.folder_files.all():
+                parts.append(ff.name or "")
+                if ff.file:
+                    parts.append(os.path.basename(ff.file.name or ""))
+                parts.append((ff.extracted_text or "")[:4000])
+        except Exception:
+            pass
+
+    return " ".join(parts)
+
+
+def _log_trn_text_has_procedimiento(t: str) -> bool:
+    """Palabra «procedimiento» / «procedimientos» (sin contar «procedimientemente»)."""
+    if not t:
+        return False
+    return bool(re.search(r"\bprocedimientos?\b", t))
+
+
+def _log_trn_text_has_protocolo(t: str) -> bool:
+    """Palabra «protocolo» / «protocolos»."""
+    if not t:
+        return False
+    return bool(re.search(r"\b(?:protocolo|protocolos)\b", t))
+
+
+def _log_text_has_cv_word_pattern(t: str) -> bool:
+    """
+    «cv» seguido de espacio y otra palabra (ej. cv personal, cv max, cv personal adm).
+    Texto ya normalizado (minúsculas, sin tildes).
+    """
+    if not t:
+        return False
+    return bool(re.search(r"\bcv\s+\S+", t))
+
+
 def _log_rows_stats(rows):
-    """A partir de filas de logs (referencia, descripcion, documento_archivo), devuelve conteos por tipo."""
+    """
+    Filas de logs: referencia, descripción, documento/archivo, datos de transmittal.
+
+    Clasificación excluyente (suma = total): cada log en una sola categoría.
+    1) Acreditación: contiene «acreditacion» (normalizado) o patrón «cv» + palabra.
+    2) Si no: Procedimiento si contiene «procedimiento».
+    3) Si no: Información (resto: envío, cartas, planes, etc.).
+
+    Prioridad: acreditación antes que procedimiento si aplican ambas.
+
+    Dentro de acreditación: personal si patrón CV o «personal»/«trabajador»; si no, equipos.
+    """
     total = len(rows)
     ultimo_transmittal = (rows[0].get("transmittal") or "").strip() if rows else ""
-    text_key = lambda r: " ".join([
-        str(r.get("referencia") or ""),
-        str(r.get("descripcion") or ""),
-        str(r.get("documento_archivo") or ""),
-    ]).lower()
     acreditaciones = 0
     acreditacion_personal = 0
     acreditacion_equipos = 0
     procedimientos = 0
+    informacion = 0
     for r in rows:
-        t = text_key(r)
-        if "acreditacion" in t or "acreditación" in t:
+        t = _normalize_log_text_for_match(_log_row_combined_text(r))
+        ha_keyword = "acreditacion" in t
+        ha_cv = _log_text_has_cv_word_pattern(t)
+        has_acred = ha_keyword or ha_cv
+        has_proc = "procedimiento" in t
+        if has_acred:
             acreditaciones += 1
-            if "personal" in t or "trabajador" in t or "trabajadores" in t:
+            if ha_cv or "personal" in t or "trabajador" in t:
                 acreditacion_personal += 1
-            if "equipo" in t or "equipos" in t:
+            else:
                 acreditacion_equipos += 1
-        if "procedimiento" in t:
+        elif has_proc:
             procedimientos += 1
+        else:
+            informacion += 1
     return {
         "total": total,
         "ultimo_transmittal": ultimo_transmittal[:50] if ultimo_transmittal else "—",
@@ -593,6 +700,43 @@ def _log_rows_stats(rows):
         "acreditacion_personal": acreditacion_personal,
         "acreditacion_equipos": acreditacion_equipos,
         "procedimientos": procedimientos,
+        "informacion": informacion,
+    }
+
+
+def _log_rows_stats_odata_a_propamat(rows):
+    """
+    Logs «Odata a Propamat» (TRN): texto de listado + secciones típicas del transmittal
+    Odata (título/descripción documento, detalle adjuntos, adjuntos).
+
+    Cada fila = un transmittal en el universo. Una sola categoría:
+    - «procedimiento(s)» → procedimientos
+    - si no, «protocolo(s)» → protocolos
+    - si no → información
+
+    procedimientos + protocolos + informacion = total (siempre).
+    """
+    total = len(rows)
+    ultimo_transmittal = (rows[0].get("transmittal") or "").strip() if rows else ""
+    procedimientos = 0
+    protocolos = 0
+    informacion = 0
+    for r in rows:
+        t = _normalize_log_text_for_match(_log_row_text_odata_a_propamat(r))
+        has_proc = _log_trn_text_has_procedimiento(t)
+        has_proto = _log_trn_text_has_protocolo(t)
+        if has_proc:
+            procedimientos += 1
+        elif has_proto:
+            protocolos += 1
+        else:
+            informacion += 1
+    return {
+        "total": total,
+        "ultimo_transmittal": ultimo_transmittal[:50] if ultimo_transmittal else "—",
+        "procedimientos": procedimientos,
+        "protocolos": protocolos,
+        "informacion": informacion,
     }
 
 
@@ -609,7 +753,7 @@ def pizarra(request):
 
     rows_propamat = _get_logs_folder_rows("TRN")
     rows_odata = _get_logs_folder_rows("Odata")
-    logs_propamat = _log_rows_stats(rows_propamat)
+    logs_propamat = _log_rows_stats_odata_a_propamat(rows_propamat)
     logs_odata = _log_rows_stats(rows_odata)
 
     # Estadísticas RDI (mismo universo, estados y tabla por disciplina que el panel staff)
@@ -2959,6 +3103,8 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
             "transmittal": code,
             "transmittal_title": f.title or "",
             "transmittal_display": transmittal_display,
+            # Extracto del PDF/DOCX principal (estadísticas TRN buscan aquí «procedimiento» / «protocolo»).
+            "extracto_log": (main_extract or "")[:16000],
             "descripcion": f.description or "",
             "referencia": referencia if is_odata_list else _extract_referencia_from_text(main_extract),
             "fecha_envio": f.date,
