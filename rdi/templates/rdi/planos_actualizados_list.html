@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Planos actualizados{% endblock %}
+{% block title %}Planos actualizados (dif. entre propuesta y proyecto){% endblock %}
 
 {% block content %}
 <header class="page-header">
-  <h1>Planos actualizados</h1>
+  <h1>Planos actualizados (dif. entre propuesta y proyecto)</h1>
   <p class="muted">
-    Planos cuya fecha en el listado Planos no coincide con la última fecha detectada en Planos iniciales.
-    <strong>Matriz:</strong> valor de la columna justo antes de la última fecha en la fila de Planos iniciales (p. ej. <code>r2</code>), más la versión de matriz si el archivo la trae.
-    <strong>Planos:</strong> versión y revisión del registro Planos (p. ej. <code>v5 r3</code>).
+    Planos cuya fecha en el listado <strong>Planos Colo 7 8 9</strong> no coincide con la última fecha detectada en <strong>Planos iniciales (propuesta)</strong>.
+    <strong>Matriz:</strong> valor de la columna justo antes de la última fecha en la fila de Planos iniciales (propuesta) (p. ej. <code>r2</code>), más la versión de matriz si el archivo la trae.
+    <strong>Planos Colo 7 8 9:</strong> versión y revisión de ese registro (p. ej. <code>v5 r3</code>).
   </p>
 </header>
 
@@ -41,8 +41,8 @@
         <tr>
           <th>Esp.</th>
           <th>Plano</th>
-          <th>Versión (matriz / Planos)</th>
-          <th>Fecha Planos</th>
+          <th>Versión (matriz / Colo 7 8 9)</th>
+          <th>Fecha Colo 7 8 9</th>
           <th>Fecha matriz</th>
           <th>Ruta</th>
         </tr>
@@ -110,7 +110,7 @@
             '<span style="display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:0.25rem 0.65rem;">' +
             '<span><span class="muted" style="font-size:0.78rem;">Matriz</span> ' +
             '<strong>' + escapeHtml(r.version_matriz != null ? r.version_matriz : '—') + '</strong></span>' +
-            '<span><span class="muted" style="font-size:0.78rem;">Planos</span> ' +
+            '<span><span class="muted" style="font-size:0.78rem;">Colo 7 8 9</span> ' +
             '<strong>' + escapeHtml(r.version_planos != null ? r.version_planos : '—') + '</strong></span>' +
             '</span>' +
           '</td>' +

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Editar Otros equipos{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Editar Otros equipos (fila {{ obj.excel_row }})</h1>
+  <p class="muted"><a href="{% url 'equipos_otro_list' %}">← Otros equipos</a></p>
+</header>
+
+<div class="card" style="max-width: 800px;">
+  <form method="post">
+    {% csrf_token %}
+    <table class="table">{{ form.as_table }}</table>
+    {% if ultima_cambio_fmt %}
+    <p class="equipos-ultima-cambio" style="margin-bottom: 1rem;">Última edición desde formulario: {{ ultima_cambio_fmt }}</p>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Guardar y sincronizar Excel</button>
+    <a href="{% url 'equipos_otro_list' %}" class="btn btn-outline">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

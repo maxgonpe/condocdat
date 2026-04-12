@@ -9,6 +9,9 @@
 #
 # nocache = reconstruir imagen sin caché (más lento)
 #
+# La imagen incluye toda la app Django (documents, rdi, equipos, …). Tras up se ejecuta
+# migrate --noinput para aplicar migraciones pendientes (p. ej. equipos).
+#
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -54,6 +57,10 @@ $COMPOSE_CMD -f "$COMPOSE_FILE" up -d
 echo ""
 echo "⏳ Esperando unos segundos a que arranque..."
 sleep 3
+
+echo ""
+echo "🗃️  Migraciones Django (incluye equipos) — idempotente:"
+$COMPOSE_CMD -f "$COMPOSE_FILE" exec -T "$SERVICE_NAME" python manage.py migrate --noinput
 
 echo ""
 echo "📋 Últimas líneas del log:"

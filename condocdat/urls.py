@@ -15,6 +15,7 @@ urlpatterns = [
     path('logout/', custom_logout, name='logout'),
     path('documentos/', include('documents.urls')),
     path('rdi/', include('rdi.urls')),
+    path('equipos/', include('equipos.urls')),
     path('admin/', admin.site.urls),
 ]
 

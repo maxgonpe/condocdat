@@ -19,6 +19,7 @@ services:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT:-5432}
       - TZ=America/Santiago
+    # media: incluye equipos/ (libros Excel del módulo equipos)
     volumes:
       - ./data:/app/data
       - ./media:/app/media

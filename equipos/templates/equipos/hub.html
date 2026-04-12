@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Control de equipos{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Control de equipos</h1>
+  <p class="muted">Libro Excel (hojas Resumen, Significado, Locations, Asset, Otros equipos). Importá el .xlsx; los cambios desde formularios sincronizan el archivo almacenado.</p>
+</header>
+
+<div class="card card--list" style="margin-bottom: 1rem;">
+  <form action="{% url 'equipos_import' %}" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-group" style="max-width: 920px;">
+      <label for="equipos-file">Importar / reemplazar libro (.xlsx)</label>
+      <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+        <input type="file" id="equipos-file" name="file" accept=".xlsx" class="form-control" required style="min-width: 280px;">
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </div>
+      <p class="muted" style="font-size:0.85rem; margin-top:0.5rem;">Al importar se reemplazan datos y el archivo único en el servidor (<code>media/equipos/libro_actual.xlsx</code>). Las ediciones desde formularios actualizan ese mismo fichero. El Excel debe contener las hojas esperadas (Resumen - TD, Significado status, Locations, Asset, Otros equipos).</p>
+    </div>
+  </form>
+</div>
+
+{% if libro %}
+<div class="card" style="margin-bottom: 1rem;">
+  <p class="muted" style="margin:0 0 0.5rem;"><strong>Libro actual:</strong> {{ libro.original_filename }}</p>
+  <p class="muted" style="margin:0 0 0.75rem; font-size:0.9rem;">Importado: {{ libro.imported_at|date:"d/m/Y H:i" }} · Actualizado: {{ libro.updated_at|date:"d/m/Y H:i" }}</p>
+  <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+    <a href="{% url 'equipos_download_xlsx' %}" class="btn btn-outline">Descargar Excel (sincronizado)</a>
+    <a href="{% url 'equipos_export_pdf' %}" class="btn btn-outline" target="_blank" rel="noopener">Generar PDF</a>
+  </div>
+  <p class="muted" style="font-size:0.8rem; margin-top:0.5rem;">Al descargar, el nombre del archivo incluye la <strong>fecha del día</strong> (nombre base del libro + <code>_AAAA-MM-DD</code>).</p>
+</div>
+
+<div class="form-group" style="max-width: 520px; margin-bottom: 1rem;">
+  <label for="equipos-hub-search">Búsqueda rápida (Asset, Locations, Otros)</label>
+  <input type="text" id="equipos-hub-search" class="form-control" placeholder="Mínimo 2 caracteres…" autocomplete="off">
+  <div id="equipos-hub-results" class="muted" style="margin-top:0.5rem; font-size:0.9rem;"></div>
+</div>
+
+<div class="dashboard-groups">
+  <section class="card dashboard-group">
+    <h2>Resumen y catálogo</h2>
+    <p class="dashboard-group__desc">Resumen - TD ({{ n_resumen }} filas) · Significado status ({{ n_signif }})</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'equipos_resumen_list' %}" class="btn btn-outline">Resumen - TD</a>
+      <a href="{% url 'equipos_significado_list' %}" class="btn btn-outline">Significado status</a>
+    </div>
+  </section>
+  <section class="card dashboard-group">
+    <h2>Datos principales</h2>
+    <p class="dashboard-group__desc">Locations ({{ n_loc }}) · Asset ({{ n_asset }}) · Otros equipos ({{ n_otros }})</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'equipos_location_list' %}" class="btn btn-outline">Locations</a>
+      <a href="{% url 'equipos_asset_list' %}" class="btn btn-outline">Asset</a>
+      <a href="{% url 'equipos_otro_list' %}" class="btn btn-outline">Otros equipos</a>
+    </div>
+  </section>
+  <section class="card dashboard-group">
+    <h2>Auditoría y descarga</h2>
+    <p class="dashboard-group__desc">Historial de ediciones y copia del Excel único ya sincronizado.</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'equipos_cambios' %}" class="btn btn-outline">Historial de cambios</a>
+      <a href="{% url 'equipos_download_xlsx' %}" class="btn btn-primary">Última versión (Excel)</a>
+    </div>
+  </section>
+</div>
+{% else %}
+<div class="card">
+  <p class="muted">No hay libro importado. Adjuntá el archivo Excel para comenzar.</p>
+</div>
+{% endif %}
+
+<script>
+(function() {
+  var input = document.getElementById('equipos-hub-search');
+  var out = document.getElementById('equipos-hub-results');
+  if (!input || !out) return;
+  var t;
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  function run() {
+    var q = String(input.value || '').trim();
+    if (q.length < 2) {
+      out.innerHTML = '';
+      return;
+    }
+    fetch('{% url "equipos_search_json" %}?q=' + encodeURIComponent(q), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var parts = [];
+        var tplA = '{{ url_tpl_asset_edit|escapejs }}';
+        var tplL = '{{ url_tpl_location_edit|escapejs }}';
+        var tplO = '{{ url_tpl_otro_edit|escapejs }}';
+        var sid = '{{ url_sentinel|escapejs }}';
+        (data.assets || []).forEach(function(x) {
+          parts.push('<a href="' + tplA.split(sid).join(String(x.id)) + '">Asset · ' + esc(x.label) + '</a>');
+        });
+        (data.locations || []).forEach(function(x) {
+          parts.push('<a href="' + tplL.split(sid).join(String(x.id)) + '">Location · ' + esc(x.label) + '</a>');
+        });
+        (data.otros || []).forEach(function(x) {
+          parts.push('<a href="' + tplO.split(sid).join(String(x.id)) + '">Otros · ' + esc(x.label) + '</a>');
+        });
+        out.innerHTML = parts.length ? parts.join(' · ') : '<span class="muted">Sin coincidencias.</span>';
+      })
+      .catch(function() { out.innerHTML = '<span class="muted">Error de búsqueda.</span>'; });
+  }
+  input.addEventListener('input', function() {
+    clearTimeout(t);
+    t = setTimeout(run, 350);
+  });
+})();
+</script>
+{% endblock %}

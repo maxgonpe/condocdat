@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Resumen - TD — Equipos{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Resumen - TD</h1>
+  <p class="muted"><a href="{% url 'equipos_hub' %}">← Control de equipos</a></p>
+</header>
+
+{% if not libro %}
+<p class="muted">No hay libro cargado.</p>
+{% else %}
+<div class="card card--list">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Fila Excel</th>
+          <th>Etiqueta</th>
+          <th>Cuenta</th>
+          <th>Fracción</th>
+          <th>Última edición</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in row_data %}
+        <tr>
+          <td>{{ item.row.excel_row }}</td>
+          <td>{{ item.row.etiqueta }}</td>
+          <td>{{ item.row.cuenta }}</td>
+          <td>{{ item.row.fraccion }}</td>
+          <td>
+            {% if item.ultima_cambio %}
+            <span class="equipos-ultima-cambio" title="Editado desde formulario">{{ item.ultima_cambio|date:"d/m/Y H:i" }}</span>
+            {% else %}
+            <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td><a class="btn btn-outline" href="{% url 'equipos_resumen_edit' item.row.pk %}">Editar</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="muted">Sin filas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

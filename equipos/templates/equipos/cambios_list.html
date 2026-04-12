@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Historial — Equipos{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Cambios en control de equipos</h1>
+  <p class="muted"><a href="{% url 'equipos_hub' %}">← Control de equipos</a></p>
+  {% if libro %}
+  <p class="muted" style="font-size:0.9rem;">Filtrado al libro actual: {{ libro.original_filename }}</p>
+  {% else %}
+  <p class="muted" style="font-size:0.9rem;">Sin libro cargado: se muestran todos los registros de auditoría.</p>
+  {% endif %}
+</header>
+
+<div class="card card--list">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Usuario</th>
+          <th>Modelo</th>
+          <th>ID / Fila Excel</th>
+          <th>Campo</th>
+          <th>Antes</th>
+          <th>Después</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cambios %}
+        <tr>
+          <td style="white-space:nowrap;">{{ c.created_at|date:"d/m/Y H:i" }}</td>
+          <td>{% if c.user %}{{ c.user.get_username }}{% else %}—{% endif %}</td>
+          <td>{{ c.modelo }}</td>
+          <td>{{ c.record_id }}{% if c.excel_row %} <span class="muted">(fila {{ c.excel_row }})</span>{% endif %}</td>
+          <td>{{ c.campo }}</td>
+          <td style="max-width:180px;word-break:break-word;">{{ c.valor_anterior|truncatechars:80 }}</td>
+          <td style="max-width:180px;word-break:break-word;">{{ c.valor_nuevo|truncatechars:80 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="muted">No hay cambios registrados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted" style="margin-top:0.75rem;">Hasta 500 entradas más recientes.</p>
+</div>
+{% endblock %}

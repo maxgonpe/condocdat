@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Locations — Equipos{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Locations</h1>
+  <p class="muted"><a href="{% url 'equipos_hub' %}">← Control de equipos</a></p>
+</header>
+
+{% if not libro %}
+<p class="muted">No hay libro cargado.</p>
+{% else %}
+<div class="card card--list">
+  <div class="form-group" style="max-width: 520px; margin-bottom: 1rem;">
+    <label for="equipos-loc-search">Buscar</label>
+    <input type="text" id="equipos-loc-search" class="form-control" placeholder="Código, space, zona, edificio…" autocomplete="off">
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Fila</th>
+          <th>Código</th>
+          <th>Space</th>
+          <th>Zona</th>
+          <th>Área m²</th>
+          <th>Última edición</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="equipos-loc-tbody">
+        <tr><td colspan="7" class="muted">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<script>
+(function() {
+  var tplEdit = '{{ url_tpl_edit|escapejs }}';
+  var urlSentinel = '{{ url_sentinel|escapejs }}';
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  var seq = 0;
+  function load(q) {
+    seq += 1;
+    var my = seq;
+    var tbody = document.getElementById('equipos-loc-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">Cargando…</td></tr>';
+    var url = '{% url "equipos_location_records_json" %}';
+    if (q && String(q).trim()) url += '?q=' + encodeURIComponent(q.trim());
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (my !== seq) return;
+        var recs = (data && data.records) ? data.records : [];
+        if (!recs.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="muted">No hay registros.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = recs.map(function(r) {
+          var ult = r.ultima_cambio_fmt
+            ? '<span class="equipos-ultima-cambio" title="Editado desde formulario">' + esc(r.ultima_cambio_fmt) + '</span>'
+            : '<span class="muted">—</span>';
+          return '<tr><td>' + esc(r.excel_row) + '</td><td>' + esc(r.code) + '</td><td>' + esc(r.space_name) + '</td><td>' + esc(r.zones) + '</td><td>' + esc(r.area_m2) + '</td><td>' + ult + '</td><td><a class="btn btn-outline" href="' + tplEdit.split(urlSentinel).join(String(r.id)) + '">Editar</a></td></tr>';
+        }).join('');
+      })
+      .catch(function() {
+        if (my !== seq) return;
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">Error al cargar.</td></tr>';
+      });
+  }
+  var inp = document.getElementById('equipos-loc-search');
+  var deb;
+  if (inp) {
+    inp.addEventListener('input', function() {
+      clearTimeout(deb);
+      deb = setTimeout(function() { load(inp.value); }, 300);
+    });
+  }
+  load('');
+})();
+</script>
+{% endblock %}

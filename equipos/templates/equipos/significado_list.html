@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Significado status — Equipos{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Significado status</h1>
+  <p class="muted"><a href="{% url 'equipos_hub' %}">← Control de equipos</a></p>
+</header>
+
+{% if not libro %}
+<p class="muted">No hay libro cargado.</p>
+{% else %}
+<div class="card card--list">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Fila</th>
+          <th>Flujo</th>
+          <th>Status</th>
+          <th>Significado</th>
+          <th>Última edición</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in row_data %}
+        <tr>
+          <td>{{ item.row.excel_row }}</td>
+          <td>{{ item.row.flujo }}</td>
+          <td style="max-width:220px;">{{ item.row.status }}</td>
+          <td style="max-width:360px;">{{ item.row.significado|truncatechars:120 }}</td>
+          <td>
+            {% if item.ultima_cambio %}
+            <span class="equipos-ultima-cambio" title="Editado desde formulario">{{ item.ultima_cambio|date:"d/m/Y H:i" }}</span>
+            {% else %}
+            <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td><a class="btn btn-outline" href="{% url 'equipos_significado_edit' item.row.pk %}">Editar</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="muted">Sin filas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

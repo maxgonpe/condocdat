@@ -102,14 +102,37 @@
 
           <div class="sidebar-accordion-group">
             <button type="button" class="sidebar-accordion-toggle" aria-expanded="false" aria-controls="sidebar-group-rdi">
-              RDI y cantidades
+              RDI-BIM
             </button>
             <div id="sidebar-group-rdi" class="sidebar-accordion-panel" hidden>
               <a href="{% url 'rdi_list' %}" class="{% if request.resolver_match.url_name == 'rdi_list' %}active{% endif %}">RDI</a>
               <a href="{% url 'rdi_increments_decrements' %}" class="{% if request.resolver_match.url_name == 'rdi_increments_decrements' %}active{% endif %}">Aumentos/disminuciones</a>
-              <a href="{% url 'planos_list' %}" class="{% if request.resolver_match.url_name == 'planos_list' %}active{% endif %}">Planos</a>
-              <a href="{% url 'planos_iniciales_list' %}" class="{% if request.resolver_match.url_name == 'planos_iniciales_list' %}active{% endif %}">Planos iniciales</a>
-              <a href="{% url 'planos_actualizados_list' %}" class="{% if request.resolver_match.url_name == 'planos_actualizados_list' %}active{% endif %}">Planos actualizados</a>
+            </div>
+          </div>
+
+          <div class="sidebar-accordion-group">
+            <button type="button" class="sidebar-accordion-toggle" aria-expanded="false" aria-controls="sidebar-group-planos">
+              Planos-BIM
+            </button>
+            <div id="sidebar-group-planos" class="sidebar-accordion-panel" hidden>
+              <a href="{% url 'planos_list' %}" class="{% if request.resolver_match.url_name == 'planos_list' %}active{% endif %}">Planos Colo 7 8 9</a>
+              <a href="{% url 'planos_iniciales_list' %}" class="{% if request.resolver_match.url_name == 'planos_iniciales_list' %}active{% endif %}">Planos iniciales (propuesta)</a>
+              <a href="{% url 'planos_actualizados_list' %}" class="{% if request.resolver_match.url_name == 'planos_actualizados_list' %}active{% endif %}">Planos actualizados (dif. entre propuesta y proyecto)</a>
+            </div>
+          </div>
+
+          <div class="sidebar-accordion-group">
+            <button type="button" class="sidebar-accordion-toggle" aria-expanded="false" aria-controls="sidebar-group-equipos">
+              Equipos
+            </button>
+            <div id="sidebar-group-equipos" class="sidebar-accordion-panel" hidden>
+              <a href="{% url 'equipos_hub' %}" class="{% if request.resolver_match.url_name == 'equipos_hub' %}active{% endif %}">Control de equipos</a>
+              <a href="{% url 'equipos_resumen_list' %}" class="{% if request.resolver_match.url_name == 'equipos_resumen_list' or request.resolver_match.url_name == 'equipos_resumen_edit' %}active{% endif %}">Resumen - TD</a>
+              <a href="{% url 'equipos_significado_list' %}" class="{% if request.resolver_match.url_name == 'equipos_significado_list' or request.resolver_match.url_name == 'equipos_significado_edit' %}active{% endif %}">Significado status</a>
+              <a href="{% url 'equipos_location_list' %}" class="{% if request.resolver_match.url_name == 'equipos_location_list' or request.resolver_match.url_name == 'equipos_location_edit' %}active{% endif %}">Locations</a>
+              <a href="{% url 'equipos_asset_list' %}" class="{% if request.resolver_match.url_name == 'equipos_asset_list' or request.resolver_match.url_name == 'equipos_asset_edit' %}active{% endif %}">Asset</a>
+              <a href="{% url 'equipos_otro_list' %}" class="{% if request.resolver_match.url_name == 'equipos_otro_list' or request.resolver_match.url_name == 'equipos_otro_edit' %}active{% endif %}">Otros equipos</a>
+              <a href="{% url 'equipos_cambios' %}" class="{% if request.resolver_match.url_name == 'equipos_cambios' %}active{% endif %}">Historial de cambios</a>
             </div>
           </div>
         {% else %}
@@ -188,11 +211,10 @@
 
         toggles.forEach(function (toggle) {
           setExpanded(toggle, false);
-          toggle.addEventListener('click', function () {
+          toggle.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
             var willExpand = toggle.getAttribute('aria-expanded') !== 'true';
-            toggles.forEach(function (otherToggle) {
-              if (otherToggle !== toggle) setExpanded(otherToggle, false);
-            });
             setExpanded(toggle, willExpand);
           });
         });

@@ -879,7 +879,7 @@ def planos_actualizados_export_excel(request):
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Planos actualizados"
+    ws.title = "Planos act. (prop. vs proy.)"
     fecha_str = timezone.now().strftime("%d-%m-%Y")
     filtros = []
     if specialty:
@@ -914,7 +914,7 @@ def planos_actualizados_export_excel(request):
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
-    filename = f"Planos_actualizados-{fecha_str}.xlsx"
+    filename = f"Planos_actualizados_dif_propuesta_proyecto-{fecha_str}.xlsx"
     resp = HttpResponse(
         buf.read(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -960,7 +960,10 @@ def planos_actualizados_export_pdf(request):
         topMargin=16,
         bottomMargin=16,
     )
-    title = Paragraph("Planos actualizados", style_title)
+    title = Paragraph(
+        "Planos actualizados (dif. entre propuesta y proyecto)",
+        style_title,
+    )
     filtro_parts = []
     if specialty:
         filtro_parts.append(f"Especialidad: {specialty}")
@@ -996,6 +999,8 @@ def planos_actualizados_export_pdf(request):
     doc.build([title, Spacer(1, 6), filtro, Spacer(1, 10), table])
     pdf_buf.seek(0)
     resp = HttpResponse(pdf_buf.read(), content_type="application/pdf")
-    resp["Content-Disposition"] = 'inline; filename="Planos_actualizados.pdf"'
+    resp["Content-Disposition"] = (
+        'inline; filename="Planos_actualizados_dif_propuesta_proyecto.pdf"'
+    )
     return resp
 

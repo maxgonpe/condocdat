@@ -49,7 +49,7 @@
   </section>
 
   <section class="card dashboard-group dashboard-group--rdi" data-panel-rdi-version="2026-universe-v2">
-    <h2>RDI y cantidades <span class="muted" style="font-size:0.78rem;font-weight:700;letter-spacing:0.02em;">· Universo 2026+</span></h2>
+    <h2>RDI-BIM <span class="muted" style="font-size:0.78rem;font-weight:700;letter-spacing:0.02em;">· Universo 2026+</span></h2>
     <p class="dashboard-group__desc">Resumen de registros RDI (universo 2026 en adelante), variaciones e importación CSV.</p>
     <p class="muted" style="font-size: 0.85rem; margin: -0.25rem 0 0.75rem;">Universo: registros con fecha de creación, actualización, importación o vencimiento en <strong>2026 o posteriores</strong>. Las estadísticas usan solo ese conjunto.</p>
 
@@ -110,8 +110,6 @@
     <div class="dashboard-actions">
       <a href="{% url 'rdi_list' %}" class="btn btn-outline">RDI</a>
       <a href="{% url 'rdi_increments_decrements' %}" class="btn btn-outline">Aumentos/disminuciones</a>
-      <a href="{% url 'planos_list' %}" class="btn btn-outline">Planos</a>
-      <a href="{% url 'planos_iniciales_list' %}" class="btn btn-outline">Planos iniciales</a>
     </div>
     <div class="rdi-import-form">
       <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.85rem;">Importar RDI: adjunta el CSV; el sistema extrae fecha/hora desde el nombre del archivo.</p>
@@ -123,6 +121,24 @@
         </div>
         <button type="submit" class="btn btn-primary">Importar</button>
       </form>
+    </div>
+  </section>
+
+  <section class="card dashboard-group">
+    <h2>Planos-BIM</h2>
+    <p class="dashboard-group__desc">Listados e importación desde informes XLSX: Planos Colo 7 8 9, planos iniciales (propuesta) y planos actualizados (dif. entre propuesta y proyecto).</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'planos_list' %}" class="btn btn-outline">Planos Colo 7 8 9</a>
+      <a href="{% url 'planos_iniciales_list' %}" class="btn btn-outline">Planos iniciales (propuesta)</a>
+      <a href="{% url 'planos_actualizados_list' %}" class="btn btn-outline">Planos actualizados (dif. entre propuesta y proyecto)</a>
+    </div>
+  </section>
+
+  <section class="card dashboard-group">
+    <h2>Equipos</h2>
+    <p class="dashboard-group__desc">Libro Excel ST01 (Resumen, Significado, Locations, Asset, Otros): importación, edición y sincronización del archivo.</p>
+    <div class="dashboard-actions">
+      <a href="{% url 'equipos_hub' %}" class="btn btn-outline">Control de equipos</a>
     </div>
   </section>
 

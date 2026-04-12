@@ -3,8 +3,9 @@
 # Actualiza Condocdat en producción (usa docker-compose.prod.yml de ESTE directorio).
 # Ejecutar desde la raíz de Condocdat: cd /home/max/myproject/condocdat && ./update_condocdat.sh
 #
-#   - Reconstruye la imagen con el código actual (incluye migraciones y estáticos)
-#   - Detiene el contenedor y vuelve a levantar
+#   - Reconstruye la imagen con el código actual (documents, rdi, equipos, …)
+#   - Detiene el contenedor y vuelve a levantar (entrypoint: migrate + collectstatic)
+#   - Tras el arranque, migrate --noinput otra vez por si quedó migración pendiente (p. ej. equipos)
 #
 # Uso: ./update_condocdat.sh [nocache]
 #
@@ -95,6 +96,10 @@ $COMPOSE_CMD "${COMPOSE_EXTRA_FLAGS[@]}" -f "$COMPOSE_FILE" up -d
 echo ""
 echo "⏳ Esperando unos segundos a que arranque..."
 sleep 3
+
+echo ""
+echo "🗃️  Migraciones Django (documents, rdi, equipos, …) — idempotente:"
+$COMPOSE_CMD "${COMPOSE_EXTRA_FLAGS[@]}" -f "$COMPOSE_FILE" exec -T "$SERVICE_NAME" python manage.py migrate --noinput
 
 echo ""
 echo "📋 Últimas líneas del log (migraciones y collectstatic se ejecutan al iniciar):"
