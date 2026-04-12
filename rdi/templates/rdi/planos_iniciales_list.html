@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Planos iniciales{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Planos iniciales</h1>
+  <p class="muted">
+    Importación desde libro Excel (.xls o .xlsx) por hojas de especialidad (arq, est, ele, …).
+    Todas las columnas de cada hoja se guardan en base de datos; la tabla muestra las primeras columnas.
+  </p>
+</header>
+
+<div class="card card--list">
+  <form action="{% url 'planos_iniciales_import' %}" method="post" enctype="multipart/form-data" style="margin-bottom: 1rem;">
+    {% csrf_token %}
+    <div class="form-group" style="max-width: 920px; margin-bottom: 0.5rem;">
+      <label for="planos-ini-file">Importar planos_iniciales (.xls / .xlsx)</label>
+      <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+        <input type="file" id="planos-ini-file" name="file" accept=".xls,.xlsx" class="form-control" required style="min-width: 320px;">
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="form-group" style="max-width: 520px; margin-bottom: 1rem;">
+    <label for="planos-ini-search">Buscar</label>
+    <input type="text" id="planos-ini-search" class="form-control" placeholder="Texto en cualquier columna o especialidad…" autocomplete="off">
+  </div>
+
+  <div class="form-group" style="margin-bottom: 1rem;">
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+      <button type="button" id="planos-ini-excel-btn" class="btn btn-outline">Descargar Excel</button>
+      <button type="button" id="planos-ini-pdf-btn" class="btn btn-outline">Generar PDF</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table" id="planos-ini-table">
+      <thead>
+        <tr>
+          <th>Especialidad</th>
+          <th>Fila</th>
+          <th colspan="6" class="muted">Cargando columnas…</th>
+        </tr>
+      </thead>
+      <tbody id="planos-ini-tbody">
+        <tr><td colspan="8" class="muted">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function() {
+  var DISPLAY_COLS = 6;
+  var currentHeaderKeys = [];
+  var seq = 0;
+  var currentQuery = "";
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    var div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+  }
+
+  function applyDynamicHeaders(keys) {
+    var tr = document.querySelector('#planos-ini-table thead tr');
+    if (!tr) return;
+    var html = '<th>Especialidad</th><th>Fila</th>';
+    for (var i = 0; i < DISPLAY_COLS; i++) {
+      html += '<th>' + escapeHtml(keys[i] || ('—')) + '</th>';
+    }
+    tr.innerHTML = html;
+  }
+
+  function renderRow(r) {
+    var cols = r.columns || {};
+    var tds = '<td>' + escapeHtml(r.specialty || '') + '</td><td>' + escapeHtml(r.excel_row) + '</td>';
+    for (var i = 0; i < DISPLAY_COLS; i++) {
+      var k = currentHeaderKeys[i];
+      var v = k ? (cols[k] || '') : '';
+      tds += '<td style="max-width:240px; white-space:pre-wrap; max-height:4.8rem; overflow:auto;">' + escapeHtml(v) + '</td>';
+    }
+    return '<tr>' + tds + '</tr>';
+  }
+
+  var excelExportUrl = "{% url 'planos_iniciales_export_excel' %}";
+  var pdfExportUrl = "{% url 'planos_iniciales_export_pdf' %}";
+
+  function exportExcel() {
+    var q = currentQuery ? String(currentQuery).trim() : "";
+    var url = excelExportUrl;
+    if (q) url += "?q=" + encodeURIComponent(q);
+    window.location.href = url;
+  }
+
+  function exportPdf() {
+    var q = currentQuery ? String(currentQuery).trim() : "";
+    var url = pdfExportUrl;
+    if (q) url += "?q=" + encodeURIComponent(q);
+    window.open(url, "_blank");
+  }
+
+  function bindExportButtons() {
+    var b1 = document.getElementById("planos-ini-excel-btn");
+    var b2 = document.getElementById("planos-ini-pdf-btn");
+    if (b1) b1.onclick = exportExcel;
+    if (b2) b2.onclick = exportPdf;
+  }
+
+  function loadList(q) {
+    seq += 1;
+    var mySeq = seq;
+    currentQuery = q || "";
+    var tbody = document.getElementById('planos-ini-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Cargando…</td></tr>';
+
+    var url = "{% url 'planos_iniciales_records_json' %}";
+    if (q && String(q).trim()) url += "?q=" + encodeURIComponent(q.trim());
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (mySeq !== seq) return;
+        var records = (data && data.records) ? data.records : [];
+        if (!records.length) {
+          currentHeaderKeys = [];
+          applyDynamicHeaders([]);
+          tbody.innerHTML = '<tr><td colspan="8" class="muted">No hay registros.</td></tr>';
+          return;
+        }
+        var order = records[0].column_order && records[0].column_order.length
+          ? records[0].column_order
+          : Object.keys(records[0].columns || {});
+        currentHeaderKeys = order.slice(0, DISPLAY_COLS);
+        applyDynamicHeaders(currentHeaderKeys);
+        tbody.innerHTML = records.map(renderRow).join('');
+      })
+      .catch(function() {
+        if (mySeq !== seq) return;
+        tbody.innerHTML = '<tr><td colspan="8" class="muted">Error cargando registros.</td></tr>';
+      });
+  }
+
+  function initSearch() {
+    var input = document.getElementById('planos-ini-search');
+    if (!input) {
+      loadList('');
+      bindExportButtons();
+      return;
+    }
+    var debounceTimer;
+    input.addEventListener('input', function() {
+      var q = input.value;
+      currentQuery = q || "";
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() { loadList(q); }, 300);
+    });
+    loadList(input.value);
+    bindExportButtons();
+  }
+
+  document.addEventListener('DOMContentLoaded', initSearch);
+})();
+</script>
+{% endblock %}

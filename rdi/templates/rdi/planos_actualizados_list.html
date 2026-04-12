@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Planos actualizados{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Planos actualizados</h1>
+  <p class="muted">
+    Planos cuya fecha en el listado Planos no coincide con la última fecha detectada en Planos iniciales.
+    <strong>Matriz:</strong> valor de la columna justo antes de la última fecha en la fila de Planos iniciales (p. ej. <code>r2</code>), más la versión de matriz si el archivo la trae.
+    <strong>Planos:</strong> versión y revisión del registro Planos (p. ej. <code>v5 r3</code>).
+  </p>
+</header>
+
+<div class="card card--list">
+  <div class="form-group" style="max-width: 520px; margin-bottom: 0.75rem;">
+    <label for="pa-search">Buscar</label>
+    <input type="text" id="pa-search" class="form-control" placeholder="Código, ruta, especialidad, versión…" autocomplete="off">
+  </div>
+
+  <div class="form-group" style="margin-bottom: 0.75rem;">
+    <span class="muted" style="display:block; font-size:0.85rem; margin-bottom:0.35rem;">Especialidad (hoja matriz)</span>
+    <div id="pa-specialty-chips" style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+      <button type="button" class="btn btn-outline pa-chip" data-specialty="">Todas</button>
+      {% for s in specialty_slugs %}
+      <button type="button" class="btn btn-outline pa-chip" data-specialty="{{ s }}">{{ s|upper }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-group" style="margin-bottom: 1rem;">
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+      <button type="button" id="pa-excel-btn" class="btn btn-outline">Descargar Excel</button>
+      <button type="button" id="pa-pdf-btn" class="btn btn-outline">Generar PDF</button>
+      <span id="pa-count-wrap" class="muted" style="font-size:0.9rem;">Cargando…</span>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table" id="pa-table">
+      <thead>
+        <tr>
+          <th>Esp.</th>
+          <th>Plano</th>
+          <th>Versión (matriz / Planos)</th>
+          <th>Fecha Planos</th>
+          <th>Fecha matriz</th>
+          <th>Ruta</th>
+        </tr>
+      </thead>
+      <tbody id="pa-tbody">
+        <tr><td colspan="6" class="muted">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function() {
+  var seq = 0;
+  var currentQuery = "";
+  var currentSpecialty = "";
+  var recordsUrl = "{% url 'planos_actualizados_records_json' %}";
+  var excelUrl = "{% url 'planos_actualizados_export_excel' %}";
+  var pdfUrl = "{% url 'planos_actualizados_export_pdf' %}";
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    var div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+  }
+
+  function buildQueryString() {
+    var p = [];
+    var q = currentQuery ? String(currentQuery).trim() : "";
+    var sp = currentSpecialty ? String(currentSpecialty).trim() : "";
+    if (q) p.push("q=" + encodeURIComponent(q));
+    if (sp) p.push("specialty=" + encodeURIComponent(sp));
+    return p.length ? ("?" + p.join("&")) : "";
+  }
+
+  function syncChipsActive() {
+    document.querySelectorAll(".pa-chip").forEach(function(btn) {
+      var v = btn.getAttribute("data-specialty") || "";
+      var on = (v === currentSpecialty);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      if (on) {
+        btn.classList.add("btn-primary");
+        btn.classList.remove("btn-outline");
+      } else {
+        btn.classList.remove("btn-primary");
+        btn.classList.add("btn-outline");
+      }
+    });
+  }
+
+  function renderRows(records) {
+    var tbody = document.getElementById("pa-tbody");
+    if (!tbody) return;
+    if (!records.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No hay registros con los filtros actuales.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = records.map(function(r) {
+      return (
+        '<tr>' +
+          '<td>' + escapeHtml(r.specialty || '') + '</td>' +
+          '<td style="white-space:nowrap;">' + escapeHtml(r.code || '') + '</td>' +
+          '<td style="min-width:12rem;">' +
+            '<span style="display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:0.25rem 0.65rem;">' +
+            '<span><span class="muted" style="font-size:0.78rem;">Matriz</span> ' +
+            '<strong>' + escapeHtml(r.version_matriz != null ? r.version_matriz : '—') + '</strong></span>' +
+            '<span><span class="muted" style="font-size:0.78rem;">Planos</span> ' +
+            '<strong>' + escapeHtml(r.version_planos != null ? r.version_planos : '—') + '</strong></span>' +
+            '</span>' +
+          '</td>' +
+          '<td>' + escapeHtml(r.planos_last_update || '') + '</td>' +
+          '<td>' + escapeHtml(r.iniciales_last_date || '') + '</td>' +
+          '<td style="max-width:380px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + escapeHtml(r.folder_path || '') + '">' + escapeHtml(r.folder_path || '') + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  function loadList() {
+    seq += 1;
+    var mySeq = seq;
+    var tbody = document.getElementById("pa-tbody");
+    var countEl = document.getElementById("pa-count-wrap");
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="muted">Cargando…</td></tr>';
+    if (countEl) countEl.textContent = "Cargando…";
+
+    var url = recordsUrl + buildQueryString();
+    fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (mySeq !== seq) return;
+        var records = (data && data.records) ? data.records : [];
+        var n = (typeof data.count === "number") ? data.count : records.length;
+        renderRows(records);
+        if (countEl) countEl.textContent = "Mostrando: " + n + " diferencia(s)";
+      })
+      .catch(function() {
+        if (mySeq !== seq) return;
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="muted">Error al cargar.</td></tr>';
+        if (countEl) countEl.textContent = "";
+      });
+  }
+
+  function exportExcel() {
+    window.location.href = excelUrl + buildQueryString();
+  }
+
+  function exportPdf() {
+    window.open(pdfUrl + buildQueryString(), "_blank");
+  }
+
+  function init() {
+    var search = document.getElementById("pa-search");
+    var debounceTimer;
+    if (search) {
+      search.addEventListener("input", function() {
+        currentQuery = search.value || "";
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(loadList, 280);
+      });
+    }
+
+    document.querySelectorAll(".pa-chip").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        currentSpecialty = btn.getAttribute("data-specialty") || "";
+        syncChipsActive();
+        loadList();
+      });
+    });
+
+    var b1 = document.getElementById("pa-excel-btn");
+    var b2 = document.getElementById("pa-pdf-btn");
+    if (b1) b1.onclick = exportExcel;
+    if (b2) b2.onclick = exportPdf;
+
+    syncChipsActive();
+    loadList();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+{% endblock %}

@@ -105,3 +105,149 @@ class RDIRecord(models.Model):
     def __str__(self) -> str:
         return f"RDI {self.csv_id} - {self.title[:40]}"
 
+
+class PlanosImport(models.Model):
+    """
+    Guarda el XLSX importado y la fecha/hora de snapshot extraída del nombre.
+    """
+
+    file = models.FileField(upload_to="planos/%Y/%m/")
+    original_filename = models.CharField(max_length=255)
+    snapshot_datetime = models.DateTimeField(null=True, blank=True)
+    imported_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Planos Import"
+        verbose_name_plural = "Planos Imports"
+        ordering = ["-snapshot_datetime", "-imported_at"]
+
+    def __str__(self) -> str:
+        return self.original_filename or f"PlanosImport #{self.pk}"
+
+
+class PlanosRecord(models.Model):
+    """
+    Registro de planos/documentos del reporte "Contenido del informe".
+    """
+
+    folder_path = models.TextField(blank=True, default="")
+    name = models.CharField(max_length=255, blank=True, default="")
+    description = models.TextField(blank=True, default="")
+    version = models.CharField(max_length=80, blank=True, default="")
+    size = models.CharField(max_length=80, blank=True, default="")
+
+    last_update_raw = models.CharField(max_length=120, blank=True, default="")
+    last_update_at = models.DateTimeField(null=True, blank=True)
+    updated_by = models.CharField(max_length=255, blank=True, default="")
+
+    last_upload_raw = models.CharField(max_length=120, blank=True, default="")
+    last_upload_at = models.DateTimeField(null=True, blank=True)
+    uploaded_by = models.CharField(max_length=255, blank=True, default="")
+
+    review_mark = models.CharField(max_length=255, blank=True, default="")
+    incidence = models.CharField(max_length=255, blank=True, default="")
+    sdi = models.CharField(max_length=255, blank=True, default="")
+    review_status = models.CharField(max_length=255, blank=True, default="")
+    set_name = models.CharField(max_length=255, blank=True, default="")
+    issue_date_raw = models.CharField(max_length=120, blank=True, default="")
+    issue_date = models.DateField(null=True, blank=True)
+    sheet_number = models.CharField(max_length=255, blank=True, default="")
+    title = models.TextField(blank=True, default="")
+    revision = models.CharField(max_length=255, blank=True, default="")
+
+    last_snapshot_datetime = models.DateTimeField(null=True, blank=True)
+    last_diff_fields = models.TextField(blank=True, default="")
+    last_import = models.ForeignKey(PlanosImport, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Planos Record"
+        verbose_name_plural = "Planos Records"
+        ordering = ["name", "folder_path"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["folder_path", "name"],
+                name="uniq_planos_folder_name",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.name or f"Plano #{self.pk}"
+
+
+def _empty_json_dict():
+    return {}
+
+
+def _empty_json_list():
+    return []
+
+
+# Hojas de especialidad en planos_iniciales.xls (comparación sin distinguir mayúsculas).
+PLANOS_INICIALES_SHEET_SLUGS = (
+    "arq",
+    "est",
+    "ele",
+    "aut",
+    "san",
+    "cli",
+    "pci",
+    "com",
+    "bim",
+    "bms",
+    "geo",
+    "pav",
+    "hid",
+)
+
+
+class PlanosInicialesImport(models.Model):
+    """Archivo .xls importado (planos por especialidad)."""
+
+    file = models.FileField(upload_to="planos_iniciales/%Y/%m/")
+    original_filename = models.CharField(max_length=255)
+    snapshot_datetime = models.DateTimeField(null=True, blank=True)
+    imported_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Planos iniciales Import"
+        verbose_name_plural = "Planos iniciales Imports"
+        ordering = ["-snapshot_datetime", "-imported_at"]
+
+    def __str__(self) -> str:
+        return self.original_filename or f"PlanosInicialesImport #{self.pk}"
+
+
+class PlanosInicialesRecord(models.Model):
+    """
+    Una fila de una hoja de especialidad. Todas las columnas del Excel van en
+    columns_json (cabecera -> valor texto); column_headers_order conserva el orden.
+    """
+
+    specialty = models.CharField(max_length=16, db_index=True)
+    excel_row = models.PositiveIntegerField(
+        help_text="Número de fila en la hoja Excel (1 = encabezados).",
+    )
+    columns_json = models.JSONField(default=_empty_json_dict)
+    column_headers_order = models.JSONField(default=_empty_json_list)
+    search_text = models.TextField(blank=True, default="")
+
+    last_snapshot_datetime = models.DateTimeField(null=True, blank=True)
+    last_diff_fields = models.TextField(blank=True, default="")
+    last_import = models.ForeignKey(
+        PlanosInicialesImport, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        verbose_name = "Planos iniciales Record"
+        verbose_name_plural = "Planos iniciales Records"
+        ordering = ["specialty", "excel_row"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["specialty", "excel_row"],
+                name="uniq_planos_iniciales_specialty_excel_row",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.specialty.upper()} fila {self.excel_row}"
+

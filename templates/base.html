@@ -107,6 +107,9 @@
             <div id="sidebar-group-rdi" class="sidebar-accordion-panel" hidden>
               <a href="{% url 'rdi_list' %}" class="{% if request.resolver_match.url_name == 'rdi_list' %}active{% endif %}">RDI</a>
               <a href="{% url 'rdi_increments_decrements' %}" class="{% if request.resolver_match.url_name == 'rdi_increments_decrements' %}active{% endif %}">Aumentos/disminuciones</a>
+              <a href="{% url 'planos_list' %}" class="{% if request.resolver_match.url_name == 'planos_list' %}active{% endif %}">Planos</a>
+              <a href="{% url 'planos_iniciales_list' %}" class="{% if request.resolver_match.url_name == 'planos_iniciales_list' %}active{% endif %}">Planos iniciales</a>
+              <a href="{% url 'planos_actualizados_list' %}" class="{% if request.resolver_match.url_name == 'planos_actualizados_list' %}active{% endif %}">Planos actualizados</a>
             </div>
           </div>
         {% else %}
