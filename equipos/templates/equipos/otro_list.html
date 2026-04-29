@@ -15,11 +15,15 @@
     <label for="equipos-otro-search">Buscar</label>
     <input type="text" id="equipos-otro-search" class="form-control" placeholder="TAG, asset, estado, especialidad…" autocomplete="off">
   </div>
+  <div id="equipos-otro-especialidad-filters" style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+    <button type="button" class="btn btn-outline" data-especialidad="">Todas</button>
+  </div>
   <div class="table-wrap">
     <table class="data-table">
       <thead>
         <tr>
           <th>Fila</th>
+          <th>Especialidad</th>
           <th>Tipo</th>
           <th>TAG</th>
           <th>Asset</th>
@@ -30,7 +34,7 @@
         </tr>
       </thead>
       <tbody id="equipos-otro-tbody">
-        <tr><td colspan="8" class="muted">Cargando…</td></tr>
+        <tr><td colspan="9" class="muted">Cargando…</td></tr>
       </tbody>
     </table>
   </div>
@@ -47,34 +51,86 @@
     d.textContent = String(s);
     return d.innerHTML;
   }
+  function norm(s) {
+    return String(s || '').trim().toLowerCase();
+  }
+  function matchesSearch(r, q) {
+    if (!q) return true;
+    var haystack = [
+      r.tag_number,
+      r.asset_name,
+      r.estado,
+      r.especialidad
+    ].map(norm).join(' ');
+    return haystack.indexOf(q) !== -1;
+  }
+  function uniqueEspecialidades(records) {
+    var seen = {};
+    var out = [];
+    records.forEach(function(r) {
+      var value = String(r.especialidad || '').trim();
+      if (!value) return;
+      var key = value.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(value);
+    });
+    out.sort(function(a, b) { return a.localeCompare(b, 'es'); });
+    return out;
+  }
+  function buildFilterButtons(especialidades, active) {
+    var holder = document.getElementById('equipos-otro-especialidad-filters');
+    if (!holder) return;
+    var allBtns = ['<button type="button" class="btn ' + (!active ? 'btn-primary' : 'btn-outline') + '" data-especialidad="">Todas</button>'];
+    especialidades.forEach(function(e) {
+      var isActive = norm(active) === norm(e);
+      allBtns.push('<button type="button" class="btn ' + (isActive ? 'btn-primary' : 'btn-outline') + '" data-especialidad="' + esc(e) + '">' + esc(e) + '</button>');
+    });
+    holder.innerHTML = allBtns.join('');
+  }
+  function renderRows(records) {
+    var tbody = document.getElementById('equipos-otro-tbody');
+    if (!tbody) return;
+    if (!records.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="muted">No hay registros.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = records.map(function(r) {
+      var ult = r.ultima_cambio_fmt
+        ? '<span class="equipos-ultima-cambio" title="Editado desde formulario">' + esc(r.ultima_cambio_fmt) + '</span>'
+        : '<span class="muted">—</span>';
+      return '<tr><td>' + esc(r.excel_row) + '</td><td>' + esc(r.especialidad) + '</td><td>' + esc(r.row_type) + '</td><td>' + esc(r.tag_number) + '</td><td>' + esc(r.asset_name) + '</td><td>' + esc(r.estado) + '</td><td>' + esc(r.rdi_ttal) + '</td><td>' + ult + '</td><td><a class="btn btn-outline" href="' + tplEdit.split(urlSentinel).join(String(r.id)) + '">Editar</a></td></tr>';
+    }).join('');
+  }
+  var allRecords = [];
+  var activeEspecialidad = '';
+  function applyFilters() {
+    var q = norm((document.getElementById('equipos-otro-search') || {}).value || '');
+    var filtered = allRecords.filter(function(r) {
+      var okEspecialidad = !activeEspecialidad || norm(r.especialidad) === norm(activeEspecialidad);
+      return okEspecialidad && matchesSearch(r, q);
+    });
+    renderRows(filtered);
+  }
   var seq = 0;
-  function load(q) {
+  function load() {
     seq += 1;
     var my = seq;
     var tbody = document.getElementById('equipos-otro-tbody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="8" class="muted">Cargando…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="muted">Cargando…</td></tr>';
     var url = '{% url "equipos_otro_records_json" %}';
-    if (q && String(q).trim()) url += '?q=' + encodeURIComponent(q.trim());
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (my !== seq) return;
-        var recs = (data && data.records) ? data.records : [];
-        if (!recs.length) {
-          tbody.innerHTML = '<tr><td colspan="8" class="muted">No hay registros.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = recs.map(function(r) {
-          var ult = r.ultima_cambio_fmt
-            ? '<span class="equipos-ultima-cambio" title="Editado desde formulario">' + esc(r.ultima_cambio_fmt) + '</span>'
-            : '<span class="muted">—</span>';
-          return '<tr><td>' + esc(r.excel_row) + '</td><td>' + esc(r.row_type) + '</td><td>' + esc(r.tag_number) + '</td><td>' + esc(r.asset_name) + '</td><td>' + esc(r.estado) + '</td><td>' + esc(r.rdi_ttal) + '</td><td>' + ult + '</td><td><a class="btn btn-outline" href="' + tplEdit.split(urlSentinel).join(String(r.id)) + '">Editar</a></td></tr>';
-        }).join('');
+        allRecords = (data && data.records) ? data.records : [];
+        buildFilterButtons(uniqueEspecialidades(allRecords), activeEspecialidad);
+        applyFilters();
       })
       .catch(function() {
         if (my !== seq) return;
-        tbody.innerHTML = '<tr><td colspan="8" class="muted">Error al cargar.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="muted">Error al cargar.</td></tr>';
       });
   }
   var inp = document.getElementById('equipos-otro-search');
@@ -82,10 +138,20 @@
   if (inp) {
     inp.addEventListener('input', function() {
       clearTimeout(deb);
-      deb = setTimeout(function() { load(inp.value); }, 300);
+      deb = setTimeout(function() { applyFilters(); }, 300);
     });
   }
-  load('');
+  var filters = document.getElementById('equipos-otro-especialidad-filters');
+  if (filters) {
+    filters.addEventListener('click', function(ev) {
+      var btn = ev.target && ev.target.closest('button[data-especialidad]');
+      if (!btn) return;
+      activeEspecialidad = btn.getAttribute('data-especialidad') || '';
+      buildFilterButtons(uniqueEspecialidades(allRecords), activeEspecialidad);
+      applyFilters();
+    });
+  }
+  load();
 })();
 </script>
 {% endblock %}

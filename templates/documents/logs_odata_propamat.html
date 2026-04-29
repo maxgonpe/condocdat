@@ -27,7 +27,7 @@
           <th>Transmittal</th>
           <th>Referencia</th>
           <th>Fecha envío (emisor)</th>
-          <th>Responsable</th>
+          {% comment %}<th>Responsable</th>{% endcomment %}
           <th>Documento - Archivo</th>
           <th>Estado</th>
         </tr>
@@ -38,13 +38,13 @@
           <td>{{ row.transmittal_display|default:row.transmittal|default:"" }}</td>
           <td>{{ row.referencia|truncatewords:20|default:"—" }}</td>
           <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-          <td>{{ row.responsable|default:"—" }}</td>
+          {% comment %}<td>{{ row.responsable|default:"—" }}</td>{% endcomment %}
           <td>{% if row.file_url %}<a href="{{ row.file_url }}" target="_blank" rel="noopener">{{ row.documento_archivo|linebreaksbr }}</a>{% else %}{{ row.documento_archivo|linebreaksbr|default:"—" }}{% endif %}</td>
           <td>{{ row.estado|default:"—" }}</td>
         </tr>
         {% empty %}
         <tr class="empty-state">
-          <td colspan="6" class="muted">No hay carpetas Odata.</td>
+          <td colspan="5" class="muted">No hay carpetas Odata.</td>
         </tr>
         {% endfor %}
       </tbody>

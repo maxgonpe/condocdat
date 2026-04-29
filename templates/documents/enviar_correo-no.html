@@ -78,10 +78,16 @@
                 placeholder="Escriba aquí el contenido del correo...">{{ cuerpo|default:'' }}</textarea>
     </div>
     <div class="form-group">
-      <label for="id_adjuntos">Adjuntos <span class="required">*</span> si usa plantilla Transmittal</label>
-      <input type="file" id="id_adjuntos" name="adjuntos" class="form-control" multiple
+      <label for="id_adjuntos">Adjunto para plantilla Transmittal <span class="required">*</span> si usa plantilla</label>
+      <input type="file" id="id_adjuntos" name="adjuntos_plantilla" class="form-control"
              accept=".pdf,.docx,*/*">
-      <small class="form-hint">Uno o más archivos. Si activó la plantilla Transmittal, el primero debe ser la hoja de transmittal (nombre tipo ODATA-ST01-F5-TTAL-PPT-00023). Tamaño total &lt; 25 MB.</small>
+      <small class="form-hint">Este archivo sí se usa para extraer asunto/cuerpo. Si activó la plantilla, adjunte aquí la hoja de transmittal (ej. ODATA-ST01-F5-TTAL-PPT-00023).</small>
+    </div>
+    <div class="form-group">
+      <label for="id_adjuntos_extra">Adjuntos adicionales (solo envío)</label>
+      <input type="file" id="id_adjuntos_extra" name="adjuntos_extra" class="form-control" multiple
+             accept=".pdf,.docx,*/*">
+      <small class="form-hint">Estos archivos se enviarán como adjuntos descargables, pero no se usan para cargar la plantilla. Tamaño total recomendado &lt; 25 MB.</small>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">Enviar correo</button>

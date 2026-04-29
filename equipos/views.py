@@ -32,6 +32,7 @@ from .services import (
     latest_libro,
     log_changes,
     replace_libro_with_import,
+    resolve_libro_xlsx_path,
     sync_libro_to_excel,
     ultima_cambio_formulario_map,
     ultima_cambio_un_registro,
@@ -109,7 +110,7 @@ def equipos_download_xlsx(request):
     libro.refresh_from_db()
     fn = build_equipos_download_filename(libro)
     resp = FileResponse(
-        open(libro.file.path, "rb"),
+        open(resolve_libro_xlsx_path(libro), "rb"),
         as_attachment=True,
         filename=fn,
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -176,6 +177,7 @@ def equipos_asset_records_json(request):
             | Q(estado__icontains=q)
             | Q(zones__icontains=q)
             | Q(proveedor__icontains=q)
+            | Q(especialidad__icontains=q)
         )
     records = []
     batch = list(qs[:800])
@@ -188,6 +190,7 @@ def equipos_asset_records_json(request):
                 "id": o.pk,
                 "excel_row": o.excel_row,
                 "row_type": o.row_type,
+                "especialidad": o.especialidad,
                 "tag_number": o.tag_number,
                 "asset_name": o.asset_name,
                 "estado": o.estado,
@@ -207,6 +210,12 @@ def equipos_asset_edit(request, pk: int):
         messages.error(request, "No hay libro cargado.")
         return redirect("equipos_hub")
     obj = get_object_or_404(EquiposAsset, pk=pk, libro=libro)
+    if obj.row_type != EquiposAsset.ROW_TAREA:
+        messages.warning(
+            request,
+            "Solo las filas de tipo TAREA se editan desde el formulario.",
+        )
+        return redirect("equipos_asset_list")
     fields = list(EquiposAssetForm.Meta.fields)
     if request.method == "POST":
         before = model_to_dict(obj, fields=fields)
@@ -368,6 +377,7 @@ def equipos_otro_records_json(request):
                 "id": o.pk,
                 "excel_row": o.excel_row,
                 "row_type": o.row_type,
+                "especialidad": o.especialidad,
                 "tag_number": o.tag_number,
                 "asset_name": o.asset_name,
                 "estado": o.estado,
@@ -539,9 +549,9 @@ def equipos_search_json(request):
     if len(q) < 2:
         return JsonResponse({"libro": libro.id, "assets": [], "locations": [], "otros": []})
 
-    assets = EquiposAsset.objects.filter(libro=libro).filter(
-        Q(tag_number__icontains=q) | Q(asset_name__icontains=q)
-    )[:15]
+    assets = EquiposAsset.objects.filter(
+        libro=libro, row_type=EquiposAsset.ROW_TAREA
+    ).filter(Q(tag_number__icontains=q) | Q(asset_name__icontains=q))[:15]
     locs = EquiposLocation.objects.filter(libro=libro).filter(
         Q(code__icontains=q) | Q(space_name__icontains=q)
     )[:15]

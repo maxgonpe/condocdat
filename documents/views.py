@@ -453,6 +453,44 @@ def _parse_saluda_atentamente(content_extract):
     return " ".join(lines) if lines else ""
 
 
+def _parse_respuesta_fallback(content_extract):
+    """
+    Fallback para extraer algún texto representativo de respuesta cuando no se detecta
+    «Saluda atentamente» ni «Atención:».
+    """
+    if not content_extract or not isinstance(content_extract, str):
+        return ""
+    t = content_extract
+    tu = t.upper()
+    markers = [
+        "RESPUESTA:",
+        "EN RESPUESTA",
+        "SE RESPONDE",
+        "OBSERVACIONES",
+        "COMENTARIOS",
+    ]
+    for marker in markers:
+        idx = tu.find(marker)
+        if idx < 0:
+            continue
+        start = idx + len(marker)
+        while start < len(t) and t[start] in " \t:,-\r\n":
+            start += 1
+        if start >= len(t):
+            continue
+        block = t[start:start + 260]
+        # Cortar en separadores típicos de secciones
+        for cut in ("\n\n", "\r\n\r\n", "REFERENCIA:", "ASUNTO:", "PROPAMAT", "ODATA"):
+            p = block.upper().find(cut)
+            if p > 0:
+                block = block[:p]
+                break
+        block = " ".join(ln.strip() for ln in block.splitlines() if ln.strip())
+        if len(block) >= 8:
+            return block
+    return ""
+
+
 # Meses en español (clave en mayúsculas sin tildes para comparar)
 _MESES = {
     "ENERO": 1, "FEBRERO": 2, "MARZO": 3, "ABRIL": 4, "MAYO": 5, "JUNIO": 6,
@@ -513,8 +551,13 @@ def _find_car_references_in_text(text):
     if not text:
         return set()
     refs = set()
-    # Coincidir ODA-BUF-CC-CAR-5, ODA-BUF-CC-CAR-0005, etc.
-    for m in re.finditer(r"ODA-BUF-CC-CAR-0*(\d+)", text, re.IGNORECASE):
+    # Coincidir variantes OCR/separadores:
+    # ODA-BUF-CC-CAR-5, ODA/BUF/CC/CAR 0005, ODA BUF CC CAR N°5, etc.
+    pattern = re.compile(
+        r"\bODA[-_/.\s]*BUF[-_/.\s]*CC[-_/.\s]*CAR(?:TA)?[-_/.\s]*N?[°º]?\s*0*(\d{1,6})\b",
+        re.IGNORECASE,
+    )
+    for m in pattern.finditer(text):
         refs.add("ODA-BUF-CC-CAR-" + m.group(1).zfill(4))
     return refs
 
@@ -1389,14 +1432,13 @@ def _parse_emails(raw):
 
 # --- Plantilla correo Transmittal (ODATA-ST01-F5-TTAL-PPT-?????) ---
 TRANSMITTAL_ASUNTO_TEMPLATE = "ODATA ST01 EXP 05-E2 |   {{ referencia }}   | {{ transmittal }}"
-# Plantilla SharePoint: la carpeta del transmittal existe siempre en este repositorio; solo cambia el código.
-# Ojo: la ruta dentro de SharePoint DEBE coincidir exacto con el link que funciona.
-# En la URL correcta aparece ".../PROPAMAT/PROP a ODATA/...".
-SHAREPOINT_TRANSMITTAL_BASE_PATH = "/sites/GestorDocumentalProyectoODATA/Documentos compartidos/1. ODATA ST01/4. EXP05 - FASE 5.2/4.1 Comunicaciones/4.1.1 Transmittal/PROPAMAT/PROP a ODATA/"
-SHAREPOINT_TRANSMITTAL_VIEWID = "d9a3f383-3cf1-43be-85e9-c0a8cafec845"
+# Plantilla SharePoint basada en link de navegación de carpeta.
+# Solo cambia el código de transmittal al final de la ruta.
+SHAREPOINT_TRANSMITTAL_BASE_PATH = "/sites/GestorDocumentalProyectoODATA/Documentos compartidos/1. ODATA ST01/0. PM ST01/0.1. COMUNICACIONES/0.1.1. TRANSMITTAL/FASE 5.2/PROPAMAT/PROP a ODATA/"
 SHAREPOINT_TRANSMITTAL_BASE_URL = (
     "https://bufferconsultores.sharepoint.com/sites/GestorDocumentalProyectoODATA/Documentos%20compartidos/Forms/AllItems.aspx"
 )
+SHAREPOINT_TRANSMITTAL_FOLDERCTID = "0x01200033A55080FE1C7C43A2727BC0371E4F3B"
 TRANSMITTAL_CUERPO_TEMPLATE = """Estimados,
 
 Junto con saludar y mediante el presente, se adjunta ruta de la documentación del asunto de la referencia.
@@ -1632,10 +1674,10 @@ def _build_cuerpo_transmittal(data, request=None):
         transmittal_bold = "<strong>%s</strong>" % trans
         path = SHAREPOINT_TRANSMITTAL_BASE_PATH + trans
         id_param = quote(path, safe="")
-        transmittal_link = '<a href="%s?id=%s&viewid=%s&p=true&startedResponseCatch=true">%s</a>' % (
+        transmittal_link = '<a href="%s?csf=1&web=1&FolderCTID=%s&id=%s">%s</a>' % (
             SHAREPOINT_TRANSMITTAL_BASE_URL,
+            SHAREPOINT_TRANSMITTAL_FOLDERCTID,
             id_param,
-            quote(SHAREPOINT_TRANSMITTAL_VIEWID, safe=""),
             trans,
         )
     else:
@@ -1741,11 +1783,24 @@ def enviar_correo_view(request):
     cuerpo = (request.POST.get('cuerpo') or '').strip()
 
     # Adjuntos para el correo (no se re-extrae transmittal en servidor: prevalecen las correcciones del usuario).
-    adjuntos_list = []
-    for f in request.FILES.getlist('adjuntos'):
+    # Separamos el adjunto de plantilla (sí participa en la extracción vía UI)
+    # de los adjuntos adicionales (solo se envían).
+    adjuntos_plantilla = []
+    for f in request.FILES.getlist('adjuntos_plantilla'):
         if f and f.name:
             contenido = f.read()
-            adjuntos_list.append((f.name, contenido, getattr(f, 'content_type', None) or 'application/octet-stream'))
+            adjuntos_plantilla.append((f.name, contenido, getattr(f, 'content_type', None) or 'application/octet-stream'))
+
+    adjuntos_extra = []
+    extra_files = request.FILES.getlist('adjuntos_extra')
+    # Compatibilidad con formularios/frontends que envían arrays como "campo[]".
+    extra_files += request.FILES.getlist('adjuntos_extra[]')
+    for f in extra_files:
+        if f and f.name:
+            contenido = f.read()
+            adjuntos_extra.append((f.name, contenido, getattr(f, 'content_type', None) or 'application/octet-stream'))
+
+    adjuntos_list = adjuntos_plantilla + adjuntos_extra
 
     to_list = list(_parse_emails(destinatarios_raw))
     for g in GrupoCorreo.objects.filter(pk__in=destinatario_grupos_ids, activo=True):
@@ -1804,7 +1859,7 @@ def enviar_correo_view(request):
             'rdi_informar_csv_id': rdi_informar_csv_id,
         })
 
-    if usar_plantilla and not adjuntos_list:
+    if usar_plantilla and not adjuntos_plantilla:
         messages.warning(request, 'Para usar la plantilla transmittal debe adjuntar al menos un archivo (PDF o DOCX).')
         return render(request, 'documents/enviar_correo.html', {
             'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
@@ -2151,6 +2206,12 @@ def _get_cartas_status_rows():
                     respuesta = _parse_saluda_atentamente(extract_respuesta)
                     if not respuesta:
                         respuesta = _parse_atencion(extract_respuesta)
+                    if not respuesta:
+                        respuesta = _parse_respuesta_fallback(extract_respuesta)
+                    if not respuesta:
+                        # Si hubo match por referencia CAR, marcar como respondida aunque
+                        # el OCR no entregue firma/atención de forma limpia.
+                        respuesta = "Respuesta detectada por referencia CAR"
             rows.append({
                 "document": d,
                 "transmittal": d.folder.code if d.folder else "",
@@ -3360,4 +3421,24 @@ def informar_list(request):
         request,
         "documents/informar.html",
         {"rows": rows, "page_title": "Informar de Odata", "page_subtitle": "Carpetas Propamat."},
+    )
+
+
+@login_required
+@require_GET
+def informar_trn_list(request):
+    """
+    Informar de TRN: misma data, columnas y exportación que «Logs Propamat a Odata»
+    (_get_logs_folder_rows("TRN")).
+    """
+    rows = _get_logs_folder_rows("TRN")
+    if request.GET.get("format") == "excel":
+        return _logs_excel_response(rows, list_name="Logs TRN Propamat a Odata", request=request)
+    if request.GET.get("format") == "pdf":
+        open_inline = request.GET.get("open") == "1"
+        return _logs_pdf_response(rows, list_name="Logs TRN Propamat a Odata", inline=open_inline)
+    return render(
+        request,
+        "documents/informar_trn.html",
+        {"rows": rows, "page_title": "Informar de TRN", "page_subtitle": "Carpetas TRN."},
     )

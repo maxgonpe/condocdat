@@ -1205,6 +1205,22 @@ table.data-table tbody tr.row-respondida:hover td {
   background: #bbf7d0;
 }
 
+/* Equipos — Asset: filas TITULO / SUBTITULO (variables = claro y oscuro) */
+table.data-table tbody tr.equipos-asset-row--titulo td {
+  background: var(--info-bg);
+  color: var(--text);
+}
+table.data-table tbody tr.equipos-asset-row--titulo:hover td {
+  background: color-mix(in srgb, var(--info-bg) 88%, var(--text) 12%);
+}
+table.data-table tbody tr.equipos-asset-row--subtitulo td {
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+table.data-table tbody tr.equipos-asset-row--subtitulo:hover td {
+  background: color-mix(in srgb, var(--accent-subtle) 88%, var(--text) 12%);
+}
+
 .btn-sm,
 table.data-table .btn {
   padding: 0.3rem 0.6rem;

@@ -4,6 +4,7 @@ import io
 import re
 from datetime import date, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Iterable
 
 from django.core.files.storage import default_storage
@@ -32,6 +33,42 @@ SHEET_OTROS = "Otros equipos"
 
 # Misma ruta que `equipos_libro_upload_to` en models.py
 EQUIPOS_LIBRO_REL_PATH = "equipos/libro_actual.xlsx"
+
+
+def resolve_libro_xlsx_path(libro: EquiposLibro) -> str:
+    """
+    Ruta absoluta al .xlsx del libro.
+
+    Si la BD sigue apuntando a un path antiguo (p. ej. con sufijo aleatorio) y ese
+    fichero ya no existe, pero sí existe `equipos/libro_actual.xlsx`, re-enlaza el
+    FileField a esa ruta estable.
+    """
+    from django.conf import settings
+
+    media_root = Path(settings.MEDIA_ROOT)
+    canonical = media_root / EQUIPOS_LIBRO_REL_PATH
+
+    path_str: str | None = None
+    if libro.file:
+        try:
+            path_str = libro.file.path
+        except (NotImplementedError, ValueError):
+            path_str = None
+
+    if path_str and Path(path_str).is_file():
+        return path_str
+
+    if canonical.is_file():
+        if not libro.file.name or libro.file.name != EQUIPOS_LIBRO_REL_PATH:
+            libro.file.name = EQUIPOS_LIBRO_REL_PATH
+            libro.save(update_fields=["file"])
+        return str(canonical)
+
+    bd = repr(libro.file.name) if (libro.file and libro.file.name) else "ninguna"
+    raise FileNotFoundError(
+        f"No se encontró el Excel (ruta en BD: {bd}; se buscó también {canonical}). "
+        "Volvé a importar el libro desde el hub o colocá el fichero en la ruta indicada."
+    )
 
 
 def build_equipos_download_filename(
@@ -347,7 +384,7 @@ def log_changes(
 
 def sync_libro_to_excel(libro: EquiposLibro) -> None:
     """Escribe los valores del modelo en el archivo .xlsx del libro (mismo path)."""
-    path = libro.file.path
+    path = resolve_libro_xlsx_path(libro)
     wb = load_workbook(path, keep_vba=False)
 
     ws = wb[SHEET_RESUMEN]

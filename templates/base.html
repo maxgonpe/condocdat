@@ -63,6 +63,7 @@
                 <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Panel</a>
                 <a href="{% url 'enviar_correo' %}" class="{% if request.resolver_match.url_name == 'enviar_correo' %}active{% endif %}">Enviar correo</a>
                 <a href="{% url 'informar_list' %}" class="{% if request.resolver_match.url_name == 'informar_list' %}active{% endif %}">Informar de Odata</a>
+                <a href="{% url 'informar_trn_list' %}" class="{% if request.resolver_match.url_name == 'informar_trn_list' %}active{% endif %}">Informar de TRN</a>
                 <a href="{% url 'informar_bim_list' %}" class="{% if request.resolver_match.url_name == 'informar_bim_list' %}active{% endif %}">Informar desde BIM</a>
               {% endif %}
             </div>
