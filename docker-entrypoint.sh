@@ -6,6 +6,7 @@ echo "🚀 Iniciando aplicación Condocdat..."
 mkdir -p /app/data
 mkdir -p /app/media
 mkdir -p /app/staticfiles
+mkdir -p /app/doc
 
 if [ "$DB_ENGINE" = "django.db.backends.postgresql" ]; then
     echo "⏳ Esperando a PostgreSQL..."

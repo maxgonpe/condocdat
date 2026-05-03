@@ -62,6 +62,17 @@
   function norm(s) {
     return String(s || '').trim().toLowerCase();
   }
+  function rowClassForGantt(r) {
+    if (String(r.especialidad || '').trim()) return '';
+    var on = String(r.outline_number || '').trim();
+    if (!on) return '';
+    var depth = on.split('.').length;
+    if (depth <= 1) return 'gantt-row--titulo';
+    return 'gantt-row--subtitulo';
+  }
+  function isGanttTaskEditable(r) {
+    return !!String(r.especialidad || '').trim();
+  }
   function uniqueEspecialidades(records) {
     var seen = {};
     var out = [];
@@ -101,7 +112,11 @@
       return;
     }
     tbody.innerHTML = records.map(function(r) {
-      return '<tr>' +
+      var trCls = rowClassForGantt(r);
+      var editCell = isGanttTaskEditable(r)
+        ? '<td><a class="btn btn-outline" href="' + String('{% url "gantt_task_edit" 0 %}').replace('/0/', '/' + r.id + '/') + '">Editar</a></td>'
+        : '<td class="muted">—</td>';
+      return '<tr' + (trCls ? ' class="' + esc(trCls) + '"' : '') + '>' +
         '<td>' + esc(r.task_id || '') + '</td>' +
         '<td style="max-width:300px;">' + esc(short(r.nombre_tarea, 120)) + '</td>' +
         '<td>' + esc(r.especialidad || '') + '</td>' +
@@ -111,7 +126,7 @@
         '<td>' + esc(r.fin ? r.fin.slice(0, 16).replace('T', ' ') : '') + '</td>' +
         '<td style="max-width:220px;">' + esc(short(r.predecesoras, 90)) + '</td>' +
         '<td style="max-width:220px;">' + esc(short(r.sucesoras, 90)) + '</td>' +
-        '<td><a class="btn btn-outline" href="' + String('{% url "gantt_task_edit" 0 %}').replace('/0/', '/' + r.id + '/') + '">Editar</a></td>' +
+        editCell +
       '</tr>';
     }).join('');
   }

@@ -1206,18 +1206,22 @@ table.data-table tbody tr.row-respondida:hover td {
 }
 
 /* Equipos — Asset: filas TITULO / SUBTITULO (variables = claro y oscuro) */
-table.data-table tbody tr.equipos-asset-row--titulo td {
+table.data-table tbody tr.equipos-asset-row--titulo td,
+table.data-table tbody tr.gantt-row--titulo td {
   background: var(--info-bg);
   color: var(--text);
 }
-table.data-table tbody tr.equipos-asset-row--titulo:hover td {
+table.data-table tbody tr.equipos-asset-row--titulo:hover td,
+table.data-table tbody tr.gantt-row--titulo:hover td {
   background: color-mix(in srgb, var(--info-bg) 88%, var(--text) 12%);
 }
-table.data-table tbody tr.equipos-asset-row--subtitulo td {
+table.data-table tbody tr.equipos-asset-row--subtitulo td,
+table.data-table tbody tr.gantt-row--subtitulo td {
   background: var(--accent-subtle);
   color: var(--text);
 }
-table.data-table tbody tr.equipos-asset-row--subtitulo:hover td {
+table.data-table tbody tr.equipos-asset-row--subtitulo:hover td,
+table.data-table tbody tr.gantt-row--subtitulo:hover td {
   background: color-mix(in srgb, var(--accent-subtle) 88%, var(--text) 12%);
 }
 

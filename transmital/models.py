@@ -1,7 +1,14 @@
 from datetime import date
+from pathlib import Path
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+
+def default_transmital_folder_base_path() -> str:
+    """Ruta por defecto alineada con el despliegue (p. ej. /app/doc en Docker)."""
+    return str(Path(settings.CONDOCDAT_DOC_ROOT))
 
 
 def default_fecha_caratula():
@@ -139,7 +146,7 @@ class Transmital(models.Model):
 
 
 class TransmitalFolderConfig(models.Model):
-    base_path = models.CharField(max_length=1024, default="/home/max/condocdat/doc")
+    base_path = models.CharField(max_length=1024, default=default_transmital_folder_base_path)
     current_number = models.PositiveIntegerField(default=293)
     updated_at = models.DateTimeField(auto_now=True)
 

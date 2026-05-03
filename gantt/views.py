@@ -89,6 +89,7 @@ def gantt_task_records_json(request):
                 "nombre_tarea": t.nombre_tarea,
                 "especialidad": t.especialidad,
                 "esp": t.esp,
+                "outline_number": t.outline_number,
                 "duracion": t.duracion,
                 "comienzo": t.comienzo.isoformat() if t.comienzo else "",
                 "fin": t.fin.isoformat() if t.fin else "",
@@ -108,6 +109,12 @@ def gantt_task_edit(request, pk: int):
         messages.error(request, "No hay archivo cargado.")
         return redirect("gantt_hub")
     obj = get_object_or_404(GanttTask, pk=pk, archivo=archivo)
+    if not str(obj.especialidad or "").strip():
+        messages.error(
+            request,
+            "Esta fila es un título o subtítulo del cronograma; no se puede editar.",
+        )
+        return redirect("gantt_task_list")
     fields = list(GanttTaskForm.Meta.fields)
     if request.method == "POST":
         before = model_to_dict(obj, fields=fields)

@@ -5,6 +5,16 @@ from . import views
 urlpatterns = [
     path("", views.transmital_hub, name="transmital_hub"),
     path("carpetas/", views.transmital_folder_builder, name="transmital_folder_builder"),
+    path(
+        "carpetas/registrar-local/",
+        views.transmital_folder_register_local,
+        name="transmital_folder_register_local",
+    ),
+    path(
+        "carpetas/siguiente-zip/",
+        views.transmital_folder_next_zip,
+        name="transmital_folder_next_zip",
+    ),
     path("crear/", views.transmital_create, name="transmital_create"),
     path("<int:pk>/editar/", views.transmital_edit, name="transmital_edit"),
     path("<int:pk>/descargar.xlsx", views.transmital_download_xlsx, name="transmital_download_xlsx"),

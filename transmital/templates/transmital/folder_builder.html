@@ -15,7 +15,7 @@
     <div>
       <label for="{{ form.base_path.id_for_label }}" style="display:block; font-weight:600;">Ruta base</label>
       {{ form.base_path }}
-      <p class="muted" style="margin:0.25rem 0 0;">Carpeta donde se crearán las nuevas carpetas transmital.</p>
+      <p class="muted" style="margin:0.25rem 0 0;">Solo aplica si usa la opción avanzada <strong>Crear en servidor</strong>. En Docker, si la ruta guardada no existe, se usa <code>{{ resolved_folder_base }}</code> (<code>CONDOCDAT_DOC_ROOT</code> o <code>BASE_DIR/doc</code>).</p>
     </div>
     <div>
       <label for="{{ form.current_number.id_for_label }}" style="display:block; font-weight:600;">Último número usado</label>
@@ -30,13 +30,28 @@
 
 <div class="card" style="margin-bottom:1rem;">
   <h3 style="margin-top:0;">Próxima carpeta</h3>
-  <p><strong>{{ next_name }}</strong></p>
-  <p class="muted">Se creará en: <code>{{ cfg.base_path }}/{{ next_name }}</code></p>
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="create_folder">
-    <button type="submit" class="btn btn-primary">Crear carpeta siguiente (+1)</button>
-  </form>
+  <p>El nombre será: <strong>{{ next_name }}</strong></p>
+  <p class="muted">Por defecto la carpeta se crea en <strong>su equipo</strong> (la ubicación la elige usted con el cuadro de diálogo del navegador, como al guardar un documento), no en el servidor.</p>
+  <p style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-top:0.75rem;">
+    <button type="button" class="btn btn-primary" id="btn-transmital-folder-mipc">Elegir ubicación en mi PC y crear carpeta</button>
+    <form method="post" action="{% url 'transmital_folder_next_zip' %}" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline">Descargar carpeta vacía (.zip)</button>
+    </form>
+  </p>
+  <p class="muted" style="margin-top:0.5rem; font-size:0.9em;">La primera opción usa <strong>Chrome o Edge</strong> (permiso de carpeta). Con el ZIP puede usar «Guardar como…» y extraer donde quiera (escritorio, etc.).</p>
+  <details class="muted" style="margin-top:1rem;">
+    <summary>Opción avanzada: crear solo en el servidor</summary>
+    {% if base_resolved_note %}
+    <p class="muted" style="margin-top:0.5rem;">La ruta configurada no existe en este servidor; se usará <code>{{ resolved_folder_base }}</code> al crear en servidor.</p>
+    {% endif %}
+    <p class="muted" style="margin-top:0.5rem;">Útil si el contenedor tiene montada la carpeta <code>doc/</code> en el host. Se creará <code>{{ resolved_folder_base }}/{{ next_name }}</code>.</p>
+    <form method="post" style="margin-top:0.5rem;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_folder">
+      <button type="submit" class="btn btn-outline btn-sm">Crear en servidor</button>
+    </form>
+  </details>
 </div>
 
 <div class="card card--list">
@@ -57,11 +72,11 @@
         {% for row in logs %}
         <tr>
           <td>{{ row.folder_name }}</td>
-          <td><code>{{ row.folder_path }}</code></td>
+          <td>{% if "local:" in row.folder_path %}<span class="muted">En su PC (ubicación elegida al crear o al descomprimir el ZIP)</span>{% else %}<code>{{ row.folder_path }}</code>{% endif %}</td>
           <td>{{ row.sequence_number }}</td>
           <td>{{ row.created_at|date:"d/m/Y H:i" }}</td>
           <td>
-            <form method="post" onsubmit="return confirm('¿Eliminar carpeta {{ row.folder_name }}? Solo funciona si está vacía.');">
+            <form method="post" onsubmit="return confirm('{% if "local:" in row.folder_path %}¿Eliminar el registro {{ row.folder_name }}? Si ya creó la carpeta en su equipo, bórrela manualmente allí.{% else %}¿Eliminar carpeta {{ row.folder_name }} en el servidor? Solo funciona si la carpeta del servidor está vacía.{% endif %}');">
               {% csrf_token %}
               <input type="hidden" name="action" value="delete_folder">
               <input type="hidden" name="log_id" value="{{ row.id }}">
@@ -77,4 +92,66 @@
   <p class="muted">Aún no hay carpetas creadas desde este módulo.</p>
   {% endif %}
 </div>
+
+<script>
+(function() {
+  function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      var cookies = document.cookie.split(';');
+      for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  var btn = document.getElementById('btn-transmital-folder-mipc');
+  if (!btn) return;
+  var registerUrl = '{% url "transmital_folder_register_local" %}';
+  btn.addEventListener('click', function() {
+    if (!window.showDirectoryPicker) {
+      window.alert('Su navegador no permite elegir una carpeta del equipo desde la web. Use Chrome o Edge, o bien «Descargar carpeta vacía (.zip)» y guarde el archivo donde quiera.');
+      return;
+    }
+    window.showDirectoryPicker({ mode: 'readwrite' }).then(function(parentHandle) {
+      var csrftoken = getCookie('csrftoken');
+      if (!csrftoken) {
+        window.alert('No se encontró la cookie de seguridad (CSRF). Recargue la página e inicie sesión de nuevo.');
+        return;
+      }
+      return fetch(registerUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-CSRFToken': csrftoken,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+        },
+      }).then(function(resp) {
+        return resp.json().then(function(data) {
+          return { resp: resp, data: data };
+        });
+      }).then(function(result) {
+        if (!result.resp.ok || !result.data.ok) {
+          window.alert((result.data && result.data.error) ? result.data.error : 'No se pudo registrar en el servidor.');
+          return;
+        }
+        return parentHandle.getDirectoryHandle(result.data.folder_name, { create: true }).then(function() {
+          window.location.reload();
+        });
+      }).catch(function(e) {
+        window.alert('La secuencia puede haber avanzado en el servidor. Revise el historial y, si hace falta, cree la carpeta manualmente con el nombre indicado. Detalle: ' + (e && e.message ? e.message : String(e)));
+        window.location.reload();
+      });
+    }).catch(function(e) {
+      if (e && e.name === 'AbortError') return;
+      window.alert('No se pudo abrir el selector de carpetas.');
+    });
+  });
+})();
+</script>
 {% endblock %}

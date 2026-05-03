@@ -126,6 +126,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Carpeta doc/ del proyecto (plantillas transmital, Excel de referencia, creador de carpetas).
+# En Docker es típicamente /app/doc. En el host se puede montar un volumen o definir CONDOCDAT_DOC_ROOT.
+_doc_root_env = (os.environ.get('CONDOCDAT_DOC_ROOT') or '').strip()
+CONDOCDAT_DOC_ROOT = Path(_doc_root_env).expanduser() if _doc_root_env else (BASE_DIR / 'doc')
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Login (vista propia /login/)
