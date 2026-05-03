@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     'documents',
     'rdi',
     'equipos',
+    'gantt',
+    'transmital',
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Cambios Gantt{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Historial de cambios Gantt</h1>
+  <p class="muted"><a href="{% url 'gantt_hub' %}">← Gantt</a></p>
+</header>
+
+<div class="card card--list">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Usuario</th>
+          <th>Task ID</th>
+          <th>Campo</th>
+          <th>Valor anterior</th>
+          <th>Valor nuevo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cambios %}
+        <tr>
+          <td>{{ c.created_at|date:"d/m/Y H:i" }}</td>
+          <td>{% if c.user %}{{ c.user.username }}{% else %}—{% endif %}</td>
+          <td>{{ c.task_id|default:"—" }}</td>
+          <td>{{ c.campo }}</td>
+          <td>{{ c.valor_anterior|default:"" }}</td>
+          <td>{{ c.valor_nuevo|default:"" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="muted">Sin cambios registrados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

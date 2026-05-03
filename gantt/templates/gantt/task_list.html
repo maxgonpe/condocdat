@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Tareas Gantt{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Tareas Gantt</h1>
+  <p class="muted"><a href="{% url 'gantt_hub' %}">← Gantt</a></p>
+</header>
+
+{% if not archivo %}
+<p class="muted">No hay archivo cargado.</p>
+{% else %}
+<div class="card card--list">
+  <div class="form-group" style="max-width: 560px; margin-bottom: 1rem;">
+    <label for="gantt-search">Buscar</label>
+    <input type="text" id="gantt-search" class="form-control" placeholder="ID, tarea, ESP, dependencia o nota..." autocomplete="off">
+  </div>
+  <div id="gantt-especialidad-filters" style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+    <button type="button" class="btn btn-outline" data-especialidad="">Todas</button>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Tarea</th>
+          <th>Especialidad</th>
+          <th>ESP</th>
+          <th>Duración</th>
+          <th>Comienzo</th>
+          <th>Fin</th>
+          <th>Predecesoras</th>
+          <th>Sucesoras</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="gantt-tbody">
+        <tr><td colspan="10" class="muted">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<script>
+(function() {
+  var tbody = document.getElementById('gantt-tbody');
+  var input = document.getElementById('gantt-search');
+  if (!tbody) return;
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  function short(s, n) {
+    var t = String(s || '');
+    return t.length > n ? (t.slice(0, n) + '...') : t;
+  }
+  var allRecords = [];
+  var activeEspecialidad = '';
+  function norm(s) {
+    return String(s || '').trim().toLowerCase();
+  }
+  function uniqueEspecialidades(records) {
+    var seen = {};
+    var out = [];
+    records.forEach(function(r) {
+      var value = String(r.especialidad || '').trim();
+      if (!value) return;
+      var key = value.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(value);
+    });
+    out.sort(function(a, b) { return a.localeCompare(b, 'es'); });
+    return out;
+  }
+  function buildFilterButtons(especialidades, active) {
+    var holder = document.getElementById('gantt-especialidad-filters');
+    if (!holder) return;
+    var html = ['<button type="button" class="btn ' + (!active ? 'btn-primary' : 'btn-outline') + '" data-especialidad="">Todas</button>'];
+    especialidades.forEach(function(e) {
+      var isActive = norm(active) === norm(e);
+      html.push('<button type="button" class="btn ' + (isActive ? 'btn-primary' : 'btn-outline') + '" data-especialidad="' + esc(e) + '">' + esc(e) + '</button>');
+    });
+    holder.innerHTML = html.join('');
+  }
+  function render() {
+    var q = norm((input && input.value) || '');
+    var records = allRecords.filter(function(r) {
+      var okEspecialidad = !activeEspecialidad || norm(r.especialidad) === norm(activeEspecialidad);
+      var h = [
+        r.task_id, r.nombre_tarea, r.especialidad, r.esp, r.predecesoras, r.sucesoras, r.notas
+      ].join(' ').toLowerCase();
+      var okSearch = !q || h.indexOf(q) !== -1;
+      return okEspecialidad && okSearch;
+    });
+    if (!records.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="muted">Sin registros.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = records.map(function(r) {
+      return '<tr>' +
+        '<td>' + esc(r.task_id || '') + '</td>' +
+        '<td style="max-width:300px;">' + esc(short(r.nombre_tarea, 120)) + '</td>' +
+        '<td>' + esc(r.especialidad || '') + '</td>' +
+        '<td>' + esc(r.esp || '') + '</td>' +
+        '<td>' + esc(r.duracion || '') + '</td>' +
+        '<td>' + esc(r.comienzo ? r.comienzo.slice(0, 16).replace('T', ' ') : '') + '</td>' +
+        '<td>' + esc(r.fin ? r.fin.slice(0, 16).replace('T', ' ') : '') + '</td>' +
+        '<td style="max-width:220px;">' + esc(short(r.predecesoras, 90)) + '</td>' +
+        '<td style="max-width:220px;">' + esc(short(r.sucesoras, 90)) + '</td>' +
+        '<td><a class="btn btn-outline" href="' + String('{% url "gantt_task_edit" 0 %}').replace('/0/', '/' + r.id + '/') + '">Editar</a></td>' +
+      '</tr>';
+    }).join('');
+  }
+  fetch('{% url "gantt_task_records_json" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      allRecords = (data && data.records) ? data.records : [];
+      buildFilterButtons(uniqueEspecialidades(allRecords), activeEspecialidad);
+      render();
+    })
+    .catch(function() {
+      tbody.innerHTML = '<tr><td colspan="10" class="muted">Error al cargar.</td></tr>';
+    });
+  if (input) {
+    var t;
+    input.addEventListener('input', function() {
+      clearTimeout(t);
+      t = setTimeout(render, 250);
+    });
+  }
+  var filters = document.getElementById('gantt-especialidad-filters');
+  if (filters) {
+    filters.addEventListener('click', function(ev) {
+      var btn = ev.target && ev.target.closest('button[data-especialidad]');
+      if (!btn) return;
+      activeEspecialidad = btn.getAttribute('data-especialidad') || '';
+      buildFilterButtons(uniqueEspecialidades(allRecords), activeEspecialidad);
+      render();
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -80,6 +80,15 @@
           </div>
 
           <div class="sidebar-accordion-group">
+            <button type="button" class="sidebar-accordion-toggle" aria-expanded="false" aria-controls="sidebar-group-transmital">
+              Transmital
+            </button>
+            <div id="sidebar-group-transmital" class="sidebar-accordion-panel" hidden>
+              <a href="{% url 'transmital_hub' %}" class="{% if request.resolver_match.url_name == 'transmital_hub' or request.resolver_match.url_name == 'transmital_edit' %}active{% endif %}">Gestión de transmital</a>
+            </div>
+          </div>
+
+          <div class="sidebar-accordion-group">
             <button type="button" class="sidebar-accordion-toggle" aria-expanded="false" aria-controls="sidebar-group-seguimiento">
               Buscar y seguimiento
             </button>
@@ -134,6 +143,17 @@
               <a href="{% url 'equipos_asset_list' %}" class="{% if request.resolver_match.url_name == 'equipos_asset_list' or request.resolver_match.url_name == 'equipos_asset_edit' %}active{% endif %}">Asset</a>
               <a href="{% url 'equipos_otro_list' %}" class="{% if request.resolver_match.url_name == 'equipos_otro_list' or request.resolver_match.url_name == 'equipos_otro_edit' %}active{% endif %}">Otros equipos</a>
               <a href="{% url 'equipos_cambios' %}" class="{% if request.resolver_match.url_name == 'equipos_cambios' %}active{% endif %}">Historial de cambios</a>
+            </div>
+          </div>
+
+          <div class="sidebar-accordion-group">
+            <button type="button" class="sidebar-accordion-toggle" aria-expanded="false" aria-controls="sidebar-group-gantt">
+              Gantt
+            </button>
+            <div id="sidebar-group-gantt" class="sidebar-accordion-panel" hidden>
+              <a href="{% url 'gantt_hub' %}" class="{% if request.resolver_match.url_name == 'gantt_hub' %}active{% endif %}">Control Gantt</a>
+              <a href="{% url 'gantt_task_list' %}" class="{% if request.resolver_match.url_name == 'gantt_task_list' or request.resolver_match.url_name == 'gantt_task_edit' %}active{% endif %}">Tareas</a>
+              <a href="{% url 'gantt_cambios' %}" class="{% if request.resolver_match.url_name == 'gantt_cambios' %}active{% endif %}">Historial de cambios</a>
             </div>
           </div>
         {% else %}

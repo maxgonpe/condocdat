@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% block title %}Editar transmital{% endblock %}
+{% block extra_css %}
+<style>
+  .transmital-edit-card {
+    max-width: min(1280px, 100%);
+  }
+  .transmital-datos-generales {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(380px, 1fr));
+    gap: 0.85rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 900px) {
+    .transmital-datos-generales {
+      grid-template-columns: 1fr;
+    }
+  }
+  .transmital-datos-generales > div {
+    min-width: 0;
+  }
+  .transmital-datos-generales .transmital-field-full-row {
+    grid-column: 1 / -1;
+  }
+  .transmital-datos-generales label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+  .transmital-datos-generales input[type="text"],
+  .transmital-datos-generales input[type="number"],
+  .transmital-datos-generales input[type="date"],
+  .transmital-datos-generales select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 2.65rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+  .transmital-datos-generales .transmital-input-lg,
+  .transmital-datos-generales input.transmital-input-lg {
+    min-height: 2.75rem;
+    padding: 0.6rem 0.85rem;
+    font-size: 1.02rem;
+    letter-spacing: 0.01em;
+  }
+  .transmital-datos-generales textarea,
+  .transmital-datos-generales .transmital-textarea-lg {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 7rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+  .transmital-items-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  .transmital-items-table input,
+  .transmital-items-table textarea,
+  .transmital-items-table select {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .transmital-items-table td:nth-child(2) input.transmital-item-doc {
+    font-size: 0.95rem;
+  }
+  .transmital-items-table td:nth-child(3) input,
+  .transmital-items-table td:nth-child(5) input {
+    max-width: 72px;
+    min-width: 56px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Editar {{ obj.codigo_transmital }}</h1>
+  <p class="muted"><a href="{% url 'transmital_hub' %}">← Volver a Transmital</a></p>
+</header>
+
+<div class="card transmital-edit-card">
+  <form method="post">
+    {% csrf_token %}
+    <h3 style="margin-top:0;">Datos generales</h3>
+    <div class="transmital-datos-generales">
+      {% for field in form %}
+        {% if "item_" not in field.name %}
+          <div{% if field.name == "codigo_transmital" %} class="transmital-field-full-row"{% endif %}>
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="muted" style="margin:0.25rem 0 0;">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p style="color:#b00020; margin:0.2rem 0 0;">{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <h3>Detalle de ítems (formato carátula)</h3>
+    <p class="muted" style="margin:-0.25rem 0 0.75rem;">Completá <strong>Documento</strong> solo en las filas que necesites; las demás pueden quedar vacías y no se replicará el código automáticamente.</p>
+    <div class="table-wrap" style="margin-bottom:1rem;">
+      <table class="data-table transmital-items-table">
+        <colgroup>
+          <col style="width: 5%;">
+          <col style="width: 26%;">
+          <col style="width: 9%;">
+          <col style="width: 36%;">
+          <col style="width: 9%;">
+          <col style="width: 15%;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th style="width:50px;">N°</th>
+            <th>Documento</th>
+            <th>Rev documento</th>
+            <th>Título</th>
+            <th>Rev emisor</th>
+            <th>Estatus</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1</strong></td>
+            <td>{{ form.item_01_documento }}</td>
+            <td>{{ form.item_01_rev_documento }}</td>
+            <td>{{ form.item_01_titulo }}</td>
+            <td>{{ form.item_01_rev_emisor }}</td>
+            <td>{{ form.item_01_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>2</strong></td>
+            <td>{{ form.item_02_documento }}</td>
+            <td>{{ form.item_02_rev_documento }}</td>
+            <td>{{ form.item_02_titulo }}</td>
+            <td>{{ form.item_02_rev_emisor }}</td>
+            <td>{{ form.item_02_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>3</strong></td>
+            <td>{{ form.item_03_documento }}</td>
+            <td>{{ form.item_03_rev_documento }}</td>
+            <td>{{ form.item_03_titulo }}</td>
+            <td>{{ form.item_03_rev_emisor }}</td>
+            <td>{{ form.item_03_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>4</strong></td>
+            <td>{{ form.item_04_documento }}</td>
+            <td>{{ form.item_04_rev_documento }}</td>
+            <td>{{ form.item_04_titulo }}</td>
+            <td>{{ form.item_04_rev_emisor }}</td>
+            <td>{{ form.item_04_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>5</strong></td>
+            <td>{{ form.item_05_documento }}</td>
+            <td>{{ form.item_05_rev_documento }}</td>
+            <td>{{ form.item_05_titulo }}</td>
+            <td>{{ form.item_05_rev_emisor }}</td>
+            <td>{{ form.item_05_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>6</strong></td>
+            <td>{{ form.item_06_documento }}</td>
+            <td>{{ form.item_06_rev_documento }}</td>
+            <td>{{ form.item_06_titulo }}</td>
+            <td>{{ form.item_06_rev_emisor }}</td>
+            <td>{{ form.item_06_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>7</strong></td>
+            <td>{{ form.item_07_documento }}</td>
+            <td>{{ form.item_07_rev_documento }}</td>
+            <td>{{ form.item_07_titulo }}</td>
+            <td>{{ form.item_07_rev_emisor }}</td>
+            <td>{{ form.item_07_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>8</strong></td>
+            <td>{{ form.item_08_documento }}</td>
+            <td>{{ form.item_08_rev_documento }}</td>
+            <td>{{ form.item_08_titulo }}</td>
+            <td>{{ form.item_08_rev_emisor }}</td>
+            <td>{{ form.item_08_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>9</strong></td>
+            <td>{{ form.item_09_documento }}</td>
+            <td>{{ form.item_09_rev_documento }}</td>
+            <td>{{ form.item_09_titulo }}</td>
+            <td>{{ form.item_09_rev_emisor }}</td>
+            <td>{{ form.item_09_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>10</strong></td>
+            <td>{{ form.item_10_documento }}</td>
+            <td>{{ form.item_10_rev_documento }}</td>
+            <td>{{ form.item_10_titulo }}</td>
+            <td>{{ form.item_10_rev_emisor }}</td>
+            <td>{{ form.item_10_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>11</strong></td>
+            <td>{{ form.item_11_documento }}</td>
+            <td>{{ form.item_11_rev_documento }}</td>
+            <td>{{ form.item_11_titulo }}</td>
+            <td>{{ form.item_11_rev_emisor }}</td>
+            <td>{{ form.item_11_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>12</strong></td>
+            <td>{{ form.item_12_documento }}</td>
+            <td>{{ form.item_12_rev_documento }}</td>
+            <td>{{ form.item_12_titulo }}</td>
+            <td>{{ form.item_12_rev_emisor }}</td>
+            <td>{{ form.item_12_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>13</strong></td>
+            <td>{{ form.item_13_documento }}</td>
+            <td>{{ form.item_13_rev_documento }}</td>
+            <td>{{ form.item_13_titulo }}</td>
+            <td>{{ form.item_13_rev_emisor }}</td>
+            <td>{{ form.item_13_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>14</strong></td>
+            <td>{{ form.item_14_documento }}</td>
+            <td>{{ form.item_14_rev_documento }}</td>
+            <td>{{ form.item_14_titulo }}</td>
+            <td>{{ form.item_14_rev_emisor }}</td>
+            <td>{{ form.item_14_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>15</strong></td>
+            <td>{{ form.item_15_documento }}</td>
+            <td>{{ form.item_15_rev_documento }}</td>
+            <td>{{ form.item_15_titulo }}</td>
+            <td>{{ form.item_15_rev_emisor }}</td>
+            <td>{{ form.item_15_estatus }}</td>
+          </tr>
+          <tr>
+            <td><strong>16</strong></td>
+            <td>{{ form.item_16_documento }}</td>
+            <td>{{ form.item_16_rev_documento }}</td>
+            <td>{{ form.item_16_titulo }}</td>
+            <td>{{ form.item_16_rev_emisor }}</td>
+            <td>{{ form.item_16_estatus }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar y sincronizar Excel</button>
+    <button type="button" class="btn btn-outline" id="transmital-fill-titulos-btn">Tomar nombres de archivos</button>
+    <input type="file" id="transmital-fill-titulos-input" multiple style="display:none;" />
+    <a class="btn btn-outline" href="{% url 'transmital_download_xlsx' obj.pk %}">Descargar Excel</a>
+    <a class="btn btn-outline" href="{% url 'transmital_export_pdf' obj.pk %}">Descargar PDF</a>
+    <p class="muted" style="margin-top:0.6rem;">
+      Selecciona varios archivos y se copiarán solo sus nombres en los campos de Título, de arriba hacia abajo.
+    </p>
+  </form>
+</div>
+<script>
+  (function () {
+    var btn = document.getElementById("transmital-fill-titulos-btn");
+    var input = document.getElementById("transmital-fill-titulos-input");
+    var codigoTransmital = "{{ obj.codigo_transmital|escapejs }}";
+    if (!btn || !input) return;
+
+    function getTituloInputs() {
+      var out = [];
+      for (var i = 1; i <= 16; i += 1) {
+        var idx = String(i).padStart(2, "0");
+        var el = document.getElementById("id_item_" + idx + "_titulo");
+        if (el) out.push(el);
+      }
+      return out;
+    }
+
+    function getDocumentoInputs() {
+      var out = [];
+      for (var i = 1; i <= 16; i += 1) {
+        var idx = String(i).padStart(2, "0");
+        var el = document.getElementById("id_item_" + idx + "_documento");
+        if (el) out.push(el);
+      }
+      return out;
+    }
+
+    btn.addEventListener("click", function () {
+      input.click();
+    });
+
+    input.addEventListener("change", function () {
+      var files = Array.prototype.slice.call(input.files || []);
+      if (!files.length) return;
+
+      var titleInputs = getTituloInputs();
+      var docInputs = getDocumentoInputs();
+      var start = titleInputs.findIndex(function (el) {
+        return !String(el.value || "").trim();
+      });
+      if (start < 0) start = 0;
+
+      files.forEach(function (f, offset) {
+        var pos = start + offset;
+        if (pos >= titleInputs.length) return;
+        titleInputs[pos].value = f.name || "";
+        if (docInputs[pos]) docInputs[pos].value = codigoTransmital;
+      });
+
+      input.value = "";
+    });
+  })();
+</script>
+{% endblock %}

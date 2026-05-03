@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Transmital{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Transmital ODATA ↔ Propamat</h1>
+  <p class="muted">Genera un nuevo transmital desde la plantilla base y edítalo con formulario. Luego descarga Excel o PDF clonando el diseño de la carátula.</p>
+</header>
+
+<div class="card" style="margin-bottom: 1rem;">
+  <form method="post" action="{% url 'transmital_create' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Crear nuevo transmital consecutivo</button>
+    <a href="{% url 'transmital_folder_builder' %}" class="btn btn-outline">Creador de carpetas</a>
+  </form>
+</div>
+
+{% if latest %}
+<div class="card">
+  <p><strong>Último transmital:</strong> {{ latest.codigo_transmital }}</p>
+  <p class="muted">Consecutivo: {{ latest.consecutivo }} · Actualizado: {{ latest.updated_at|date:"d/m/Y H:i" }}</p>
+  <div style="display:flex; gap:0.6rem; flex-wrap: wrap;">
+    <a class="btn btn-outline" href="{% url 'transmital_edit' latest.pk %}">Editar</a>
+    <a class="btn btn-outline" href="{% url 'transmital_download_xlsx' latest.pk %}">Descargar Excel</a>
+    <a class="btn btn-outline" href="{% url 'transmital_export_pdf' latest.pk %}">Descargar PDF</a>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <p class="muted">Todavía no hay transmitales generados.</p>
+</div>
+{% endif %}
+{% endblock %}

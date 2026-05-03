@@ -16,6 +16,8 @@ urlpatterns = [
     path('documentos/', include('documents.urls')),
     path('rdi/', include('rdi.urls')),
     path('equipos/', include('equipos.urls')),
+    path('gantt/', include('gantt.urls')),
+    path('transmital/', include('transmital.urls')),
     path('admin/', admin.site.urls),
 ]
 

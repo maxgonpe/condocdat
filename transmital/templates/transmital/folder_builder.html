@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Creador de carpetas{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Creador de carpetas Transmital</h1>
+  <p class="muted"><a href="{% url 'transmital_hub' %}">← Volver a Transmital</a></p>
+</header>
+
+<div class="card" style="margin-bottom:1rem; max-width:900px;">
+  <h3 style="margin-top:0;">Configuración editable</h3>
+  <form method="post" style="display:grid; gap:0.8rem;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_config">
+    <div>
+      <label for="{{ form.base_path.id_for_label }}" style="display:block; font-weight:600;">Ruta base</label>
+      {{ form.base_path }}
+      <p class="muted" style="margin:0.25rem 0 0;">Carpeta donde se crearán las nuevas carpetas transmital.</p>
+    </div>
+    <div>
+      <label for="{{ form.current_number.id_for_label }}" style="display:block; font-weight:600;">Último número usado</label>
+      {{ form.current_number }}
+      <p class="muted" style="margin:0.25rem 0 0;">Puedes corregir manualmente esta secuencia si hubo error.</p>
+    </div>
+    <div>
+      <button type="submit" class="btn btn-outline">Guardar configuración</button>
+    </div>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h3 style="margin-top:0;">Próxima carpeta</h3>
+  <p><strong>{{ next_name }}</strong></p>
+  <p class="muted">Se creará en: <code>{{ cfg.base_path }}/{{ next_name }}</code></p>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="create_folder">
+    <button type="submit" class="btn btn-primary">Crear carpeta siguiente (+1)</button>
+  </form>
+</div>
+
+<div class="card card--list">
+  <h3 style="margin-top:0;">Historial reciente de carpetas creadas</h3>
+  {% if logs %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Ruta</th>
+          <th>Secuencia</th>
+          <th>Creada</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in logs %}
+        <tr>
+          <td>{{ row.folder_name }}</td>
+          <td><code>{{ row.folder_path }}</code></td>
+          <td>{{ row.sequence_number }}</td>
+          <td>{{ row.created_at|date:"d/m/Y H:i" }}</td>
+          <td>
+            <form method="post" onsubmit="return confirm('¿Eliminar carpeta {{ row.folder_name }}? Solo funciona si está vacía.');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_folder">
+              <input type="hidden" name="log_id" value="{{ row.id }}">
+              <button type="submit" class="btn btn-outline">Borrar carpeta</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">Aún no hay carpetas creadas desde este módulo.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{
+    "name": "What is your project name?",
+    "author": "What is your author name?",
+    "version": "What is the new version?",
+    "console": "Do you want to display the console (y/n)?",
+    "confirm": "Are you sure of your modifications (y/n)?"
+}

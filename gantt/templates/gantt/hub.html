@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Gantt{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Gantt</h1>
+  <p class="muted">Importa un archivo de MS Project (.mpp) para cargar tareas y gestionarlas por formulario.</p>
+</header>
+
+<div class="card card--list" style="margin-bottom:1rem;">
+  <form action="{% url 'gantt_import' %}" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-group" style="max-width: 900px;">
+      <label for="gantt-file">Importar / reemplazar cronograma (.mpp)</label>
+      <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+        <input type="file" id="gantt-file" name="file" accept=".mpp" class="form-control" required style="min-width: 280px;">
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </div>
+      <p class="muted" style="font-size:0.85rem; margin-top:0.5rem;">Al importar se reemplaza el snapshot anterior y se reconstruye la tabla de tareas.</p>
+    </div>
+  </form>
+</div>
+
+{% if archivo %}
+<div class="card" style="margin-bottom: 1rem;">
+  <p class="muted" style="margin:0 0 0.5rem;"><strong>Archivo actual:</strong> {{ archivo.original_filename }}</p>
+  <p class="muted" style="margin:0 0 0.75rem; font-size:0.9rem;">Importado: {{ archivo.imported_at|date:"d/m/Y H:i" }} · Actualizado: {{ archivo.updated_at|date:"d/m/Y H:i" }}</p>
+  <p class="muted" style="margin:0;">Tareas: <strong>{{ n_tasks }}</strong> · Cambios manuales: <strong>{{ n_cambios }}</strong></p>
+</div>
+
+<div class="dashboard-actions">
+  <a href="{% url 'gantt_task_list' %}" class="btn btn-outline">Ver tareas</a>
+  <a href="{% url 'gantt_cambios' %}" class="btn btn-outline">Historial de cambios</a>
+  <a href="{% url 'gantt_export_excel' %}" class="btn btn-outline">Descargar Excel actualizado</a>
+  <a href="{% url 'gantt_export_csv' %}" class="btn btn-outline">Descargar CSV actualizado</a>
+  <a href="{% url 'gantt_export_project_xml' %}" class="btn btn-primary">Descargar Project actualizado (XML)</a>
+</div>
+<p class="muted" style="margin-top:0.6rem; font-size:0.85rem;">
+  Nota: la exportación de Project se entrega en formato MSPDI XML (compatible con MS Project).
+</p>
+{% else %}
+<div class="card">
+  <p class="muted">No hay archivo Gantt importado.</p>
+</div>
+{% endif %}
+{% endblock %}

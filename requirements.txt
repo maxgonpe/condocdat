@@ -3,6 +3,8 @@ Django==5.2.8
 python-dotenv==1.0.1
 gunicorn==23.0.0
 openpyxl==3.1.5
+jpype1==1.7.0
+mpxj==16.1.0
 packaging==25.0
 Pillow==12.0.0
 psycopg2-binary==2.9.11
