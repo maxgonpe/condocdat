@@ -1,17 +1,23 @@
+import csv
+from io import StringIO
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import GanttTaskForm
 from .models import GanttCambioLog, GanttTask
 from .services import (
     build_csv_bytes,
+    build_estado_atraso_records,
     build_excel_buffer,
     build_mspdi_xml_bytes,
+    build_s_curve_series,
     latest_archivo,
     log_task_changes,
     replace_archivo_with_import,
@@ -91,6 +97,12 @@ def gantt_task_records_json(request):
                 "esp": t.esp,
                 "outline_number": t.outline_number,
                 "duracion": t.duracion,
+                "avance_planificado": float(t.avance_planificado)
+                if t.avance_planificado is not None
+                else None,
+                "trabajo_completado": float(t.trabajo_completado)
+                if t.trabajo_completado is not None
+                else None,
                 "comienzo": t.comienzo.isoformat() if t.comienzo else "",
                 "fin": t.fin.isoformat() if t.fin else "",
                 "predecesoras": t.predecesoras,
@@ -100,6 +112,27 @@ def gantt_task_records_json(request):
             }
         )
     return JsonResponse({"records": records})
+
+
+@login_required
+def gantt_estado(request):
+    return render(
+        request,
+        "gantt/estado.html",
+        {
+            "archivo": latest_archivo(),
+            "today_display": timezone.localdate().strftime("%d/%m/%Y"),
+        },
+    )
+
+
+@login_required
+@require_GET
+def gantt_estado_records_json(request):
+    archivo = latest_archivo()
+    if not archivo:
+        return JsonResponse({"records": []})
+    return JsonResponse({"records": build_estado_atraso_records(archivo)})
 
 
 @login_required
@@ -132,6 +165,56 @@ def gantt_task_edit(request, pk: int):
         "gantt/task_edit.html",
         {"form": form, "obj": obj, "archivo": archivo},
     )
+
+
+@login_required
+def gantt_s_curve(request):
+    archivo = latest_archivo()
+    if archivo:
+        series_data = [
+            {
+                "fecha": row["fecha"].isoformat(),
+                "planificado": row["planificado"],
+                "real": row["real"],
+            }
+            for row in build_s_curve_series(archivo)
+        ]
+    else:
+        series_data = []
+    return render(
+        request,
+        "gantt/s_curve.html",
+        {
+            "archivo": archivo,
+            "series_data": series_data,
+            "series_count": len(series_data),
+        },
+    )
+
+
+@login_required
+@require_GET
+def gantt_s_curve_export_csv(request):
+    archivo = latest_archivo()
+    if not archivo:
+        messages.error(request, "No hay archivo Gantt cargado.")
+        return redirect("gantt_hub")
+    series = build_s_curve_series(archivo)
+    if not series:
+        messages.warning(
+            request,
+            "No hay datos para la curva S: se necesitan tareas con especialidad y fechas de comienzo y fin.",
+        )
+        return redirect("gantt_s_curve")
+    buf = StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["fecha", "planificado_pct", "real_pct"])
+    for row in series:
+        writer.writerow([row["fecha"].isoformat(), row["planificado"], row["real"]])
+    payload = "\ufeff" + buf.getvalue()
+    resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = 'attachment; filename="curva_s_gantt.csv"'
+    return resp
 
 
 @login_required

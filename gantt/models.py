@@ -32,6 +32,12 @@ class GanttTask(models.Model):
     esp = models.CharField(max_length=128, blank=True, default="")
     especialidad = models.CharField(max_length=128, blank=True, default="", db_index=True)
     duracion = models.CharField(max_length=64, blank=True, default="")
+    avance_planificado = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    trabajo_completado = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
     comienzo = models.DateTimeField(null=True, blank=True)
     fin = models.DateTimeField(null=True, blank=True)
     predecesoras = models.TextField(blank=True, default="")

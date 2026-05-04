@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Curva S · Gantt{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Curva S del proyecto</h1>
+  <p class="muted"><a href="{% url 'gantt_hub' %}">← Gantt</a></p>
+</header>
+
+{% if not archivo %}
+<p class="muted">No hay archivo Gantt cargado.</p>
+{% elif series_count == 0 %}
+<div class="card">
+  <p class="muted">No hay puntos para graficar. Se usan solo tareas con <strong>especialidad</strong> definida y fechas <strong>comienzo</strong> y <strong>fin</strong>.</p>
+  <p class="muted" style="margin-top:0.5rem;"><a href="{% url 'gantt_task_list' %}" class="btn btn-outline">Ir a tareas</a></p>
+</div>
+{% else %}
+<div class="card" style="margin-bottom:1rem;">
+  <p class="muted" style="margin:0 0 0.75rem;"><strong>Cronograma:</strong> {{ archivo.original_filename }}</p>
+  <p class="muted" style="margin:0; font-size:0.9rem;">
+    Promedio ponderado por duración de cada tarea; el avance en el tiempo crece de forma lineal dentro del intervalo comienzo–fin de cada partida.
+    <strong>% Avance planificado</strong> y <strong>% trabajo completado</strong> son los valores guardados en cada tarea.
+  </p>
+</div>
+
+<div class="card card--list" style="margin-bottom:1rem;">
+  <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin-bottom:1rem;">
+    <a href="{% url 'gantt_s_curve_export_csv' %}" class="btn btn-outline">Descargar datos (.csv)</a>
+    <button type="button" class="btn btn-primary" id="gantt-scurve-download-png">Descargar gráfico (.png)</button>
+  </div>
+  <div class="gantt-scurve-chart-wrap" style="position:relative; height:min(420px, 70vh); width:100%; max-width:1100px;">
+    <canvas id="gantt-scurve-chart" aria-label="Curva S planificado versus real"></canvas>
+  </div>
+</div>
+{% endif %}
+
+{% if archivo and series_count %}
+{{ series_data|json_script:"gantt-scurve-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  var el = document.getElementById('gantt-scurve-data');
+  if (!el) return;
+  var raw = [];
+  try {
+    raw = JSON.parse(el.textContent);
+  } catch (e) {
+    return;
+  }
+  if (!raw || !raw.length) return;
+
+  var ctx = document.getElementById('gantt-scurve-chart');
+  if (!ctx || typeof Chart === 'undefined') return;
+
+  var labels = raw.map(function(r) { return r.fecha; });
+  var plan = raw.map(function(r) { return r.planificado; });
+  var real = raw.map(function(r) { return r.real; });
+
+  var prefersDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  var grid = prefersDark ? 'rgba(148,163,184,0.25)' : 'rgba(15,23,42,0.12)';
+  var text = prefersDark ? '#e5e7eb' : '#334155';
+
+  var chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: '% Avance planificado (ponderado)',
+          data: plan,
+          borderColor: '#0284c7',
+          backgroundColor: 'rgba(2,132,199,0.12)',
+          tension: 0.35,
+          fill: false,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+        },
+        {
+          label: '% Trabajo completado (ponderado)',
+          data: real,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22,163,74,0.12)',
+          tension: 0.35,
+          fill: false,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          title: { display: true, text: 'Fecha', color: text },
+          ticks: { color: text, maxRotation: 45, minRotation: 0 },
+          grid: { color: grid },
+        },
+        y: {
+          min: 0,
+          max: 100,
+          title: { display: true, text: '% acumulado ponderado', color: text },
+          ticks: { color: text },
+          grid: { color: grid },
+        },
+      },
+      plugins: {
+        legend: {
+          labels: { color: text },
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              var v = ctx.parsed.y;
+              if (v == null) return ctx.dataset.label + ': —';
+              return ctx.dataset.label + ': ' + Number(v).toFixed(2) + '%';
+            }
+          }
+        }
+      }
+    }
+  });
+
+  document.getElementById('gantt-scurve-download-png').addEventListener('click', function() {
+    try {
+      var url = chart.canvas.toDataURL('image/png');
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'curva-s-gantt.png';
+      a.click();
+    } catch (e) {
+      window.alert('No se pudo exportar la imagen.');
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

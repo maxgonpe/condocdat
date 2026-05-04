@@ -1530,3 +1530,113 @@ table.data-table a.btn + .btn {
 .template-actions .btn {
   margin: 0 !important;
 }
+
+/* ========== Gantt — Estado (partidas en atraso) ========== */
+.gantt-estado-summary-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem 2rem;
+  align-items: center;
+}
+.gantt-estado-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.gantt-estado-stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.gantt-estado-stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+.gantt-estado-stat-value--sm {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.gantt-estado-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 1rem;
+}
+.gantt-estado-card {
+  margin: 0;
+  padding: 1rem 1rem 1.05rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  border-left: 5px solid var(--border);
+}
+.gantt-estado-card--baja {
+  border-left-color: #94a3b8;
+}
+.gantt-estado-card--media {
+  border-left-color: #ea580c;
+}
+.gantt-estado-card--alta {
+  border-left-color: #dc2626;
+}
+.gantt-estado-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.gantt-estado-card-title {
+  margin: 0.35rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+}
+.gantt-estado-card-meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+}
+.gantt-estado-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.gantt-estado-badge--esp {
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+.gantt-estado-badge--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+[data-theme="dark"] .gantt-estado-badge--warn {
+  background: rgba(234, 179, 8, 0.18);
+  color: #fcd34d;
+}
+.gantt-estado-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0;
+}
+.gantt-estado-metrics dt {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+.gantt-estado-metrics dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.gantt-estado-extra {
+  margin: 0.75rem 0 0;
+}

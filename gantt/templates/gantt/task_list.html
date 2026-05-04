@@ -27,10 +27,14 @@
           <th>Especialidad</th>
           <th>ESP</th>
           <th>Duración</th>
+          <th>% Avance plan.</th>
+          <th>% Trabajo comp.</th>
           <th>Comienzo</th>
           <th>Fin</th>
+          <!-- Columnas ocultas (datos siguen en JSON y en la búsqueda JS):
           <th>Predecesoras</th>
           <th>Sucesoras</th>
+          -->
           <th></th>
         </tr>
       </thead>
@@ -102,7 +106,8 @@
     var records = allRecords.filter(function(r) {
       var okEspecialidad = !activeEspecialidad || norm(r.especialidad) === norm(activeEspecialidad);
       var h = [
-        r.task_id, r.nombre_tarea, r.especialidad, r.esp, r.predecesoras, r.sucesoras, r.notas
+        r.task_id, r.nombre_tarea, r.especialidad, r.esp, r.predecesoras, r.sucesoras, r.notas,
+        r.avance_planificado, r.trabajo_completado
       ].join(' ').toLowerCase();
       var okSearch = !q || h.indexOf(q) !== -1;
       return okEspecialidad && okSearch;
@@ -110,6 +115,12 @@
     if (!records.length) {
       tbody.innerHTML = '<tr><td colspan="10" class="muted">Sin registros.</td></tr>';
       return;
+    }
+    function fmtPercent(v) {
+      if (v == null || v === '') return '';
+      var n = Number(v);
+      if (Number.isNaN(n)) return '';
+      return n.toFixed(2) + '%';
     }
     tbody.innerHTML = records.map(function(r) {
       var trCls = rowClassForGantt(r);
@@ -122,10 +133,14 @@
         '<td>' + esc(r.especialidad || '') + '</td>' +
         '<td>' + esc(r.esp || '') + '</td>' +
         '<td>' + esc(r.duracion || '') + '</td>' +
+        '<td>' + esc(fmtPercent(r.avance_planificado)) + '</td>' +
+        '<td>' + esc(fmtPercent(r.trabajo_completado)) + '</td>' +
         '<td>' + esc(r.comienzo ? r.comienzo.slice(0, 16).replace('T', ' ') : '') + '</td>' +
         '<td>' + esc(r.fin ? r.fin.slice(0, 16).replace('T', ' ') : '') + '</td>' +
+        /* Ocultas en tabla (no quitar datos del JSON ni del filtro de búsqueda):
         '<td style="max-width:220px;">' + esc(short(r.predecesoras, 90)) + '</td>' +
         '<td style="max-width:220px;">' + esc(short(r.sucesoras, 90)) + '</td>' +
+        */
         editCell +
       '</tr>';
     }).join('');

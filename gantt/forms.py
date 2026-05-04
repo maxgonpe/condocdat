@@ -11,6 +11,8 @@ class GanttTaskForm(forms.ModelForm):
             "esp",
             "especialidad",
             "duracion",
+            "avance_planificado",
+            "trabajo_completado",
             "comienzo",
             "fin",
             "predecesoras",
@@ -26,4 +28,10 @@ class GanttTaskForm(forms.ModelForm):
             "sucesoras": forms.Textarea(attrs={"rows": 2}),
             "notas": forms.Textarea(attrs={"rows": 4}),
             "nombre_tarea": forms.Textarea(attrs={"rows": 2}),
+            "avance_planificado": forms.NumberInput(
+                attrs={"step": "0.01", "min": "0", "max": "100"}
+            ),
+            "trabajo_completado": forms.NumberInput(
+                attrs={"step": "0.01", "min": "0", "max": "100"}
+            ),
         }

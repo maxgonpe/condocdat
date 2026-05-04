@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Estado · Gantt{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Estado del cronograma</h1>
+  <p class="muted">Partidas con <strong>especialidad</strong> donde el % completado real está por debajo del % esperado hoy (línea base lineal entre inicio y fin). Las métricas de días son <strong>orientativas</strong>.</p>
+  <p class="muted" style="margin-top:0.5rem;"><a href="{% url 'gantt_hub' %}">← Gantt</a></p>
+</header>
+
+{% if not archivo %}
+<p class="muted">No hay archivo Gantt cargado.</p>
+{% else %}
+
+<div class="gantt-estado-summary card" style="margin-bottom:1rem;">
+  <div class="gantt-estado-summary-grid">
+    <div class="gantt-estado-stat">
+      <span class="gantt-estado-stat-label">Partidas en atraso</span>
+      <span class="gantt-estado-stat-value" id="gantt-estado-count">—</span>
+    </div>
+    <div class="gantt-estado-stat">
+      <span class="gantt-estado-stat-label">Fecha de corte</span>
+      <span class="gantt-estado-stat-value gantt-estado-stat-value--sm" id="gantt-estado-hoy">{{ today_display }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="card card--list" style="margin-bottom:1rem;">
+  <div class="form-group" style="max-width: 560px; margin-bottom: 1rem;">
+    <label for="gantt-estado-search">Buscar</label>
+    <input type="text" id="gantt-estado-search" class="form-control" placeholder="Nombre de tarea, ESP…" autocomplete="off">
+  </div>
+  <div id="gantt-estado-especialidad-filters" style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+    <button type="button" class="btn btn-outline" data-especialidad="">Todas las especialidades</button>
+  </div>
+</div>
+
+<div id="gantt-estado-cards" class="gantt-estado-grid">
+  <p class="muted gantt-estado-loading">Cargando…</p>
+</div>
+
+<script>
+(function() {
+  var holder = document.getElementById('gantt-estado-cards');
+  var input = document.getElementById('gantt-estado-search');
+  var countEl = document.getElementById('gantt-estado-count');
+  if (!holder) return;
+
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  function norm(s) {
+    return String(s || '').trim().toLowerCase();
+  }
+  function fmtPct(n) {
+    if (n == null || n === '') return '—';
+    return Number(n).toFixed(2) + '%';
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return String(iso).slice(0, 10).split('-').reverse().join('/');
+  }
+
+  var allRecords = [];
+  var activeEspecialidad = '';
+
+  function uniqueEspecialidades(records) {
+    var seen = {};
+    var out = [];
+    records.forEach(function(r) {
+      var value = String(r.especialidad || '').trim();
+      if (!value) return;
+      var key = value.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(value);
+    });
+    out.sort(function(a, b) { return a.localeCompare(b, 'es'); });
+    return out;
+  }
+
+  function buildFilterButtons(especialidades, active) {
+    var el = document.getElementById('gantt-estado-especialidad-filters');
+    if (!el) return;
+    var html = ['<button type="button" class="btn ' + (!active ? 'btn-primary' : 'btn-outline') + '" data-especialidad="">Todas las especialidades</button>'];
+    especialidades.forEach(function(e) {
+      var isActive = norm(active) === norm(e);
+      html.push('<button type="button" class="btn ' + (isActive ? 'btn-primary' : 'btn-outline') + '" data-especialidad="' + esc(e) + '">' + esc(e) + '</button>');
+    });
+    el.innerHTML = html.join('');
+  }
+
+  function render() {
+    var q = norm((input && input.value) || '');
+    var filtered = allRecords.filter(function(r) {
+      var okEsp = !activeEspecialidad || norm(r.especialidad) === norm(activeEspecialidad);
+      var hay = [r.nombre_tarea, r.esp, r.especialidad].join(' ').toLowerCase();
+      var okQ = !q || hay.indexOf(q) !== -1;
+      return okEsp && okQ;
+    });
+
+    countEl.textContent = filtered.length;
+
+    if (!filtered.length) {
+      holder.innerHTML = '<p class="muted">No hay partidas en atraso con estos filtros (o el cronograma está al día según esta línea base).</p>';
+      return;
+    }
+
+    holder.innerHTML = filtered.map(function(r) {
+      var sev = r.severidad || 'baja';
+      var editHref = String('{% url "gantt_task_edit" 0 %}').replace('/0/', '/' + r.id + '/');
+      var diasFin = Number(r.dias_superacion_fin || 0);
+      var diasEst = r.dias_atraso_estimado != null ? String(r.dias_atraso_estimado) : '—';
+      var badgeFin = diasFin > 0
+        ? '<span class="gantt-estado-badge gantt-estado-badge--warn">' + esc(diasFin) + ' días después del fin</span>'
+        : '';
+
+      return (
+        '<article class="gantt-estado-card gantt-estado-card--' + esc(sev) + '">' +
+          '<header class="gantt-estado-card-head">' +
+            '<div class="gantt-estado-card-titles">' +
+              '<span class="gantt-estado-badge gantt-estado-badge--esp">' + esc(r.especialidad) + '</span>' +
+              '<h2 class="gantt-estado-card-title">' + esc(r.nombre_tarea || '(Sin nombre)') + '</h2>' +
+              '<p class="gantt-estado-card-meta muted">ID ' + esc(r.task_id != null ? r.task_id : '—') + ' · ESP ' + esc(r.esp || '—') + '</p>' +
+            '</div>' +
+            '<a class="btn btn-outline btn-sm" href="' + editHref + '">Editar</a>' +
+          '</header>' +
+          '<dl class="gantt-estado-metrics">' +
+            '<div><dt>Brecha plan vs real</dt><dd><strong>' + fmtPct(r.brecha_pct) + '</strong></dd></div>' +
+            '<div><dt>% esperado hoy</dt><dd>' + fmtPct(r.esperado_hoy_pct) + '</dd></div>' +
+            '<div><dt>% completado</dt><dd>' + fmtPct(r.trabajo_completado) + '</dd></div>' +
+            '<div><dt>% planificado (meta)</dt><dd>' + fmtPct(r.avance_planificado) + '</dd></div>' +
+            '<div><dt>Días de atraso (estim.)</dt><dd><strong>' + esc(diasEst) + '</strong></dd></div>' +
+            '<div><dt>Comienzo / Fin</dt><dd>' + fmtDate(r.comienzo) + ' → ' + fmtDate(r.fin) + '</dd></div>' +
+          '</dl>' +
+          (badgeFin ? '<p class="gantt-estado-extra">' + badgeFin + '</p>' : '') +
+        '</article>'
+      );
+    }).join('');
+  }
+
+  fetch('{% url "gantt_estado_records_json" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      allRecords = (data && data.records) ? data.records : [];
+      buildFilterButtons(uniqueEspecialidades(allRecords), activeEspecialidad);
+      var load = holder.querySelector('.gantt-estado-loading');
+      if (load) load.remove();
+      render();
+    })
+    .catch(function() {
+      holder.innerHTML = '<p class="muted">Error al cargar el estado.</p>';
+    });
+
+  if (input) {
+    var t;
+    input.addEventListener('input', function() {
+      clearTimeout(t);
+      t = setTimeout(render, 250);
+    });
+  }
+
+  var filtHolder = document.getElementById('gantt-estado-especialidad-filters');
+  if (filtHolder) {
+    filtHolder.addEventListener('click', function(ev) {
+      var btn = ev.target && ev.target.closest('button[data-especialidad]');
+      if (!btn) return;
+      activeEspecialidad = btn.getAttribute('data-especialidad') || '';
+      buildFilterButtons(uniqueEspecialidades(allRecords), activeEspecialidad);
+      render();
+    });
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

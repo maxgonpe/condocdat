@@ -21,6 +21,8 @@ class GanttTaskAdmin(admin.ModelAdmin):
         "especialidad",
         "esp",
         "duracion",
+        "avance_planificado",
+        "trabajo_completado",
         "comienzo",
         "fin",
     )
