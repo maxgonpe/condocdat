@@ -250,6 +250,39 @@ def _schedule_fraction_at_day(task_start: datetime, task_end: datetime, day: dat
     return min(1.0, max(0.0, (day - s).days / span))
 
 
+def _leaf_tasks_with_dates(archivo: GanttArchivo) -> list[GanttTask]:
+    """
+    Devuelve tareas hoja (no resumen) con fechas válidas.
+
+    Se infiere "resumen" por jerarquía de outline_number para evitar doble
+    conteo al agregar el cronograma completo.
+    """
+    tasks = list(archivo.tasks.exclude(comienzo__isnull=True).exclude(fin__isnull=True))
+    if not tasks:
+        return []
+
+    outlines = {
+        str(t.outline_number or "").strip()
+        for t in tasks
+        if str(t.outline_number or "").strip()
+    }
+    summary_outlines: set[str] = set()
+    for o in outlines:
+        parts = o.split(".")
+        prefix = []
+        for p in parts[:-1]:
+            prefix.append(p)
+            summary_outlines.add(".".join(prefix))
+
+    leaf_tasks: list[GanttTask] = []
+    for t in tasks:
+        o = str(t.outline_number or "").strip()
+        if o and o in summary_outlines:
+            continue
+        leaf_tasks.append(t)
+    return leaf_tasks
+
+
 # Umbral mínimo de brecha (pts. %) para considerar partida en atraso vs línea base lineal.
 _GANTT_ESTADO_UMBRAL_BRECHA_PCT = 0.5
 
@@ -332,26 +365,22 @@ def build_estado_atraso_records(archivo: GanttArchivo) -> list[dict[str, Any]]:
 def build_s_curve_series(
     archivo: GanttArchivo,
     *,
-    step_days: int = 7,
-    max_points: int = 260,
+    step_days: int = 1,
+    max_points: int = 2000,
 ) -> list[dict[str, Any]]:
     """
     Serie temporal para curva S (planeado vs real).
 
-    Solo participan tareas con especialidad definida y fechas comienzo/fin,
-    ponderadas por duración en días (mínimo 1 día).
+    Participan tareas hoja (no resumen) con fechas comienzo/fin, ponderadas
+    por duración en días (mínimo 1 día).
 
-    Para cada fecha de muestreo, el avance acumulado ponderado usa los %
-    guardados (`avance_planificado`, `trabajo_completado`) escalados por la
-    fracción de tiempo transcurrido en cada tarea (distribución lineal).
+    - Curva planificada: 0% -> 100% por tarea sobre su ventana temporal.
+      Esto evita depender de un snapshot de "% programado" y alinea la curva
+      con el cronograma completo por día.
+    - Curva real: referencia al corte actual usando `% trabajo_completado`
+      distribuido linealmente hasta hoy (sin reconstruir histórico real).
     """
-    tasks: list[GanttTask] = []
-    for t in archivo.tasks.all():
-        if not str(t.especialidad or "").strip():
-            continue
-        if not t.comienzo or not t.fin:
-            continue
-        tasks.append(t)
+    tasks = _leaf_tasks_with_dates(archivo)
 
     if not tasks:
         return []
@@ -367,7 +396,7 @@ def build_s_curve_series(
     if span_days // step > max_points:
         step = max(step, span_days // max_points)
 
-    weighted: list[tuple[datetime, datetime, float, float, float]] = []
+    weighted: list[tuple[datetime, datetime, float, float]] = []
     total_w = 0.0
     for t in tasks:
         s = t.comienzo
@@ -376,9 +405,8 @@ def build_s_curve_series(
             1.0,
             (timezone.localtime(e) - timezone.localtime(s)).total_seconds() / 86400.0,
         )
-        pp = float(t.avance_planificado or 0)
         pa = float(t.trabajo_completado or 0)
-        weighted.append((s, e, dur_days, pp, pa))
+        weighted.append((s, e, dur_days, pa))
         total_w += dur_days
 
     if total_w <= 0:
@@ -396,10 +424,19 @@ def build_s_curve_series(
     for day in sample_days:
         plan_sum = 0.0
         real_sum = 0.0
-        for s, e, w, pp, pa in weighted:
-            f = _schedule_fraction_at_day(s, e, day)
-            plan_sum += w * pp * f
-            real_sum += w * pa * f
+        for s, e, w, pa in weighted:
+            f_plan = _schedule_fraction_at_day(s, e, day)
+            plan_sum += w * 100.0 * f_plan
+
+            today_or_finish = min(timezone.localtime(e).date(), today)
+            if day <= today_or_finish:
+                real_span_end = (
+                    e if timezone.localtime(e).date() <= today else timezone.now()
+                )
+                f_real = _schedule_fraction_at_day(s, real_span_end, day)
+                real_sum += w * pa * f_real
+            else:
+                real_sum += w * pa
         points.append(
             {
                 "fecha": day,
@@ -409,6 +446,287 @@ def build_s_curve_series(
         )
 
     return points
+
+
+def _parse_pred_task_ids(predecesoras: str) -> list[int]:
+    """
+    Extrae IDs de predecesoras desde texto tipo:
+    "12(FS,0d); 25(SS,2d)" -> [12, 25]
+    """
+    text = str(predecesoras or "").strip()
+    if not text:
+        return []
+    ids: list[int] = []
+    for raw in text.split(";"):
+        token = raw.strip()
+        if not token:
+            continue
+        head = token.split("(", 1)[0].strip()
+        if head.isdigit():
+            ids.append(int(head))
+    return ids
+
+
+def _frente_from_task(task: GanttTask) -> str:
+    outline = str(task.outline_number or "").strip()
+    if outline:
+        return outline.split(".", 1)[0]
+    esp = str(task.esp or "").strip()
+    if esp:
+        return esp.split(".", 1)[0].split("-", 1)[0].strip()
+    return "SIN_FRENTE"
+
+
+def _tramo_edt_from_task(task: GanttTask) -> str:
+    """
+    Agrupador de tramo por EDT para expansión gráfica.
+    Usa hasta 4 niveles del EDT para no ser ni muy general ni muy específico.
+    """
+    edt = str(task.esp or task.wbs or task.outline_number or "").strip()
+    if not edt:
+        return "SIN_EDT"
+    parts = [p for p in edt.split(".") if p]
+    if not parts:
+        return "SIN_EDT"
+    return ".".join(parts[: min(4, len(parts))])
+
+
+def _filter_leaf_tasks(
+    archivo: GanttArchivo, *, especialidad: str = "", frente: str = ""
+) -> list[GanttTask]:
+    tasks = _leaf_tasks_with_dates(archivo)
+    especialidad = str(especialidad or "").strip()
+    frente = str(frente or "").strip()
+    if especialidad:
+        tasks = [t for t in tasks if str(t.especialidad or "").strip() == especialidad]
+    if frente:
+        tasks = [t for t in tasks if _frente_from_task(t) == frente]
+    return tasks
+
+
+def build_critical_path_filter_options(archivo: GanttArchivo) -> dict[str, list[str]]:
+    tasks = _leaf_tasks_with_dates(archivo)
+    especialidades = sorted(
+        {
+            str(t.especialidad or "").strip()
+            for t in tasks
+            if str(t.especialidad or "").strip()
+        }
+    )
+    frentes = sorted({_frente_from_task(t) for t in tasks if _frente_from_task(t)})
+    return {"especialidades": especialidades, "frentes": frentes}
+
+
+def build_critical_path_snapshot(
+    archivo: GanttArchivo, *, especialidad: str = "", frente: str = ""
+) -> dict[str, Any]:
+    """
+    Construye una ruta crítica estimada como la cadena de mayor duración
+    entre tareas hoja conectadas por predecesoras.
+    """
+    tasks = _filter_leaf_tasks(archivo, especialidad=especialidad, frente=frente)
+    if not tasks:
+        return {
+            "nodes": [],
+            "project_start": None,
+            "project_finish": None,
+            "project_span_days": 0,
+            "critical_chain_days": 0,
+            "palette": {},
+        }
+
+    by_task_id: dict[int, GanttTask] = {}
+    for t in tasks:
+        if t.task_id is not None:
+            by_task_id[int(t.task_id)] = t
+
+    if not by_task_id:
+        return {
+            "nodes": [],
+            "project_start": None,
+            "project_finish": None,
+            "project_span_days": 0,
+            "critical_chain_days": 0,
+            "palette": {},
+        }
+
+    valid_ids = set(by_task_id.keys())
+    preds: dict[int, list[int]] = {}
+    for tid, t in by_task_id.items():
+        p = [x for x in _parse_pred_task_ids(t.predecesoras) if x in valid_ids and x != tid]
+        preds[tid] = p
+
+    duration_days: dict[int, float] = {}
+    for tid, t in by_task_id.items():
+        duration_days[tid] = max(
+            1.0,
+            (timezone.localtime(t.fin) - timezone.localtime(t.comienzo)).total_seconds() / 86400.0,
+        )
+
+    unresolved = set(valid_ids)
+    order: list[int] = []
+    while unresolved:
+        progressed = False
+        for tid in list(unresolved):
+            if all(p in order for p in preds[tid]):
+                order.append(tid)
+                unresolved.remove(tid)
+                progressed = True
+        if not progressed:
+            # Si hay ciclos/inconsistencias, libera nodos restantes.
+            order.extend(sorted(unresolved))
+            unresolved.clear()
+
+    best_finish: dict[int, float] = {}
+    back: dict[int, int | None] = {}
+    for tid in order:
+        if not preds[tid]:
+            best_finish[tid] = duration_days[tid]
+            back[tid] = None
+            continue
+        best_pred = max(preds[tid], key=lambda p: best_finish.get(p, 0.0))
+        best_finish[tid] = best_finish.get(best_pred, 0.0) + duration_days[tid]
+        back[tid] = best_pred
+
+    end_tid = max(order, key=lambda t: best_finish.get(t, 0.0))
+    path_ids: list[int] = []
+    cursor = end_tid
+    seen: set[int] = set()
+    while cursor is not None and cursor not in seen:
+        seen.add(cursor)
+        path_ids.append(cursor)
+        cursor = back.get(cursor)
+    path_ids.reverse()
+
+    project_start = min(timezone.localtime(t.comienzo).date() for t in by_task_id.values())
+    project_finish = max(timezone.localtime(t.fin).date() for t in by_task_id.values())
+    project_span = max(1, (project_finish - project_start).days)
+
+    cum = 0.0
+    nodes: list[dict[str, Any]] = []
+    colors = [
+        "#ef4444",
+        "#f97316",
+        "#eab308",
+        "#22c55e",
+        "#06b6d4",
+        "#3b82f6",
+        "#8b5cf6",
+        "#ec4899",
+    ]
+    espe_list = sorted(
+        {str(by_task_id[tid].especialidad or "").strip() or "SIN_ESPECIALIDAD" for tid in path_ids}
+    )
+    palette = {esp: colors[i % len(colors)] for i, esp in enumerate(espe_list)}
+    for idx, tid in enumerate(path_ids, start=1):
+        t = by_task_id[tid]
+        start = timezone.localtime(t.comienzo).date()
+        finish = timezone.localtime(t.fin).date()
+        dur = duration_days[tid]
+        left_pct = round(((start - project_start).days / project_span) * 100.0, 2)
+        width_pct = round((max(1, (finish - start).days) / project_span) * 100.0, 2)
+        cum += dur
+        nodes.append(
+            {
+                "orden": idx,
+                "task_id": tid,
+                "nombre_tarea": t.nombre_tarea or "",
+                "especialidad": t.especialidad or "",
+                "edt": (t.esp or t.wbs or "").strip(),
+                "comienzo": start,
+                "fin": finish,
+                "duracion_dias": round(dur, 1),
+                "duracion_acumulada_dias": round(cum, 1),
+                "left_pct": max(0.0, min(100.0, left_pct)),
+                "width_pct": max(1.0, min(100.0, width_pct)),
+                "frente": _frente_from_task(t),
+                "color": palette.get(
+                    str(t.especialidad or "").strip() or "SIN_ESPECIALIDAD", "#ef4444"
+                ),
+            }
+        )
+
+    return {
+        "nodes": nodes,
+        "project_start": project_start,
+        "project_finish": project_finish,
+        "project_span_days": project_span,
+        "critical_chain_days": round(sum(n["duracion_dias"] for n in nodes), 1),
+        "palette": palette,
+    }
+
+
+def build_critical_graph_dataset(
+    archivo: GanttArchivo, *, especialidad: str = "", frente: str = ""
+) -> dict[str, Any]:
+    """
+    Dataset completo del tramo filtrado para expansión dinámica en frontend:
+    - nodos de tareas hoja
+    - aristas por predecesoras directas
+    - metadatos de tramo EDT
+    """
+    tasks = _filter_leaf_tasks(archivo, especialidad=especialidad, frente=frente)
+    by_task_id: dict[int, GanttTask] = {}
+    for t in tasks:
+        if t.task_id is not None:
+            by_task_id[int(t.task_id)] = t
+    if not by_task_id:
+        return {"nodes": [], "edges": []}
+
+    colors = [
+        "#ef4444",
+        "#f97316",
+        "#eab308",
+        "#22c55e",
+        "#06b6d4",
+        "#3b82f6",
+        "#8b5cf6",
+        "#ec4899",
+    ]
+    espe_list = sorted(
+        {
+            str(t.especialidad or "").strip() or "SIN_ESPECIALIDAD"
+            for t in by_task_id.values()
+        }
+    )
+    palette = {esp: colors[i % len(colors)] for i, esp in enumerate(espe_list)}
+
+    nodes: list[dict[str, Any]] = []
+    for tid, t in by_task_id.items():
+        esp = str(t.especialidad or "").strip() or "SIN_ESPECIALIDAD"
+        edt = (t.esp or t.wbs or t.outline_number or "").strip()
+        nodes.append(
+            {
+                "id": tid,
+                "task_id": tid,
+                "label": f"ID {tid} | EDT {edt or '-'}",
+                "name": t.nombre_tarea or "",
+                "dur": round(
+                    max(
+                        1.0,
+                        (timezone.localtime(t.fin) - timezone.localtime(t.comienzo)).total_seconds()
+                        / 86400.0,
+                    ),
+                    1,
+                ),
+                "start": timezone.localtime(t.comienzo).date().strftime("%d/%m/%Y"),
+                "finish": timezone.localtime(t.fin).date().strftime("%d/%m/%Y"),
+                "esp": esp,
+                "edt": edt,
+                "tramo_edt": _tramo_edt_from_task(t),
+                "frente": _frente_from_task(t),
+                "color": palette.get(esp, "#ef4444"),
+            }
+        )
+
+    valid_ids = set(by_task_id.keys())
+    edges: list[dict[str, Any]] = []
+    for tid, t in by_task_id.items():
+        for pred in _parse_pred_task_ids(t.predecesoras):
+            if pred in valid_ids and pred != tid:
+                edges.append({"source": pred, "target": tid, "label": "pred"})
+
+    return {"nodes": nodes, "edges": edges}
 
 
 def build_excel_buffer(archivo: GanttArchivo) -> BytesIO:

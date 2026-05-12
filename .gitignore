@@ -13,3 +13,7 @@ venv/
 /staticfiles
 /data
 condocdat/settings_local.py
+
+# Volcados de base (sync prod -> local)
+scripts/condocdat_db_sync.env
+scripts/*.pgdump

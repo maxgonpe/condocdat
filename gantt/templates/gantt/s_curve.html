@@ -18,8 +18,8 @@
 <div class="card" style="margin-bottom:1rem;">
   <p class="muted" style="margin:0 0 0.75rem;"><strong>Cronograma:</strong> {{ archivo.original_filename }}</p>
   <p class="muted" style="margin:0; font-size:0.9rem;">
-    Promedio ponderado por duración de cada tarea; el avance en el tiempo crece de forma lineal dentro del intervalo comienzo–fin de cada partida.
-    <strong>% Avance planificado</strong> y <strong>% trabajo completado</strong> son los valores guardados en cada tarea.
+    Curva planificada diaria construida con tareas hoja (no resumen), ponderada por duración y acumulada en el tiempo para representar el cronograma completo.
+    La curva real se muestra como referencia al corte actual con <strong>% trabajo completado</strong> por tarea (sin histórico diario de avance real).
   </p>
 </div>
 
@@ -66,7 +66,7 @@
       labels: labels,
       datasets: [
         {
-          label: '% Avance planificado (ponderado)',
+          label: '% Planificado acumulado (cronograma hoja)',
           data: plan,
           borderColor: '#0284c7',
           backgroundColor: 'rgba(2,132,199,0.12)',
@@ -76,7 +76,7 @@
           pointHoverRadius: 5,
         },
         {
-          label: '% Trabajo completado (ponderado)',
+          label: '% Real al corte (modelado)',
           data: real,
           borderColor: '#16a34a',
           backgroundColor: 'rgba(22,163,74,0.12)',
@@ -100,7 +100,7 @@
         y: {
           min: 0,
           max: 100,
-          title: { display: true, text: '% acumulado ponderado', color: text },
+          title: { display: true, text: '% acumulado del proyecto', color: text },
           ticks: { color: text },
           grid: { color: grid },
         },

@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Ruta Critica Grafica · Gantt{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Ruta Critica Grafica</h1>
+  <p class="muted"><a href="{% url 'gantt_hub' %}">← Gantt</a> · <a href="{% url 'gantt_critical_path' %}">Vista linea de tiempo</a></p>
+</header>
+
+{% if not archivo %}
+<p class="muted">No hay archivo Gantt cargado.</p>
+{% else %}
+<div class="card card--list" style="margin-bottom:1rem;">
+  <form method="get" style="display:flex; gap:0.7rem; flex-wrap:wrap; align-items:end;">
+    <div>
+      <label for="f-especialidad">Especialidad</label>
+      <select id="f-especialidad" name="especialidad" class="form-control" style="min-width:220px;">
+        <option value="">Todas</option>
+        {% for e in especialidades %}
+        <option value="{{ e }}" {% if selected_especialidad == e %}selected{% endif %}>{{ e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="f-frente">Frente (WBS)</label>
+      <select id="f-frente" name="frente" class="form-control" style="min-width:160px;">
+        <option value="">Todos</option>
+        {% for f in frentes %}
+        <option value="{{ f }}" {% if selected_frente == f %}selected{% endif %}>{{ f }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Aplicar filtros</button>
+    <a href="{% url 'gantt_critical_path_graphic' %}" class="btn btn-outline">Limpiar</a>
+    <button type="button" class="btn btn-outline" id="download-graph-png">Descargar grafico (.png)</button>
+  </form>
+</div>
+
+{% if not nodes %}
+<div class="card">
+  <p class="muted">No hay ruta critica para el filtro aplicado.</p>
+</div>
+{% else %}
+<div style="display:grid; grid-template-columns: 2fr 1fr; gap:1rem;">
+  <div class="card card--list">
+    <h3 style="margin-top:0;">Diagrama de nodos y flujo critico</h3>
+    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.45rem;">
+      <button type="button" class="btn btn-outline" id="btn-only-critical">Solo criticas</button>
+      <button type="button" class="btn btn-outline" id="btn-expand-selected">Expandir tramo seleccionado</button>
+      <button type="button" class="btn btn-outline" id="btn-expand-neighbors">Expandir predecesoras/sucesoras</button>
+      <button type="button" class="btn btn-outline" id="btn-collapse-all">Colapsar todo</button>
+    </div>
+    <div id="critical-graph" style="height:min(70vh,620px); border:1px solid rgba(148,163,184,0.35); border-radius:12px; margin-top:0.6rem;"></div>
+    <p class="muted" style="margin-top:0.55rem; font-size:0.85rem;">Tip: clic en un nodo para expandir su tramo (predecesoras/sucesoras y tareas del mismo EDT), doble clic para contraer.</p>
+  </div>
+
+  <div class="card card--list">
+    <h3 style="margin-top:0;">Lectura de la ruta</h3>
+    <p class="muted"><strong>Inicio:</strong> {{ project_start|date:"d/m/Y" }}<br><strong>Fin:</strong> {{ project_finish|date:"d/m/Y" }}</p>
+    <p class="muted"><strong>Duracion cadena critica:</strong> {{ critical_chain_days }} dias</p>
+    {% if cuello %}
+    <p class="muted"><strong>Nodo cuello de botella:</strong><br>ID {{ cuello.task_id }}{% if cuello.edt %} · EDT {{ cuello.edt }}{% endif %}<br>{{ cuello.nombre_tarea }}<br>{{ cuello.duracion_dias }} dias</p>
+    {% endif %}
+    <p class="muted"><strong>Flujo critico:</strong><br>{{ flujo_texto }}</p>
+    <div id="node-detail" style="margin-top:0.75rem; padding:0.6rem; border:1px dashed rgba(148,163,184,0.45); border-radius:10px;">
+      <p class="muted" style="margin:0;">Selecciona un nodo para ver detalle.</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if archivo and nodes %}
+{{ graph_elements|json_script:"critical-graph-elements" }}
+{{ full_graph|json_script:"critical-full-graph-data" }}
+{{ critical_task_ids|json_script:"critical-task-ids" }}
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+<script>
+(function() {
+  var dataEl = document.getElementById('critical-graph-elements');
+  var fullDataEl = document.getElementById('critical-full-graph-data');
+  var criticalIdsEl = document.getElementById('critical-task-ids');
+  var container = document.getElementById('critical-graph');
+  if (!dataEl || !fullDataEl || !criticalIdsEl || !container || typeof cytoscape === 'undefined') return;
+  var elements = [];
+  var full = { nodes: [], edges: [] };
+  var criticalIds = [];
+  try {
+    elements = JSON.parse(dataEl.textContent);
+    full = JSON.parse(fullDataEl.textContent);
+    criticalIds = JSON.parse(criticalIdsEl.textContent);
+  } catch (e) { return; }
+  var criticalSet = {};
+  criticalIds.forEach(function(id) { criticalSet['task-' + id] = true; });
+  var selectedTaskId = null;
+
+  var cy = cytoscape({
+    container: container,
+    elements: elements,
+    layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.2, padding: 24 },
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': 'data(color)',
+          'label': 'data(label)',
+          'color': '#ffffff',
+          'text-wrap': 'wrap',
+          'text-max-width': '130px',
+          'font-size': '10px',
+          'font-weight': '700',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'width': 60,
+          'height': 60,
+          'border-width': 3,
+          'border-color': '#7f1d1d'
+        }
+      },
+      {
+        selector: 'node.critical',
+        style: {
+          'border-color': '#f8fafc',
+          'border-width': 5
+        }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'curve-style': 'bezier',
+          'target-arrow-shape': 'triangle',
+          'line-color': '#94a3b8',
+          'target-arrow-color': '#94a3b8',
+          'width': 2
+        }
+      },
+      {
+        selector: ':selected',
+        style: {
+          'border-color': '#f8fafc',
+          'border-width': 5
+        }
+      }
+    ]
+  });
+
+  cy.nodes().forEach(function(n) {
+    if (criticalSet[n.id()]) n.addClass('critical');
+  });
+
+  var allNodesById = {};
+  (full.nodes || []).forEach(function(n) { allNodesById[n.id] = n; });
+  var allEdges = full.edges || [];
+
+  function ensureNode(taskId) {
+    var nodeId = 'task-' + taskId;
+    if (cy.getElementById(nodeId).length) return;
+    var src = allNodesById[taskId];
+    if (!src) return;
+    cy.add({
+      group: 'nodes',
+      data: {
+        id: nodeId,
+        label: src.label,
+        name: src.name,
+        dur: src.dur,
+        start: src.start,
+        finish: src.finish,
+        esp: src.esp,
+        edt: src.edt,
+        tramo_edt: src.tramo_edt,
+        color: src.color
+      }
+    });
+    if (criticalSet[nodeId]) cy.getElementById(nodeId).addClass('critical');
+  }
+
+  function ensureEdge(source, target) {
+    var id = 'edge-' + source + '-' + target;
+    if (cy.getElementById(id).length) return;
+    cy.add({
+      group: 'edges',
+      data: {
+        id: id,
+        source: 'task-' + source,
+        target: 'task-' + target,
+        label: 'pred'
+      }
+    });
+  }
+
+  var expandedByRoot = {};
+  function expandNode(rootTaskId) {
+    var rootMeta = allNodesById[rootTaskId];
+    if (!rootMeta) return;
+    var addedIds = [];
+    (full.nodes || []).forEach(function(n) {
+      if (n.tramo_edt === rootMeta.tramo_edt) {
+        ensureNode(n.id);
+        addedIds.push('task-' + n.id);
+      }
+    });
+    allEdges.forEach(function(e) {
+      if (addedIds.indexOf('task-' + e.source) >= 0 || addedIds.indexOf('task-' + e.target) >= 0 || e.source === rootTaskId || e.target === rootTaskId) {
+        ensureNode(e.source);
+        ensureNode(e.target);
+        ensureEdge(e.source, e.target);
+      }
+    });
+    expandedByRoot[rootTaskId] = addedIds;
+    cy.layout({ name: 'breadthfirst', directed: true, spacingFactor: 1.15, padding: 24 }).run();
+  }
+
+  function expandNeighbors(rootTaskId) {
+    allEdges.forEach(function(e) {
+      if (e.source === rootTaskId || e.target === rootTaskId) {
+        ensureNode(e.source);
+        ensureNode(e.target);
+        ensureEdge(e.source, e.target);
+      }
+    });
+    cy.layout({ name: 'breadthfirst', directed: true, spacingFactor: 1.15, padding: 24 }).run();
+  }
+
+  function collapseNode(rootTaskId) {
+    var keep = {};
+    cy.nodes().forEach(function(n) { if (criticalSet[n.id()]) keep[n.id()] = true; });
+    keep['task-' + rootTaskId] = true;
+    cy.nodes().forEach(function(n) {
+      if (!keep[n.id()]) cy.remove(n);
+    });
+    cy.layout({ name: 'breadthfirst', directed: true, spacingFactor: 1.15, padding: 24 }).run();
+    delete expandedByRoot[rootTaskId];
+  }
+
+  var detail = document.getElementById('node-detail');
+  cy.on('tap', 'node', function(evt) {
+    var d = evt.target.data();
+    var taskId = parseInt(String(d.id).replace('task-', ''), 10);
+    selectedTaskId = taskId;
+    if (!expandedByRoot[taskId]) {
+      expandNode(taskId);
+    }
+    if (!detail) return;
+    detail.innerHTML =
+      '<strong>' + d.name + '</strong><br>' +
+      'ID/EDT: ' + d.label + '<br>' +
+      'Especialidad: ' + d.esp + '<br>' +
+      'Fechas: ' + d.start + ' -> ' + d.finish + '<br>' +
+      'Duracion: ' + d.dur + ' dias';
+  });
+  var lastTap = { nodeId: '', at: 0 };
+  cy.on('tap', 'node', function(evt) {
+    var now = Date.now();
+    var nodeId = evt.target.id();
+    if (lastTap.nodeId === nodeId && (now - lastTap.at) < 350) {
+      var taskId = parseInt(String(nodeId).replace('task-', ''), 10);
+      collapseNode(taskId);
+    }
+    lastTap = { nodeId: nodeId, at: now };
+  });
+
+  function keepOnlyCritical() {
+    cy.nodes().forEach(function(n) {
+      if (!criticalSet[n.id()]) cy.remove(n);
+    });
+    cy.layout({ name: 'breadthfirst', directed: true, spacingFactor: 1.15, padding: 24 }).run();
+    expandedByRoot = {};
+  }
+
+  function collapseAll() {
+    selectedTaskId = null;
+    keepOnlyCritical();
+    if (detail) detail.innerHTML = '<p class="muted" style="margin:0;">Selecciona un nodo para ver detalle.</p>';
+  }
+
+  var btnOnlyCritical = document.getElementById('btn-only-critical');
+  if (btnOnlyCritical) {
+    btnOnlyCritical.addEventListener('click', function() {
+      keepOnlyCritical();
+    });
+  }
+  var btnExpandSelected = document.getElementById('btn-expand-selected');
+  if (btnExpandSelected) {
+    btnExpandSelected.addEventListener('click', function() {
+      if (!selectedTaskId) {
+        window.alert('Selecciona primero un nodo.');
+        return;
+      }
+      expandNode(selectedTaskId);
+    });
+  }
+  var btnExpandNeighbors = document.getElementById('btn-expand-neighbors');
+  if (btnExpandNeighbors) {
+    btnExpandNeighbors.addEventListener('click', function() {
+      if (!selectedTaskId) {
+        window.alert('Selecciona primero un nodo.');
+        return;
+      }
+      expandNeighbors(selectedTaskId);
+    });
+  }
+  var btnCollapseAll = document.getElementById('btn-collapse-all');
+  if (btnCollapseAll) {
+    btnCollapseAll.addEventListener('click', function() {
+      collapseAll();
+    });
+  }
+
+  var btn = document.getElementById('download-graph-png');
+  if (btn) {
+    btn.addEventListener('click', function() {
+      try {
+        var png = cy.png({ full: true, scale: 2, bg: '#0b1020' });
+        var a = document.createElement('a');
+        a.href = png;
+        a.download = 'ruta-critica-grafica.png';
+        a.click();
+      } catch (e) {
+        window.alert('No se pudo exportar el grafico.');
+      }
+    });
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

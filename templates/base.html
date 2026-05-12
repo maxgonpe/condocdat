@@ -152,6 +152,8 @@
             </button>
             <div id="sidebar-group-gantt" class="sidebar-accordion-panel" hidden>
               <a href="{% url 'gantt_hub' %}" class="{% if request.resolver_match.url_name == 'gantt_hub' %}active{% endif %}">Control Gantt</a>
+              <a href="{% url 'gantt_critical_path' %}" class="{% if request.resolver_match.url_name == 'gantt_critical_path' %}active{% endif %}">Ruta Critica</a>
+              <a href="{% url 'gantt_critical_path_graphic' %}" class="{% if request.resolver_match.url_name == 'gantt_critical_path_graphic' %}active{% endif %}">Ruta Critica Grafica</a>
               <a href="{% url 'gantt_s_curve' %}" class="{% if request.resolver_match.url_name == 'gantt_s_curve' or request.resolver_match.url_name == 'gantt_s_curve_export_csv' %}active{% endif %}">Curva S</a>
               <a href="{% url 'gantt_estado' %}" class="{% if request.resolver_match.url_name == 'gantt_estado' or request.resolver_match.url_name == 'gantt_estado_records_json' %}active{% endif %}">Estado</a>
               <a href="{% url 'gantt_task_list' %}" class="{% if request.resolver_match.url_name == 'gantt_task_list' or request.resolver_match.url_name == 'gantt_task_edit' %}active{% endif %}">Tareas</a>

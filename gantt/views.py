@@ -13,6 +13,9 @@ from django.views.decorators.http import require_GET, require_POST
 from .forms import GanttTaskForm
 from .models import GanttCambioLog, GanttTask
 from .services import (
+    build_critical_graph_dataset,
+    build_critical_path_filter_options,
+    build_critical_path_snapshot,
     build_csv_bytes,
     build_estado_atraso_records,
     build_excel_buffer,
@@ -127,6 +130,149 @@ def gantt_estado(request):
 
 
 @login_required
+def gantt_critical_path(request):
+    archivo = latest_archivo()
+    selected_especialidad = request.GET.get("especialidad", "").strip()
+    selected_frente = request.GET.get("frente", "").strip()
+    options = (
+        build_critical_path_filter_options(archivo)
+        if archivo
+        else {"especialidades": [], "frentes": []}
+    )
+    if selected_especialidad and selected_especialidad not in options["especialidades"]:
+        selected_especialidad = ""
+    if selected_frente and selected_frente not in options["frentes"]:
+        selected_frente = ""
+    snapshot = (
+        build_critical_path_snapshot(
+            archivo,
+            especialidad=selected_especialidad,
+            frente=selected_frente,
+        )
+        if archivo
+        else {
+            "nodes": [],
+            "project_start": None,
+            "project_finish": None,
+            "project_span_days": 0,
+            "critical_chain_days": 0,
+            "palette": {},
+        }
+    )
+    return render(
+        request,
+        "gantt/critical_path.html",
+        {
+            "archivo": archivo,
+            "nodes": snapshot["nodes"],
+            "project_start": snapshot["project_start"],
+            "project_finish": snapshot["project_finish"],
+            "project_span_days": snapshot["project_span_days"],
+            "critical_chain_days": snapshot["critical_chain_days"],
+            "color_legend": snapshot["palette"].items(),
+            "especialidades": options["especialidades"],
+            "frentes": options["frentes"],
+            "selected_especialidad": selected_especialidad,
+            "selected_frente": selected_frente,
+        },
+    )
+
+
+@login_required
+def gantt_critical_path_graphic(request):
+    archivo = latest_archivo()
+    selected_especialidad = request.GET.get("especialidad", "").strip()
+    selected_frente = request.GET.get("frente", "").strip()
+    options = (
+        build_critical_path_filter_options(archivo)
+        if archivo
+        else {"especialidades": [], "frentes": []}
+    )
+    if selected_especialidad and selected_especialidad not in options["especialidades"]:
+        selected_especialidad = ""
+    if selected_frente and selected_frente not in options["frentes"]:
+        selected_frente = ""
+
+    snapshot = (
+        build_critical_path_snapshot(
+            archivo,
+            especialidad=selected_especialidad,
+            frente=selected_frente,
+        )
+        if archivo
+        else {
+            "nodes": [],
+            "project_start": None,
+            "project_finish": None,
+            "project_span_days": 0,
+            "critical_chain_days": 0,
+            "palette": {},
+        }
+    )
+    full_graph = (
+        build_critical_graph_dataset(
+            archivo,
+            especialidad=selected_especialidad,
+            frente=selected_frente,
+        )
+        if archivo
+        else {"nodes": [], "edges": []}
+    )
+    path_nodes = snapshot["nodes"]
+    graph_nodes = []
+    graph_edges = []
+    for n in path_nodes:
+        graph_nodes.append(
+            {
+                "data": {
+                    "id": f"task-{n['task_id']}",
+                    "label": f"ID {n['task_id']} | EDT {n.get('edt') or '-'}",
+                    "name": n["nombre_tarea"],
+                    "dur": n["duracion_dias"],
+                    "start": n["comienzo"].strftime("%d/%m/%Y"),
+                    "finish": n["fin"].strftime("%d/%m/%Y"),
+                    "esp": n.get("especialidad") or "SIN_ESPECIALIDAD",
+                    "color": n.get("color") or "#ef4444",
+                }
+            }
+        )
+    for prev, nxt in zip(path_nodes, path_nodes[1:]):
+        graph_edges.append(
+            {
+                "data": {
+                    "id": f"edge-{prev['task_id']}-{nxt['task_id']}",
+                    "source": f"task-{prev['task_id']}",
+                    "target": f"task-{nxt['task_id']}",
+                    "label": "flujo critico",
+                }
+            }
+        )
+
+    cuello = max(path_nodes, key=lambda x: x["duracion_dias"], default=None)
+    flujo_texto = " -> ".join(f"ID {n['task_id']}" for n in path_nodes) if path_nodes else ""
+    return render(
+        request,
+        "gantt/critical_path_graphic.html",
+        {
+            "archivo": archivo,
+            "nodes": path_nodes,
+            "graph_elements": graph_nodes + graph_edges,
+            "project_start": snapshot["project_start"],
+            "project_finish": snapshot["project_finish"],
+            "critical_chain_days": snapshot["critical_chain_days"],
+            "cuello": cuello,
+            "flujo_texto": flujo_texto,
+            "especialidades": options["especialidades"],
+            "frentes": options["frentes"],
+            "selected_especialidad": selected_especialidad,
+            "selected_frente": selected_frente,
+            "full_graph": full_graph,
+            "critical_task_ids": [n["task_id"] for n in path_nodes],
+        },
+    )
+
+
+@login_required
 @require_GET
 def gantt_estado_records_json(request):
     archivo = latest_archivo()
@@ -208,7 +354,7 @@ def gantt_s_curve_export_csv(request):
         return redirect("gantt_s_curve")
     buf = StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["fecha", "planificado_pct", "real_pct"])
+    writer.writerow(["fecha", "planificado_pct", "real_modelado_pct"])
     for row in series:
         writer.writerow([row["fecha"].isoformat(), row["planificado"], row["real"]])
     payload = "\ufeff" + buf.getvalue()

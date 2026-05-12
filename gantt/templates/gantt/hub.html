@@ -5,6 +5,8 @@
 <header class="page-header">
   <h1>Gantt</h1>
   <p class="muted">Importa un archivo de MS Project (.mpp) para cargar tareas y gestionarlas por formulario.</p>
+  <p style="margin-top:0.35rem;"><a href="{% url 'gantt_critical_path' %}"><strong>Ruta Critica</strong></a> — cadena critica visual del cronograma</p>
+  <p style="margin-top:0.35rem;"><a href="{% url 'gantt_critical_path_graphic' %}"><strong>Ruta Critica Grafica</strong></a> — nodos y flujo de la cadena critica</p>
   <p style="margin-top:0.65rem;"><a href="{% url 'gantt_s_curve' %}"><strong>Curva S del proyecto</strong></a> — gráfico planificado vs real (exportable CSV / PNG)</p>
   <p style="margin-top:0.35rem;"><a href="{% url 'gantt_estado' %}"><strong>Estado</strong></a> — partidas en atraso vs línea base (filtro por especialidad)</p>
 </header>
@@ -31,6 +33,8 @@
 </div>
 
 <div class="dashboard-actions">
+  <a href="{% url 'gantt_critical_path' %}" class="btn btn-primary">Ruta Critica</a>
+  <a href="{% url 'gantt_critical_path_graphic' %}" class="btn btn-primary">Ruta Critica Grafica</a>
   <a href="{% url 'gantt_s_curve' %}" class="btn btn-primary">Curva S del proyecto</a>
   <a href="{% url 'gantt_estado' %}" class="btn btn-outline">Estado (atrasos)</a>
   <a href="{% url 'gantt_task_list' %}" class="btn btn-outline">Ver tareas</a>

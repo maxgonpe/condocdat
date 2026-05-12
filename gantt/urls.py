@@ -4,6 +4,12 @@ from . import views
 
 urlpatterns = [
     path("", views.gantt_hub, name="gantt_hub"),
+    path("ruta-critica/", views.gantt_critical_path, name="gantt_critical_path"),
+    path(
+        "ruta-critica-grafica/",
+        views.gantt_critical_path_graphic,
+        name="gantt_critical_path_graphic",
+    ),
     path("curva-s/", views.gantt_s_curve, name="gantt_s_curve"),
     path(
         "curva-s/export.csv",
