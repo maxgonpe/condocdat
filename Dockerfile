@@ -10,10 +10,11 @@ ENV PYTHONUNBUFFERED=1 \
 # Usuario no root con UID fijo para que los volúmenes (data, media, staticfiles) tengan permisos correctos en el host
 RUN groupadd -r django -g 1000 && useradd -r -u 1000 -g django django
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     postgresql-client \
     default-jre-headless \
+    libreoffice-calc-nogui \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

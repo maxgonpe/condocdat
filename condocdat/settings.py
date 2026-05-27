@@ -131,6 +131,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 _doc_root_env = (os.environ.get('CONDOCDAT_DOC_ROOT') or '').strip()
 CONDOCDAT_DOC_ROOT = Path(_doc_root_env).expanduser() if _doc_root_env else (BASE_DIR / 'doc')
 
+# LibreOffice (soffice) para exportar transmittal XLSX → PDF. En Docker suele ser /usr/bin/soffice.
+_soffice_env = (os.environ.get('SOFFICE_PATH') or os.environ.get('LIBREOFFICE_PATH') or '').strip()
+SOFFICE_PATH = Path(_soffice_env).expanduser() if _soffice_env else None
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Login (vista propia /login/)

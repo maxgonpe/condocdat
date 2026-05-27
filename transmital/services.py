@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import io
+import os
 import re
+import shutil
 import subprocess
 import tempfile
 from datetime import date, datetime
@@ -212,25 +214,74 @@ def transmital_pdf_filename(obj: Transmital) -> str:
     return f"{obj.codigo_transmital}.pdf"
 
 
+def resolve_soffice_executable() -> str:
+    """
+    Ruta al binario de LibreOffice para conversión headless (XLSX → PDF).
+
+    Orden: ``settings.SOFFICE_PATH`` / env ``SOFFICE_PATH`` / ``LIBREOFFICE_PATH``,
+    luego ``PATH`` (soffice, libreoffice) y rutas típicas en Debian/Docker.
+    """
+    custom = getattr(settings, "SOFFICE_PATH", None)
+    if custom:
+        p = Path(custom)
+        if p.is_file():
+            return str(p.resolve())
+    for env_key in ("SOFFICE_PATH", "LIBREOFFICE_PATH"):
+        raw = (os.environ.get(env_key) or "").strip()
+        if raw:
+            p = Path(raw).expanduser()
+            if p.is_file():
+                return str(p.resolve())
+    for name in ("soffice", "libreoffice"):
+        found = shutil.which(name)
+        if found:
+            return found
+    for candidate in (
+        Path("/usr/bin/soffice"),
+        Path("/usr/bin/libreoffice"),
+        Path("/usr/lib/libreoffice/program/soffice"),
+    ):
+        if candidate.is_file():
+            return str(candidate.resolve())
+    raise FileNotFoundError(
+        "No se encontró LibreOffice (soffice). "
+        "En el servidor instale libreoffice-calc-nogui o defina SOFFICE_PATH "
+        "(p. ej. /usr/bin/soffice)."
+    )
+
+
 def build_transmital_pdf_buffer(obj: Transmital) -> io.BytesIO:
+    soffice = resolve_soffice_executable()
     with tempfile.TemporaryDirectory(prefix="transmital_pdf_") as td:
         tmp_dir = Path(td)
         tmp_xlsx = tmp_dir / transmital_download_filename(obj)
         tmp_pdf = tmp_dir / transmital_pdf_filename(obj)
         tmp_xlsx.write_bytes(Path(obj.file.path).read_bytes())
 
+        # Perfil LO escribible (usuario django en Docker suele no tener $HOME usable).
+        lo_home = tmp_dir / "lo_profile"
+        lo_home.mkdir(parents=True, exist_ok=True)
+        env = os.environ.copy()
+        env["HOME"] = str(lo_home)
+        env.setdefault("TMPDIR", str(tmp_dir))
+
         cmd = [
-            "soffice",
+            soffice,
             "--headless",
+            "--norestore",
+            "--nologo",
+            "-env:UserInstallation=file://" + str(lo_home.resolve()),
             "--convert-to",
             "pdf",
             "--outdir",
             str(tmp_dir),
             str(tmp_xlsx),
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=120)
         if proc.returncode != 0 or not tmp_pdf.exists():
             detail = re.sub(r"\s+", " ", (proc.stderr or proc.stdout or "")).strip()
-            raise RuntimeError(f"No se pudo convertir a PDF con LibreOffice: {detail}")
+            raise RuntimeError(
+                f"No se pudo convertir a PDF con LibreOffice ({soffice}): {detail}"
+            )
 
         return io.BytesIO(tmp_pdf.read_bytes())
