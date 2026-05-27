@@ -4,6 +4,7 @@ import re
 import sys
 import zipfile
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
@@ -76,7 +77,14 @@ def sheet_to_grid(z: zipfile.ZipFile, path: str, shared: list, max_row=40):
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else "/home/max/condocdat/doc/ST01-EXP F5-E2_Control de equipos_2026-10-04.xlsx"
+    _repo = Path(__file__).resolve().parent.parent
+    path = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else str(
+            _repo / "media/equipos/2026/04/ST01-EXP_F5-E2_Control_de_equipos.xlsx"
+        )
+    )
     with zipfile.ZipFile(path, "r") as z:
         shared = load_shared_strings(z)
         sheets = [

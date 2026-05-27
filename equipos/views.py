@@ -7,6 +7,7 @@ from django.forms.models import model_to_dict
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import (
@@ -18,16 +19,19 @@ from .forms import (
 )
 from .models import (
     EquiposAsset,
-    EquiposCambioLog,
     EquiposLocation,
     EquiposOtro,
     EquiposResumenFila,
     EquiposSignificadoFila,
 )
 from .services import (
+    build_equipos_cambios_log_pdf_buffer,
+    build_equipos_cambios_pdf_filename,
     build_equipos_download_filename,
     build_equipos_pdf_download_filename,
     build_pdf_buffer,
+    equipos_cambios_logs_queryset,
+    equipos_xlsx_bytes_for_download,
     format_ultima_cambio_para_json,
     latest_libro,
     log_changes,
@@ -109,13 +113,17 @@ def equipos_download_xlsx(request):
         return redirect("equipos_hub")
     libro.refresh_from_db()
     fn = build_equipos_download_filename(libro)
-    resp = FileResponse(
-        open(resolve_libro_xlsx_path(libro), "rb"),
+    buf = equipos_xlsx_bytes_for_download(
+        resolve_libro_xlsx_path(libro),
+        fn,
+    )
+    buf.seek(0)
+    return FileResponse(
+        buf,
         as_attachment=True,
         filename=fn,
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    return resp
 
 
 @login_required
@@ -136,15 +144,54 @@ def equipos_export_pdf(request):
 
 @login_required
 def equipos_cambios_list(request):
-    libro = latest_libro()
-    base = EquiposCambioLog.objects.select_related("user", "libro")
-    if libro:
-        base = base.filter(libro=libro)
-    qs = base.order_by("-created_at")[:500]
     return render(
         request,
         "equipos/cambios_list.html",
-        {"libro": libro, "cambios": qs},
+        {"libro": latest_libro()},
+    )
+
+
+@login_required
+@require_GET
+def equipos_cambios_records_json(request):
+    libro = latest_libro()
+    q = request.GET.get("q", "").strip()
+    qs = equipos_cambios_logs_queryset(libro, q)[:500]
+    records = []
+    for c in qs:
+        lt = timezone.localtime(c.created_at)
+        records.append(
+            {
+                "id": c.pk,
+                "created_at_fmt": lt.strftime("%d/%m/%Y %H:%M"),
+                "username": c.user.get_username() if c.user else "",
+                "modelo": c.modelo,
+                "record_id": c.record_id,
+                "excel_row": c.excel_row,
+                "campo": c.campo,
+                "valor_anterior": c.valor_anterior,
+                "valor_nuevo": c.valor_nuevo,
+            }
+        )
+    return JsonResponse({"records": records})
+
+
+@login_required
+@require_GET
+def equipos_cambios_export_pdf(request):
+    libro = latest_libro()
+    q = request.GET.get("q", "").strip()
+    rows = list(equipos_cambios_logs_queryset(libro, q)[:400])
+    libro_label = libro.original_filename if libro else "Todos los libros"
+    filtro = f'Filtro: «{q}»' if q else "Sin filtro de texto"
+    title = f"Historial de cambios — {libro_label} — {filtro}"
+    buf = build_equipos_cambios_log_pdf_buffer(rows, title)
+    filename = build_equipos_cambios_pdf_filename(libro)
+    return FileResponse(
+        buf,
+        as_attachment=True,
+        filename=filename,
+        content_type="application/pdf",
     )
 
 

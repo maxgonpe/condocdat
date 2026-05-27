@@ -1,13 +1,19 @@
 from django.conf import settings
 from django.db import models
 
+# Maestro único (sin fecha en el nombre). Convive en media/equipos/2026/04/ con permisos de escritura.
+EQUIPOS_MASTER_DIR_REL = "equipos/2026/04"
+EQUIPOS_WORKBOOK_FILENAME = "ST01-EXP_F5-E2_Control_de_equipos.xlsx"
+EQUIPOS_LIBRO_REL_PATH = f"{EQUIPOS_MASTER_DIR_REL}/{EQUIPOS_WORKBOOK_FILENAME}"
+# Nombre base al descargar (se añade _YYYY-MM-DD.xlsx en services).
+EQUIPOS_DOWNLOAD_BASE_STEM = "ST01-EXP_F5-E2_Control_de_equipos"
+
 
 def equipos_libro_upload_to(instance, filename):
     """
-    Un solo archivo en media: siempre la misma ruta para importar y sincronizar
-    (evita sufijos aleatorios tipo archivo_abc123.xlsx).
+    Un solo archivo en media: ruta fija (sin sufijos aleatorios) para importar y sincronizar.
     """
-    return "equipos/libro_actual.xlsx"
+    return EQUIPOS_LIBRO_REL_PATH
 
 
 class EquiposLibro(models.Model):
@@ -28,7 +34,7 @@ class EquiposLibro(models.Model):
 
 
 class EquiposResumenFila(models.Model):
-    """Hoja «Resumen - TD»: filas de la tabla pivot (etiqueta, cuenta, fracción)."""
+    """Hoja «Resumen - TD»: filas 6–13 según import; A editable, B/C en 6–12 son fórmulas en Excel."""
 
     libro = models.ForeignKey(
         EquiposLibro, on_delete=models.CASCADE, related_name="resumen_filas"

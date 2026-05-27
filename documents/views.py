@@ -1430,6 +1430,20 @@ def _parse_emails(raw):
     return out
 
 
+def _emails_to_storage_value(emails):
+    """Serializa lista de emails para guardar en CharField (historial de envío)."""
+    if not emails:
+        return ""
+    return ", ".join(emails)
+
+
+def _group_names_to_storage_value(groups):
+    """Serializa nombres de grupos para guardar en el historial."""
+    if not groups:
+        return ""
+    return ", ".join(groups)
+
+
 # --- Plantilla correo Transmittal (ODATA-ST01-F5-TTAL-PPT-?????) ---
 TRANSMITTAL_ASUNTO_TEMPLATE = "ODATA ST01 EXP 05-E2 |   {{ referencia }}   | {{ transmittal }}"
 # Plantilla SharePoint basada en link de navegación de carpeta.
@@ -1802,13 +1816,20 @@ def enviar_correo_view(request):
 
     adjuntos_list = adjuntos_plantilla + adjuntos_extra
 
+    selected_to_groups = list(
+        GrupoCorreo.objects.filter(pk__in=destinatario_grupos_ids, activo=True).order_by('nombre')
+    )
+    selected_cc_groups = list(
+        GrupoCorreo.objects.filter(pk__in=cc_grupos_ids, activo=True).order_by('nombre')
+    )
+
     to_list = list(_parse_emails(destinatarios_raw))
-    for g in GrupoCorreo.objects.filter(pk__in=destinatario_grupos_ids, activo=True):
+    for g in selected_to_groups:
         for e in g.lista_emails():
             if e not in to_list:
                 to_list.append(e)
     cc_list = list(_parse_emails(copia_raw))
-    for g in GrupoCorreo.objects.filter(pk__in=cc_grupos_ids, activo=True):
+    for g in selected_cc_groups:
         for e in g.lista_emails():
             if e not in cc_list:
                 cc_list.append(e)
@@ -1876,8 +1897,12 @@ def enviar_correo_view(request):
     adjuntos_nombres = [t[0] for t in adjuntos_list]
 
     registro = CorreoEnviado(
-        destinatarios=destinatarios_raw,
-        copia=copia_raw,
+        destinatarios=_emails_to_storage_value(to_list),
+        copia=_emails_to_storage_value(cc_list),
+        destinatarios_grupos=_group_names_to_storage_value([g.nombre for g in selected_to_groups]),
+        copia_grupos=_group_names_to_storage_value([g.nombre for g in selected_cc_groups]),
+        destinatarios_count=len(to_list),
+        copia_count=len(cc_list),
         asunto=asunto,
         cuerpo=cuerpo,
         adjuntos_nombres=', '.join(adjuntos_nombres) if adjuntos_nombres else '',
@@ -1951,6 +1976,65 @@ def enviar_correo_view(request):
             'documento_informar_id': documento_informar_id,
             'rdi_informar_csv_id': rdi_informar_csv_id,
         })
+
+
+@login_required
+@require_GET
+def correos_enviados_list(request):
+    """Listado de correos enviados con búsqueda AJAX."""
+    return render(
+        request,
+        "documents/correos_enviados.html",
+        {"page_title": "Correos enviado", "page_subtitle": "Historial de envíos de correo del sistema."},
+    )
+
+
+@login_required
+@require_GET
+def correos_enviados_json(request):
+    """JSON para listado AJAX de correos enviados."""
+    q = (request.GET.get("q") or "").strip()
+    qs = CorreoEnviado.objects.select_related("enviado_por").order_by("-enviado_at")
+    if q:
+        qs = qs.filter(
+            Q(asunto__icontains=q)
+            | Q(destinatarios__icontains=q)
+            | Q(copia__icontains=q)
+            | Q(destinatarios_grupos__icontains=q)
+            | Q(copia_grupos__icontains=q)
+            | Q(adjuntos_nombres__icontains=q)
+            | Q(error_msg__icontains=q)
+            | Q(enviado_por__username__icontains=q)
+            | Q(enviado_por__first_name__icontains=q)
+            | Q(enviado_por__last_name__icontains=q)
+        )
+
+    rows = []
+    for row in qs[:300]:
+        u = row.enviado_por
+        if u:
+            user_label = (f"{(u.first_name or '').strip()} {(u.last_name or '').strip()}".strip() or u.username or "")
+        else:
+            user_label = "—"
+        rows.append(
+            {
+                "id": row.pk,
+                "enviado_at": timezone.localtime(row.enviado_at).strftime("%d/%m/%Y %H:%M") if row.enviado_at else "—",
+                "enviado_ok": bool(row.enviado_ok),
+                "enviado_ok_label": "OK" if row.enviado_ok else "Error",
+                "asunto": row.asunto or "",
+                "destinatarios": row.destinatarios or "",
+                "copia": row.copia or "",
+                "destinatarios_grupos": row.destinatarios_grupos or "",
+                "copia_grupos": row.copia_grupos or "",
+                "destinatarios_count": int(row.destinatarios_count or 0),
+                "copia_count": int(row.copia_count or 0),
+                "adjuntos_nombres": row.adjuntos_nombres or "",
+                "error_msg": row.error_msg or "",
+                "enviado_por": user_label,
+            }
+        )
+    return JsonResponse({"rows": rows})
 
 
 @login_required

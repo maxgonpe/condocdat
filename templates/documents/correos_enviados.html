@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ page_title|default:"Correos enviado" }}{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>{{ page_title|default:"Correos enviado" }}</h1>
+  <p class="muted">{{ page_subtitle|default:"Historial de envíos de correo del sistema." }}</p>
+</header>
+
+<div class="card card--list">
+  <div class="list-filters" style="display:flex; justify-content:center; margin-bottom:1rem;">
+    <label for="correos-search" class="sr-only">Buscar en correos enviados</label>
+    <input
+      id="correos-search"
+      type="search"
+      class="input"
+      placeholder="Buscar por asunto, correo, grupo, usuario, estado..."
+      autocomplete="off"
+      style="max-width:520px; width:100%; padding:0.65rem 1rem; border-radius:999px; border:1px solid #c5ced8; box-shadow:0 1px 3px rgba(15,23,42,0.08);"
+    >
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Estado</th>
+          <th>Asunto</th>
+          <th>Para</th>
+          <th>CC</th>
+          <th>Grupos</th>
+          <th>Adjuntos</th>
+          <th>Usuario</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody id="correos-enviados-tbody">
+        <tr><td colspan="9" class="muted">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function() {
+  function escapeHtml(s) {
+    if (s == null) return "";
+    var div = document.createElement("div");
+    div.textContent = String(s);
+    return div.innerHTML;
+  }
+
+  function joinGroups(row) {
+    var out = [];
+    if (row.destinatarios_grupos) out.push("Para: " + row.destinatarios_grupos);
+    if (row.copia_grupos) out.push("CC: " + row.copia_grupos);
+    return out.length ? out.join(" | ") : "—";
+  }
+
+  function rowHtml(r) {
+    var estado = r.enviado_ok ? "ok" : "err";
+    var paraText = (r.destinatarios || "—") + (r.destinatarios_count ? (" (" + r.destinatarios_count + ")") : "");
+    var ccText = (r.copia || "—") + (r.copia_count ? (" (" + r.copia_count + ")") : "");
+    return (
+      "<tr>" +
+        "<td>" + escapeHtml(r.enviado_at || "—") + "</td>" +
+        "<td><span class='extract-status " + estado + "'>" + escapeHtml(r.enviado_ok_label || "—") + "</span></td>" +
+        "<td style='max-width:260px; white-space:normal;'>" + escapeHtml(r.asunto || "—") + "</td>" +
+        "<td style='max-width:280px; white-space:normal;'>" + escapeHtml(paraText) + "</td>" +
+        "<td style='max-width:280px; white-space:normal;'>" + escapeHtml(ccText) + "</td>" +
+        "<td style='max-width:260px; white-space:normal;'>" + escapeHtml(joinGroups(r)) + "</td>" +
+        "<td style='max-width:220px; white-space:normal;'>" + escapeHtml(r.adjuntos_nombres || "—") + "</td>" +
+        "<td>" + escapeHtml(r.enviado_por || "—") + "</td>" +
+        "<td style='max-width:280px; white-space:normal;'>" + escapeHtml(r.error_msg || "—") + "</td>" +
+      "</tr>"
+    );
+  }
+
+  var input = document.getElementById("correos-search");
+  var tbody = document.getElementById("correos-enviados-tbody");
+  var seq = 0;
+
+  function loadRows(q) {
+    seq += 1;
+    var mySeq = seq;
+    tbody.innerHTML = "<tr><td colspan='9' class='muted'>Cargando...</td></tr>";
+    var url = "{% url 'correos_enviados_json' %}";
+    if (q && q.trim()) {
+      url += "?q=" + encodeURIComponent(q.trim());
+    }
+    fetch(url, {headers: {"X-Requested-With": "XMLHttpRequest"}})
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (mySeq !== seq) return;
+        var rows = (data && data.rows) ? data.rows : [];
+        if (!rows.length) {
+          tbody.innerHTML = "<tr><td colspan='9' class='muted'>No hay correos enviados para el filtro actual.</td></tr>";
+          return;
+        }
+        tbody.innerHTML = rows.map(rowHtml).join("");
+      })
+      .catch(function() {
+        if (mySeq !== seq) return;
+        tbody.innerHTML = "<tr><td colspan='9' class='muted'>Error cargando datos.</td></tr>";
+      });
+  }
+
+  var timer = null;
+  input.addEventListener("input", function() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function() { loadRows(input.value || ""); }, 220);
+  });
+
+  loadRows("");
+})();
+</script>
+{% endblock %}

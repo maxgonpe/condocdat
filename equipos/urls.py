@@ -9,6 +9,16 @@ urlpatterns = [
     path("export/pdf/", views.equipos_export_pdf, name="equipos_export_pdf"),
     path("search.json", views.equipos_search_json, name="equipos_search_json"),
     path("cambios/", views.equipos_cambios_list, name="equipos_cambios"),
+    path(
+        "cambios/records.json",
+        views.equipos_cambios_records_json,
+        name="equipos_cambios_records_json",
+    ),
+    path(
+        "cambios/export/pdf/",
+        views.equipos_cambios_export_pdf,
+        name="equipos_cambios_export_pdf",
+    ),
     path("assets/", views.equipos_asset_list, name="equipos_asset_list"),
     path("assets/records.json", views.equipos_asset_records_json, name="equipos_asset_records_json"),
     path("assets/<int:pk>/edit/", views.equipos_asset_edit, name="equipos_asset_edit"),

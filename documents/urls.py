@@ -8,6 +8,8 @@ urlpatterns = [
     # Ruta más específica primero (evita que /correo/ intercepte el AJAX)
     path('correo/extraer-transmittal/', views.extraer_transmittal_ajax, name='extraer_transmittal_ajax'),
     path('correo/', views.enviar_correo_view, name='enviar_correo'),
+    path('correo/enviados/', views.correos_enviados_list, name='correos_enviados_list'),
+    path('correo/enviados/json/', views.correos_enviados_json, name='correos_enviados_json'),
     path('buscar/', views.search_unified_view, name='search_unified'),
     path('carpetas/', views.folder_list, name='folder_list'),
     path('carpetas/<int:pk>/', views.folder_detail, name='folder_detail'),

@@ -64,9 +64,18 @@ class FolderFileAdmin(admin.ModelAdmin):
 
 @admin.register(CorreoEnviado)
 class CorreoEnviadoAdmin(admin.ModelAdmin):
-    list_display = ('asunto', 'enviado_ok', 'enviado_at', 'enviado_por')
+    list_display = (
+        'asunto',
+        'destinatarios_count',
+        'copia_count',
+        'destinatarios_grupos',
+        'copia_grupos',
+        'enviado_ok',
+        'enviado_at',
+        'enviado_por',
+    )
     list_filter = ('enviado_ok', 'enviado_at')
-    search_fields = ('asunto', 'destinatarios', 'copia')
+    search_fields = ('asunto', 'destinatarios', 'copia', 'destinatarios_grupos', 'copia_grupos')
     readonly_fields = ('enviado_at',)
 
 

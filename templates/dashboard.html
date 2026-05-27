@@ -14,6 +14,7 @@
       <a href="{% url 'pizarra' %}" class="btn btn-outline">Pizarra</a>
       <a href="{% url 'dashboard' %}" class="btn btn-outline" aria-current="page">Panel</a>
       <a href="{% url 'enviar_correo' %}" class="btn btn-outline">Enviar correo</a>
+      <a href="{% url 'correos_enviados_list' %}" class="btn btn-outline">Correos enviado</a>
       <a href="{% url 'informar_list' %}" class="btn btn-outline">Informar de Odata</a>
       <a href="{% url 'informar_bim_list' %}" class="btn btn-outline">Informar desde BIM</a>
     </div>
@@ -136,7 +137,7 @@
 
   <section class="card dashboard-group">
     <h2>Equipos</h2>
-    <p class="dashboard-group__desc">Libro Excel ST01 (Resumen, Significado, Locations, Asset, Otros): importación, edición y sincronización del archivo.</p>
+    <p class="dashboard-group__desc">Libro Excel ST01 (Resumen, Significado, Locations, Asset, Otros): maestro en <code>media/equipos/2026/04/</code>, descarga con fecha en el nombre.</p>
     <div class="dashboard-actions">
       <a href="{% url 'equipos_hub' %}" class="btn btn-outline">Control de equipos</a>
     </div>

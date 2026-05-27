@@ -5,6 +5,7 @@ echo "🚀 Iniciando aplicación Condocdat..."
 
 mkdir -p /app/data
 mkdir -p /app/media
+mkdir -p /app/media/equipos/2026/04
 mkdir -p /app/staticfiles
 mkdir -p /app/doc
 

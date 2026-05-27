@@ -13,6 +13,16 @@
 </header>
 
 <div class="card card--list">
+  <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; margin-bottom:1rem;">
+    <div class="form-group" style="flex:1; min-width:220px; max-width:520px; margin-bottom:0;">
+      <label for="equipos-cambios-search">Buscar</label>
+      <input type="text" id="equipos-cambios-search" class="form-control" placeholder="Usuario, modelo, campo, valores, ID o fila…" autocomplete="off">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <span class="muted" style="display:block; font-size:0.85rem; margin-bottom:0.35rem;">Exportar</span>
+      <a id="equipos-cambios-pdf" class="btn btn-outline" href="{% url 'equipos_cambios_export_pdf' %}">Descargar PDF</a>
+    </div>
+  </div>
   <div class="table-wrap">
     <table class="data-table">
       <thead>
@@ -26,23 +36,88 @@
           <th>Después</th>
         </tr>
       </thead>
-      <tbody>
-        {% for c in cambios %}
-        <tr>
-          <td style="white-space:nowrap;">{{ c.created_at|date:"d/m/Y H:i" }}</td>
-          <td>{% if c.user %}{{ c.user.get_username }}{% else %}—{% endif %}</td>
-          <td>{{ c.modelo }}</td>
-          <td>{{ c.record_id }}{% if c.excel_row %} <span class="muted">(fila {{ c.excel_row }})</span>{% endif %}</td>
-          <td>{{ c.campo }}</td>
-          <td style="max-width:180px;word-break:break-word;">{{ c.valor_anterior|truncatechars:80 }}</td>
-          <td style="max-width:180px;word-break:break-word;">{{ c.valor_nuevo|truncatechars:80 }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7" class="muted">No hay cambios registrados.</td></tr>
-        {% endfor %}
+      <tbody id="equipos-cambios-tbody">
+        <tr><td colspan="7" class="muted">Cargando…</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="muted" style="margin-top:0.75rem;">Hasta 500 entradas más recientes.</p>
+  <p class="muted" style="margin-top:0.75rem;">Hasta 500 entradas más recientes (según libro y búsqueda). El PDF incluye hasta 400 filas con el mismo filtro.</p>
 </div>
+
+<script>
+(function() {
+  var urlJson = '{% url "equipos_cambios_records_json" %}';
+  var urlPdfBase = '{% url "equipos_cambios_export_pdf" %}';
+  function esc(s) {
+    if (s == null) return '';
+    var d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+  function norm(s) {
+    return String(s || '').trim();
+  }
+  function trunc(s, n) {
+    s = String(s || '');
+    return s.length <= n ? s : s.slice(0, n - 1) + '\u2026';
+  }
+  function pdfHref(q) {
+    return q ? (urlPdfBase + '?q=' + encodeURIComponent(q)) : urlPdfBase;
+  }
+  function syncPdfLink() {
+    var a = document.getElementById('equipos-cambios-pdf');
+    if (!a) return;
+    var q = norm((document.getElementById('equipos-cambios-search') || {}).value || '');
+    a.setAttribute('href', pdfHref(q));
+  }
+  function renderRows(records) {
+    var tbody = document.getElementById('equipos-cambios-tbody');
+    if (!tbody) return;
+    if (!records.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">No hay cambios registrados.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = records.map(function(r) {
+      var userCell = r.username ? esc(r.username) : '<span class="muted">—</span>';
+      var idCell = esc(String(r.record_id));
+      if (r.excel_row != null && r.excel_row !== '') {
+        idCell += ' <span class="muted">(fila ' + esc(String(r.excel_row)) + ')</span>';
+      }
+      return '<tr><td style="white-space:nowrap;">' + esc(r.created_at_fmt) + '</td><td>' + userCell + '</td><td>' + esc(r.modelo) + '</td><td>' + idCell + '</td><td>' + esc(r.campo) + '</td><td style="max-width:180px;word-break:break-word;">' + esc(trunc(r.valor_anterior, 80)) + '</td><td style="max-width:180px;word-break:break-word;">' + esc(trunc(r.valor_nuevo, 80)) + '</td></tr>';
+    }).join('');
+  }
+  var seq = 0;
+  function load() {
+    seq += 1;
+    var my = seq;
+    var tbody = document.getElementById('equipos-cambios-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">Cargando…</td></tr>';
+    var q = norm((document.getElementById('equipos-cambios-search') || {}).value || '');
+    var url = q ? (urlJson + '?q=' + encodeURIComponent(q)) : urlJson;
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (my !== seq) return;
+        renderRows((data && data.records) ? data.records : []);
+        syncPdfLink();
+      })
+      .catch(function() {
+        if (my !== seq) return;
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">Error al cargar.</td></tr>';
+      });
+  }
+  var inp = document.getElementById('equipos-cambios-search');
+  var deb;
+  if (inp) {
+    inp.addEventListener('input', function() {
+      syncPdfLink();
+      clearTimeout(deb);
+      deb = setTimeout(function() { load(); }, 300);
+    });
+  }
+  syncPdfLink();
+  load();
+})();
+</script>
 {% endblock %}

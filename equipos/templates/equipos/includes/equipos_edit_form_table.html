@@ -1,0 +1,25 @@
+{# Tabla de campos con aviso de fecha actual (Asset u Otros). Requiere: form, obj #}
+<table class="table">
+  {% for field in form %}
+  <tr>
+    <th>{{ field.label_tag }}</th>
+    <td>
+      {% if field.name == "fecha_compra" and obj.fecha_compra %}
+      <p class="muted" style="font-size:0.82rem;margin:0 0 .35rem;">Fecha guardada: <strong>{{ obj.fecha_compra|date:"d/m/Y" }}</strong></p>
+      {% elif field.name == "fecha_llegada_obra" and obj.fecha_llegada_obra %}
+      <p class="muted" style="font-size:0.82rem;margin:0 0 .35rem;">Fecha guardada: <strong>{{ obj.fecha_llegada_obra|date:"d/m/Y" }}</strong></p>
+      {% elif field.name == "fecha_planificacion" and obj.fecha_planificacion %}
+      <p class="muted" style="font-size:0.82rem;margin:0 0 .35rem;">Fecha guardada: <strong>{{ obj.fecha_planificacion|date:"d/m/Y" }}</strong></p>
+      {% elif field.name == "fecha_envio_rdi" and obj.fecha_envio_rdi %}
+      <p class="muted" style="font-size:0.82rem;margin:0 0 .35rem;">Valor en BD / Excel: <strong>{{ obj.fecha_envio_rdi }}</strong></p>
+      {% elif field.name == "fecha_respuesta_rdi" and obj.fecha_respuesta_rdi %}
+      <p class="muted" style="font-size:0.82rem;margin:0 0 .35rem;">Valor en BD / Excel: <strong>{{ obj.fecha_respuesta_rdi }}</strong></p>
+      {% endif %}
+      {{ field }}
+      {% if field.errors %}
+      <ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>

@@ -310,6 +310,20 @@ class CorreoEnviado(models.Model):
     """
     destinatarios = models.CharField(max_length=1024, help_text="Emails separados por coma o punto y coma")
     copia = models.CharField(max_length=1024, blank=True, default="", help_text="CC, separados por coma o punto y coma")
+    destinatarios_grupos = models.CharField(
+        max_length=512,
+        blank=True,
+        default="",
+        help_text="Nombres de grupos usados en Para, separados por coma",
+    )
+    copia_grupos = models.CharField(
+        max_length=512,
+        blank=True,
+        default="",
+        help_text="Nombres de grupos usados en CC, separados por coma",
+    )
+    destinatarios_count = models.PositiveIntegerField(default=0, help_text="Cantidad total de destinatarios en Para")
+    copia_count = models.PositiveIntegerField(default=0, help_text="Cantidad total de destinatarios en CC")
     asunto = models.CharField(max_length=512)
     cuerpo = models.TextField(blank=True, default="")
     adjuntos_nombres = models.CharField(max_length=1024, blank=True, default="", help_text="Nombres de archivos adjuntos separados por coma")
