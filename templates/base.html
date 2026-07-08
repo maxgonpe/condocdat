@@ -53,6 +53,10 @@
     <aside class="sidebar" id="sidebar">
       <nav class="sidebar-nav">
         {% if user.is_authenticated %}
+          <a href="{% url 'hub_centro' %}" class="sidebar-hub-link{% if request.resolver_match.url_name == 'hub_centro' %} active{% endif %}">
+            <span class="sidebar-hub-link__icon" aria-hidden="true">◆</span>
+            <span>Centro visual</span>
+          </a>
           <div class="sidebar-accordion-group">
             <button type="button" class="sidebar-accordion-toggle" aria-expanded="false" aria-controls="sidebar-group-inicio">
               Inicio
@@ -129,6 +133,7 @@
               <a href="{% url 'planos_list' %}" class="{% if request.resolver_match.url_name == 'planos_list' %}active{% endif %}">Planos Colo 7 8 9</a>
               <a href="{% url 'planos_iniciales_list' %}" class="{% if request.resolver_match.url_name == 'planos_iniciales_list' %}active{% endif %}">Planos iniciales (propuesta)</a>
               <a href="{% url 'planos_actualizados_list' %}" class="{% if request.resolver_match.url_name == 'planos_actualizados_list' %}active{% endif %}">Planos actualizados (dif. entre propuesta y proyecto)</a>
+              <a href="{% url 'planos_diferencias_mensuales_list' %}" class="{% if request.resolver_match.url_name == 'planos_diferencias_mensuales_list' %}active{% endif %}">Resumen diferencias mensuales</a>
             </div>
           </div>
 

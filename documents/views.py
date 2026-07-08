@@ -32,6 +32,7 @@ from .search_backend import search_unified, _normalize_terms
 from .snippets import extract_snippets, extract_snippets_multi_term
 from .text_search_match import text_matches_all_terms_as_words, text_matches_single_query
 from .traceability import build_journeys_for_query
+from .hub_launcher import build_hub_sections
 
 from rdi.models import (
     RDIRecord,
@@ -843,6 +844,32 @@ def pizarra(request):
 
 
 @login_required
+def hub_centro(request):
+    """
+    Centro visual alternativo: accesos por iconos y pestañas (mismas URLs que el menú lateral).
+    No reemplaza el panel clásico ni la pizarra.
+    """
+    sections = build_hub_sections(request.user)
+    ctx = {
+        "hub_sections": sections,
+        "hub_item_count": sum(len(s["items"]) for s in sections),
+    }
+    if request.user.is_staff:
+        now = timezone.now()
+        online_window_minutes = 10
+        cutoff = now - timezone.timedelta(minutes=online_window_minutes)
+        presences = UserPresence.objects.filter(last_seen__gte=cutoff)
+        ctx["online_users_count"] = presences.count()
+        ctx["online_window_minutes"] = online_window_minutes
+        try:
+            rdi_universe = _rdi_panel_universe()
+            ctx["rdi_total"] = rdi_universe.count()
+        except Exception:
+            ctx["rdi_total"] = 0
+    return render(request, "documents/hub_centro.html", ctx)
+
+
+@login_required
 def dashboard(request):
     """Panel principal del proyecto (solo para `staff`)."""
     if not request.user.is_staff:
@@ -1431,17 +1458,15 @@ def _parse_emails(raw):
 
 
 def _emails_to_storage_value(emails):
-    """Serializa lista de emails para guardar en CharField (historial de envío)."""
-    if not emails:
-        return ""
-    return ", ".join(emails)
+    from .mail_utils import emails_to_storage_value
+
+    return emails_to_storage_value(emails)
 
 
 def _group_names_to_storage_value(groups):
-    """Serializa nombres de grupos para guardar en el historial."""
-    if not groups:
-        return ""
-    return ", ".join(groups)
+    from .mail_utils import group_names_to_storage_value
+
+    return group_names_to_storage_value(groups)
 
 
 # --- Plantilla correo Transmittal (ODATA-ST01-F5-TTAL-PPT-?????) ---
@@ -1722,11 +1747,36 @@ def extraer_transmittal_ajax(request):
         return JsonResponse({"ok": False, "error": "No se envió ningún archivo."}, status=400)
     try:
         text = _extract_text_from_uploaded_file(archivo)
+        if not (text or "").strip():
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": (
+                        "No se pudo leer texto del archivo. Use PDF con texto seleccionable "
+                        "o DOCX (no solo imagen escaneada)."
+                    ),
+                },
+                status=400,
+            )
         data = _parse_transmittal_extract(text, archivo.name)
+        if not data.get("transmittal"):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": (
+                        "No se detectó código ODATA-ST01-F5-TTAL-PPT-… en el archivo. "
+                        "Verifique que sea la hoja de transmittal correcta."
+                    ),
+                },
+                status=400,
+            )
         asunto = _build_asunto_transmittal(data)
-        # Importante: pasamos `request` para que _build_cuerpo_transmittal genere HTML
-        # (transmittal con <strong> y enlace <a href=...> hacia SharePoint).
         cuerpo = _build_cuerpo_transmittal(data, request=request)
+        if not (asunto or "").strip():
+            return JsonResponse(
+                {"ok": False, "error": "No se pudo generar el asunto desde el transmittal."},
+                status=400,
+            )
         return JsonResponse({
             "ok": True,
             "asunto": asunto,
@@ -1746,11 +1796,10 @@ def enviar_correo_view(request):
     Envío desde la cuenta configurada (EMAIL_HOST_USER). Se guarda registro en CorreoEnviado.
     """
     if request.method == 'GET':
+        from .mail_utils import email_send_context_base
+
         cc_grupos = GrupoCorreo.objects.filter(activo=True).order_by('nombre')
-        ctx = {
-            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
-            'cc_grupos': cc_grupos,
-        }
+        ctx = email_send_context_base(request, cc_grupos=cc_grupos)
         # Enlace desde Informar documento: ?doc=<pk>  |  desde BIM: ?rdi=<csv_id>
         doc_pk = request.GET.get('doc')
         ctx['documento_informar_id'] = ''
@@ -1784,6 +1833,17 @@ def enviar_correo_view(request):
         return render(request, 'documents/enviar_correo.html', ctx)
 
     # POST
+    from .mail_utils import (
+        attachment_names_storage,
+        email_send_context_base,
+        emails_to_storage_value,
+        format_bytes,
+        group_names_to_storage_value,
+        persist_correo_registro,
+        read_post_attachments,
+        validate_email_send_limits,
+    )
+
     cc_grupos = GrupoCorreo.objects.filter(activo=True).order_by('nombre')
     usar_plantilla = request.POST.get('usar_plantilla_transmittal') == 'on'
     documento_informar_id = (request.POST.get('documento_informar_id') or '').strip()
@@ -1792,29 +1852,27 @@ def enviar_correo_view(request):
     copia_raw = (request.POST.get('copia') or '').strip()
     destinatario_grupos_ids = request.POST.getlist('destinatario_grupos')
     cc_grupos_ids = request.POST.getlist('cc_grupos')
-    # Siempre se envía lo editado en el formulario (asunto/cuerpo). La plantilla solo rellena vía JS al elegir archivo.
     asunto = (request.POST.get('asunto') or '').strip()
     cuerpo = (request.POST.get('cuerpo') or '').strip()
 
-    # Adjuntos para el correo (no se re-extrae transmittal en servidor: prevalecen las correcciones del usuario).
-    # Separamos el adjunto de plantilla (sí participa en la extracción vía UI)
-    # de los adjuntos adicionales (solo se envían).
-    adjuntos_plantilla = []
-    for f in request.FILES.getlist('adjuntos_plantilla'):
-        if f and f.name:
-            contenido = f.read()
-            adjuntos_plantilla.append((f.name, contenido, getattr(f, 'content_type', None) or 'application/octet-stream'))
+    def _render_correo_form(**kwargs):
+        base = email_send_context_base(
+            request,
+            cc_grupos=cc_grupos,
+            destinatarios=destinatarios_raw,
+            copia=copia_raw,
+            asunto=asunto,
+            cuerpo=cuerpo,
+            usar_plantilla_transmittal=usar_plantilla,
+            documento_informar_id=documento_informar_id,
+            rdi_informar_csv_id=rdi_informar_csv_id,
+        )
+        base.update(kwargs)
+        return render(request, 'documents/enviar_correo.html', base)
 
-    adjuntos_extra = []
-    extra_files = request.FILES.getlist('adjuntos_extra')
-    # Compatibilidad con formularios/frontends que envían arrays como "campo[]".
-    extra_files += request.FILES.getlist('adjuntos_extra[]')
-    for f in extra_files:
-        if f and f.name:
-            contenido = f.read()
-            adjuntos_extra.append((f.name, contenido, getattr(f, 'content_type', None) or 'application/octet-stream'))
-
-    adjuntos_list = adjuntos_plantilla + adjuntos_extra
+    adjuntos_plantilla, _adjuntos_extra, adjuntos_list, total_attachment_bytes = read_post_attachments(
+        request
+    )
 
     selected_to_groups = list(
         GrupoCorreo.objects.filter(pk__in=destinatario_grupos_ids, activo=True).order_by('nombre')
@@ -1836,78 +1894,68 @@ def enviar_correo_view(request):
 
     if not to_list:
         messages.error(request, 'Indique al menos un destinatario (email).')
-        return render(request, 'documents/enviar_correo.html', {
-            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
-            'cc_grupos': cc_grupos,
-            'destinatarios': destinatarios_raw,
-            'copia': copia_raw,
-            'asunto': asunto,
-            'cuerpo': cuerpo,
-            'usar_plantilla_transmittal': usar_plantilla,
-            'documento_informar_id': documento_informar_id,
-            'rdi_informar_csv_id': rdi_informar_csv_id,
-        })
+        return _render_correo_form()
     if not asunto:
         messages.error(request, 'El asunto no puede estar vacío.')
-        return render(request, 'documents/enviar_correo.html', {
-            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
-            'cc_grupos': cc_grupos,
-            'destinatarios': destinatarios_raw,
-            'copia': copia_raw,
-            'asunto': asunto,
-            'cuerpo': cuerpo,
-            'usar_plantilla_transmittal': usar_plantilla,
-            'documento_informar_id': documento_informar_id,
-            'rdi_informar_csv_id': rdi_informar_csv_id,
-        })
+        return _render_correo_form()
+    if len(asunto) > 500:
+        messages.error(request, 'El asunto es demasiado largo (máximo 500 caracteres).')
+        return _render_correo_form()
+
+    limit_err = validate_email_send_limits(
+        to_list=to_list,
+        cc_list=cc_list,
+        adjuntos_list=adjuntos_list,
+        total_attachment_bytes=total_attachment_bytes,
+    )
+    if limit_err:
+        messages.error(request, limit_err)
+        return _render_correo_form()
 
     _email_pw = (getattr(settings, 'EMAIL_HOST_PASSWORD', None) or '').strip()
     if not _email_pw:
         messages.error(
             request,
             'No está configurada la contraseña de correo (EMAIL_HOST_PASSWORD en el entorno). '
-            'Configure la variable de entorno y reinicie el servidor.'
+            'Configure la variable de entorno y reinicie el servidor.',
         )
-        return render(request, 'documents/enviar_correo.html', {
-            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
-            'cc_grupos': cc_grupos,
-            'destinatarios': destinatarios_raw,
-            'copia': copia_raw,
-            'asunto': asunto,
-            'cuerpo': cuerpo,
-            'usar_plantilla_transmittal': usar_plantilla,
-            'documento_informar_id': documento_informar_id,
-            'rdi_informar_csv_id': rdi_informar_csv_id,
-        })
+        return _render_correo_form()
 
-    if usar_plantilla and not adjuntos_plantilla:
-        messages.warning(request, 'Para usar la plantilla transmittal debe adjuntar al menos un archivo (PDF o DOCX).')
-        return render(request, 'documents/enviar_correo.html', {
-            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
-            'cc_grupos': cc_grupos,
-            'destinatarios': destinatarios_raw,
-            'copia': copia_raw,
-            'asunto': asunto,
-            'cuerpo': cuerpo,
-            'usar_plantilla_transmittal': True,
-            'documento_informar_id': documento_informar_id,
-            'rdi_informar_csv_id': rdi_informar_csv_id,
-        })
+    tiene_plantilla = bool(adjuntos_plantilla)
+    if usar_plantilla and not tiene_plantilla:
+        messages.warning(
+            request,
+            'Para usar la plantilla transmittal debe adjuntar la hoja en '
+            '«Adjunto para plantilla Transmittal» (PDF o DOCX).',
+        )
+        return _render_correo_form(usar_plantilla_transmittal=True)
+    if tiene_plantilla and not usar_plantilla:
+        usar_plantilla = True
 
-    adjuntos_nombres = [t[0] for t in adjuntos_list]
+    doc_informar = None
+    if documento_informar_id.isdigit():
+        doc_informar = Document.objects.filter(pk=int(documento_informar_id)).first()
 
     registro = CorreoEnviado(
-        destinatarios=_emails_to_storage_value(to_list),
-        copia=_emails_to_storage_value(cc_list),
-        destinatarios_grupos=_group_names_to_storage_value([g.nombre for g in selected_to_groups]),
-        copia_grupos=_group_names_to_storage_value([g.nombre for g in selected_cc_groups]),
+        destinatarios=emails_to_storage_value(to_list),
+        copia=emails_to_storage_value(cc_list),
+        destinatarios_grupos=group_names_to_storage_value([g.nombre for g in selected_to_groups]),
+        copia_grupos=group_names_to_storage_value([g.nombre for g in selected_cc_groups]),
         destinatarios_count=len(to_list),
         copia_count=len(cc_list),
-        asunto=asunto,
+        asunto=asunto[:512],
         cuerpo=cuerpo,
-        adjuntos_nombres=', '.join(adjuntos_nombres) if adjuntos_nombres else '',
+        adjuntos_nombres=attachment_names_storage(adjuntos_list),
+        document=doc_informar,
         enviado_por=request.user,
+        enviado_ok=False,
     )
+    try:
+        persist_correo_registro(registro)
+    except Exception as e:
+        messages.error(request, f'No se pudo registrar el envío en el sistema: {e}')
+        return _render_correo_form()
+
     try:
         msg = EmailMessage(
             subject=asunto,
@@ -1916,66 +1964,80 @@ def enviar_correo_view(request):
             to=to_list,
             cc=cc_list,
         )
-        # Si el cuerpo contiene HTML (anchor/link), lo enviamos como HTML.
-        # Para evitar que el usuario vea <br> en el textarea, convertimos \n -> <br>
-        # únicamente en el envío (y solo si aún no hay <br>).
         if "<a href=" in cuerpo or "<br>" in cuerpo:
             msg.content_subtype = "html"
             if "<br" not in cuerpo:
                 msg.body = cuerpo.replace("\n", "<br>\n")
         for name, contenido, mimetype in adjuntos_list:
-            msg.attach(name, contenido, mimetype or 'application/octet-stream')
+            msg.attach(name, contenido, mimetype or "application/octet-stream")
         msg.send(fail_silently=False)
-        registro.enviado_ok = True
-        registro.save()
-        informar_note = ""
-        if documento_informar_id.isdigit():
-            try:
-                doc_inf = Document.objects.get(pk=int(documento_informar_id))
-                prev = doc_inf.informado
-                if prev == Document.INFORMADO_NO:
-                    doc_inf.informado = Document.INFORMADO_SI
-                elif prev == Document.INFORMADO_SI:
-                    doc_inf.informado = Document.INFORMADO_OTRA
-                if doc_inf.informado != prev:
-                    doc_inf.save(update_fields=["informado", "updated_at"])
-                    informar_note += f" Estado Informar (documento): «{doc_inf.get_informado_display()}»."
-            except Document.DoesNotExist:
-                pass
-        if rdi_informar_csv_id.isdigit():
-            try:
-                rdi_inf = RDIRecord.objects.get(csv_id=int(rdi_informar_csv_id))
-                prev_r = rdi_inf.informado
-                if prev_r == RDI_INFORMADO_NO:
-                    rdi_inf.informado = RDI_INFORMADO_SI
-                elif prev_r == RDI_INFORMADO_SI:
-                    rdi_inf.informado = RDI_INFORMADO_OTRA
-                if rdi_inf.informado != prev_r:
-                    rdi_inf.save(update_fields=["informado", "updated_at"])
-                    informar_note += f" Estado Informar (RDI): «{rdi_inf.get_informado_display()}»."
-            except (ValueError, RDIRecord.DoesNotExist):
-                pass
-        messages.success(
-            request,
-            f'Correo enviado correctamente a {", ".join(to_list)}.{informar_note}',
-        )
-        return redirect('enviar_correo')
     except Exception as e:
-        registro.enviado_ok = False
-        registro.error_msg = str(e)[:512]
-        registro.save()
-        messages.error(request, f'Error al enviar: {e}')
-        return render(request, 'documents/enviar_correo.html', {
-            'email_from': getattr(settings, 'EMAIL_HOST_USER', ''),
-            'cc_grupos': cc_grupos,
-            'destinatarios': destinatarios_raw,
-            'copia': copia_raw,
-            'asunto': asunto,
-            'cuerpo': cuerpo,
-            'usar_plantilla_transmittal': usar_plantilla,
-            'documento_informar_id': documento_informar_id,
-            'rdi_informar_csv_id': rdi_informar_csv_id,
-        })
+        try:
+            persist_correo_registro(
+                registro,
+                enviado_ok=False,
+                error_msg=str(e),
+            )
+        except Exception:
+            pass
+        messages.error(request, f'Error al enviar por correo: {e}')
+        return _render_correo_form()
+
+    informar_note = ""
+    informar_failed = False
+    if documento_informar_id.isdigit():
+        try:
+            doc_inf = Document.objects.get(pk=int(documento_informar_id))
+            prev = doc_inf.informado
+            if prev == Document.INFORMADO_NO:
+                doc_inf.informado = Document.INFORMADO_SI
+            elif prev == Document.INFORMADO_SI:
+                doc_inf.informado = Document.INFORMADO_OTRA
+            if doc_inf.informado != prev:
+                doc_inf.save(update_fields=["informado", "updated_at"])
+                informar_note += f" Estado Informar (documento): «{doc_inf.get_informado_display()}»."
+        except Document.DoesNotExist:
+            pass
+        except Exception:
+            informar_failed = True
+    if rdi_informar_csv_id.isdigit():
+        try:
+            rdi_inf = RDIRecord.objects.get(csv_id=int(rdi_informar_csv_id))
+            prev_r = rdi_inf.informado
+            if prev_r == RDI_INFORMADO_NO:
+                rdi_inf.informado = RDI_INFORMADO_SI
+            elif prev_r == RDI_INFORMADO_SI:
+                rdi_inf.informado = RDI_INFORMADO_OTRA
+            if rdi_inf.informado != prev_r:
+                rdi_inf.save(update_fields=["informado", "updated_at"])
+                informar_note += f" Estado Informar (RDI): «{rdi_inf.get_informado_display()}»."
+        except (ValueError, RDIRecord.DoesNotExist):
+            pass
+        except Exception:
+            informar_failed = True
+
+    try:
+        persist_correo_registro(registro, enviado_ok=True, error_msg="")
+    except Exception as e:
+        messages.warning(
+            request,
+            f'El correo se envió correctamente, pero no se pudo actualizar el historial: {e}',
+        )
+        if informar_note:
+            messages.info(request, informar_note.strip())
+        return redirect("enviar_correo")
+
+    n_adj = len(adjuntos_list)
+    ok_msg = (
+        f"Correo enviado: {len(to_list)} en Para, {len(cc_list)} en CC, "
+        f"{n_adj} adjunto(s) ({format_bytes(total_attachment_bytes)})."
+    )
+    if informar_note:
+        ok_msg += informar_note
+    if informar_failed:
+        ok_msg += " (No se pudo actualizar el estado Informar; revise el documento manualmente.)"
+    messages.success(request, ok_msg)
+    return redirect("enviar_correo")
 
 
 @login_required

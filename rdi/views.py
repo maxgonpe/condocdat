@@ -14,6 +14,8 @@ from .services import (
     get_planos_records_for_ajax,
     get_rdi_cost_schedule_impacts_for_ajax,
     get_rdi_records_for_ajax,
+    ensure_planos_diferencias_mensuales_snapshots_range,
+    get_planos_diferencias_mensuales_records_for_range,
     ordered_column_keys_for_planos_iniciales_export,
 )
 
@@ -1001,6 +1003,269 @@ def planos_actualizados_export_pdf(request):
     resp = HttpResponse(pdf_buf.read(), content_type="application/pdf")
     resp["Content-Disposition"] = (
         'inline; filename="Planos_actualizados_dif_propuesta_proyecto.pdf"'
+    )
+    return resp
+
+
+def _parse_year_month(value: str):
+    if not value:
+        return None
+    s = str(value).strip()
+    if not s or len(s) != 7 or s[4] != "-":
+        return None
+    try:
+        from datetime import date
+        y, m = s.split("-", 1)
+        return date(int(y), int(m), 1)
+    except Exception:
+        return None
+
+
+@login_required
+@require_GET
+def planos_diferencias_mensuales_list_view(request):
+    """
+    Resumen mensual de diferencias (Planos actualizados vs iniciales).
+    - start_month/end_month con formato YYYY-MM.
+    - Default: mes en curso.
+    """
+    from datetime import date
+    from django.utils import timezone
+
+    now_d = timezone.now().date()
+    default_month = date(now_d.year, now_d.month, 1)
+
+    start_month = _parse_year_month(request.GET.get("start_month")) or default_month
+    end_month = _parse_year_month(request.GET.get("end_month")) or start_month
+    if end_month < start_month:
+        end_month = start_month
+
+    ensure_planos_diferencias_mensuales_snapshots_range(
+        start_month=start_month,
+        end_month=end_month,
+        computed_by=request.user.username,
+        force_recompute=False,
+    )
+
+    records_qs = get_planos_diferencias_mensuales_records_for_range(start_month, end_month)
+    records = list(records_qs)
+
+    counts_by_month: dict[date, int] = {}
+    for r in records:
+        ms = r.snapshot.month_start
+        counts_by_month[ms] = counts_by_month.get(ms, 0) + 1
+
+    return render(
+        request,
+        "rdi/planos_diferencias_mensuales_list.html",
+        {
+            "start_month": start_month,
+            "end_month": end_month,
+            "records": records,
+            "counts_by_month": counts_by_month,
+            "total_records": len(records),
+        },
+    )
+
+
+@login_required
+@require_GET
+def planos_diferencias_mensuales_export_excel(request):
+    from datetime import date
+    from django.utils import timezone
+    import openpyxl
+    from io import BytesIO
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment
+
+    now_d = timezone.now().date()
+    default_month = date(now_d.year, now_d.month, 1)
+
+    start_month = _parse_year_month(request.GET.get("start_month")) or default_month
+    end_month = _parse_year_month(request.GET.get("end_month")) or start_month
+    if end_month < start_month:
+        end_month = start_month
+
+    ensure_planos_diferencias_mensuales_snapshots_range(
+        start_month=start_month,
+        end_month=end_month,
+        computed_by=request.user.username,
+        force_recompute=False,
+    )
+
+    records = list(
+        get_planos_diferencias_mensuales_records_for_range(start_month, end_month)
+    )
+
+    headers = [
+        "Mes",
+        "Especialidad",
+        "Plano",
+        "Versión matriz",
+        "Versión Planos (Colo 7 8 9)",
+        "Fecha Planos",
+        "Fecha matriz",
+        "Ruta",
+        "Transición",
+    ]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Planos - dif. mensuales"
+
+    fecha_str = timezone.now().strftime("%d-%m-%Y")
+    ws["A1"] = f"Planos diferencias mensuales | Rango: {start_month.isoformat()} a {end_month.isoformat()} | Generado: {fecha_str}"
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    ws.append(headers)
+
+    for r in records:
+        ws.append(
+            [
+                r.snapshot.month_start.strftime("%Y-%m"),
+                r.specialty,
+                r.code,
+                r.version_matriz,
+                r.version_planos,
+                r.planos_last_update.isoformat() if r.planos_last_update else "",
+                r.iniciales_last_date.isoformat() if r.iniciales_last_date else "",
+                r.folder_path,
+                r.version_transition,
+            ]
+        )
+
+    wrap_text = Alignment(wrap_text=True, vertical="top")
+    for col in range(1, len(headers) + 1):
+        letter = get_column_letter(col)
+        ws.column_dimensions[letter].width = 16 if col in (1, 2, 6, 7) else 28
+
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=len(headers)):
+        for cell in row:
+            cell.alignment = wrap_text
+
+    ws.freeze_panes = "A3"
+    last_col_letter = get_column_letter(len(headers))
+    ws.auto_filter.ref = f"A2:{last_col_letter}{len(records) + 2}"
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"Planos_diferencias_mensuales_{start_month:%Y-%m}_a_{end_month:%Y-%m}-{fecha_str}.xlsx"
+    resp = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+@login_required
+@require_GET
+def planos_diferencias_mensuales_export_pdf(request):
+    from datetime import date
+    from django.utils import timezone
+    from io import BytesIO
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    now_d = timezone.now().date()
+    default_month = date(now_d.year, now_d.month, 1)
+
+    start_month = _parse_year_month(request.GET.get("start_month")) or default_month
+    end_month = _parse_year_month(request.GET.get("end_month")) or start_month
+    if end_month < start_month:
+        end_month = start_month
+
+    ensure_planos_diferencias_mensuales_snapshots_range(
+        start_month=start_month,
+        end_month=end_month,
+        computed_by=request.user.username,
+        force_recompute=False,
+    )
+
+    records = list(
+        get_planos_diferencias_mensuales_records_for_range(start_month, end_month)
+    )
+
+    headers = [
+        "Mes",
+        "Esp.",
+        "Plano",
+        "Mat.",
+        "Planos",
+        "F. Planos",
+        "F. matriz",
+        "Ruta",
+        "Transición",
+    ]
+
+    styles = getSampleStyleSheet()
+    style_title = styles["Title"]
+    style_body = styles["BodyText"]
+    style_cell = ParagraphStyle("cell", parent=style_body, fontSize=7.5, leading=9.2, wordWrap="CJK")
+    style_cell_bold = ParagraphStyle(
+        "cell_bold", parent=style_body, fontSize=7.5, leading=9.2, textColor=colors.white
+    )
+
+    def cell_paragraph(txt, bold=False, max_chars=220):
+        txt = _escape_html_for_paragraph("" if txt is None else str(txt))
+        if len(txt) > max_chars:
+            txt = txt[:max_chars] + " …"
+        return Paragraph(txt, style_cell_bold if bold else style_cell)
+
+    pdf_buf = BytesIO()
+    doc = SimpleDocTemplate(
+        pdf_buf,
+        pagesize=landscape(A4),
+        rightMargin=14,
+        leftMargin=14,
+        topMargin=14,
+        bottomMargin=14,
+    )
+
+    title = Paragraph("Planos - Diferencias mensuales", style_title)
+    filtro = Paragraph(
+        f"Rango: {start_month:%Y-%m} a {end_month:%Y-%m} | Total: {len(records)}",
+        style_body,
+    )
+
+    data = [[cell_paragraph(h, bold=True, max_chars=80) for h in headers]]
+    for r in records:
+        data.append(
+            [
+                cell_paragraph(r.snapshot.month_start.strftime("%Y-%m")),
+                cell_paragraph(r.specialty, max_chars=20),
+                cell_paragraph(r.code, max_chars=110),
+                cell_paragraph(r.version_matriz, max_chars=120),
+                cell_paragraph(r.version_planos, max_chars=120),
+                cell_paragraph(r.planos_last_update.isoformat() if r.planos_last_update else ""),
+                cell_paragraph(r.iniciales_last_date.isoformat() if r.iniciales_last_date else ""),
+                cell_paragraph(r.folder_path, max_chars=190),
+                cell_paragraph(r.version_transition, max_chars=160),
+            ]
+        )
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2E5090")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+            ]
+        )
+    )
+
+    doc.build([title, Spacer(1, 6), filtro, Spacer(1, 10), table])
+    pdf_buf.seek(0)
+
+    resp = HttpResponse(pdf_buf.read(), content_type="application/pdf")
+    resp["Content-Disposition"] = (
+        'inline; filename="Planos_diferencias_mensuales.pdf"'
     )
     return resp
 

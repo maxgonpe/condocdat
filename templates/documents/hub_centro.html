@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Centro visual{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hub-centro.css' %}">
+{% endblock %}
+
+{% block content %}
+{% include "documents/hub_icon_sprite.html" %}
+
+<div class="hub-centro-wrap">
+  <header class="hub-centro-hero">
+    <div class="hub-centro-hero__inner">
+      <h1>Centro visual Condocdat</h1>
+      <p>Accede a todas las áreas del proyecto desde iconos. Mismas rutas que el menú lateral; el panel clásico sigue disponible.</p>
+      {% if user.is_staff %}
+      <div class="hub-centro-stats" aria-label="Indicadores rápidos">
+        <span class="hub-centro-stat">{{ hub_item_count }} accesos</span>
+        {% if online_users_count is not None %}
+        <span class="hub-centro-stat">{{ online_users_count }} en línea ({{ online_window_minutes }} min)</span>
+        {% endif %}
+        {% if rdi_total is not None %}
+        <span class="hub-centro-stat">{{ rdi_total }} RDI (universo 2026+)</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="hub-centro-toolbar">
+    <label for="hub-centro-search" class="sr-only">Buscar módulo</label>
+    <input type="search" id="hub-centro-search" class="hub-centro-search" placeholder="Buscar módulo…" autocomplete="off">
+    <a href="{% url 'pizarra' %}" class="hub-centro-classic">Pizarra</a>
+    {% if user.is_staff %}
+    <a href="{% url 'dashboard' %}" class="hub-centro-classic">Panel clásico</a>
+    {% endif %}
+  </div>
+
+  <nav class="hub-centro-tabs" role="tablist" aria-label="Categorías">
+    <button type="button" class="hub-centro-tab is-active" data-hub-tab="all" role="tab" aria-selected="true">Todos</button>
+    {% for section in hub_sections %}
+    <button type="button" class="hub-centro-tab" data-hub-tab="{{ section.id }}" role="tab" aria-selected="false">{{ section.label }}</button>
+    {% endfor %}
+  </nav>
+
+  <div id="hub-centro-empty" class="hub-centro-empty" hidden>No hay módulos que coincidan con la búsqueda.</div>
+
+  <div id="hub-panel-all" class="hub-centro-panel is-active" data-hub-panel="all" role="tabpanel">
+    <h2 class="hub-centro-panel__title">Todos los módulos</h2>
+    <div class="hub-centro-grid" id="hub-grid-all">
+      {% for section in hub_sections %}
+        {% for item in section.items %}
+        <a href="{{ item.url }}"
+           class="hub-centro-tile hub-centro-tile--{{ item.icon }}"
+           data-hub-title="{{ item.title|lower }}"
+           data-hub-desc="{{ item.desc|lower }}"
+           data-hub-section="{{ section.id }}">
+          <span class="hub-centro-tile__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><use href="#hub-icon-{{ item.icon }}"></use></svg>
+          </span>
+          <span class="hub-centro-tile__title">{{ item.title }}</span>
+          {% if item.desc %}<span class="hub-centro-tile__desc">{{ item.desc }}</span>{% endif %}
+        </a>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {% for section in hub_sections %}
+  <div id="hub-panel-{{ section.id }}" class="hub-centro-panel" data-hub-panel="{{ section.id }}" role="tabpanel" hidden>
+    <h2 class="hub-centro-panel__title">{{ section.label }}</h2>
+    <div class="hub-centro-grid">
+      {% for item in section.items %}
+      <a href="{{ item.url }}"
+         class="hub-centro-tile hub-centro-tile--{{ item.icon }}"
+         data-hub-title="{{ item.title|lower }}"
+         data-hub-desc="{{ item.desc|lower }}"
+         data-hub-section="{{ section.id }}">
+        <span class="hub-centro-tile__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><use href="#hub-icon-{{ item.icon }}"></use></svg>
+        </span>
+        <span class="hub-centro-tile__title">{{ item.title }}</span>
+        {% if item.desc %}<span class="hub-centro-tile__desc">{{ item.desc }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var tabs = document.querySelectorAll('.hub-centro-tab');
+  var panels = document.querySelectorAll('.hub-centro-panel');
+  var search = document.getElementById('hub-centro-search');
+  var emptyMsg = document.getElementById('hub-centro-empty');
+  var activeTab = 'all';
+
+  function setTab(tabId) {
+    activeTab = tabId;
+    tabs.forEach(function(btn) {
+      var on = btn.getAttribute('data-hub-tab') === tabId;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.forEach(function(panel) {
+      var on = panel.getAttribute('data-hub-panel') === tabId;
+      panel.classList.toggle('is-active', on);
+      panel.hidden = !on;
+    });
+    applySearch();
+  }
+
+  function applySearch() {
+    var q = (search && search.value || '').trim().toLowerCase();
+    var visible = 0;
+    var scope = activeTab === 'all'
+      ? document.querySelectorAll('#hub-grid-all .hub-centro-tile')
+      : document.querySelector('#hub-panel-' + activeTab);
+    var tiles = scope
+      ? (activeTab === 'all' ? scope : scope.querySelectorAll('.hub-centro-tile'))
+      : [];
+
+    tiles.forEach(function(tile) {
+      var title = tile.getAttribute('data-hub-title') || '';
+      var desc = tile.getAttribute('data-hub-desc') || '';
+      var match = !q || title.indexOf(q) !== -1 || desc.indexOf(q) !== -1;
+      tile.classList.toggle('is-hidden', !match);
+      if (match) visible += 1;
+    });
+
+    if (emptyMsg) {
+      var showEmpty = q && visible === 0;
+      emptyMsg.classList.toggle('is-visible', showEmpty);
+      emptyMsg.hidden = !showEmpty;
+    }
+  }
+
+  tabs.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      setTab(btn.getAttribute('data-hub-tab'));
+    });
+  });
+
+  if (search) {
+    var t;
+    search.addEventListener('input', function() {
+      clearTimeout(t);
+      t = setTimeout(applySearch, 120);
+    });
+  }
+
+  setTab('all');
+})();
+</script>
+{% endblock %}

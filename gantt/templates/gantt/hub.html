@@ -30,6 +30,10 @@
   <p class="muted" style="margin:0 0 0.5rem;"><strong>Archivo actual:</strong> {{ archivo.original_filename }}</p>
   <p class="muted" style="margin:0 0 0.75rem; font-size:0.9rem;">Importado: {{ archivo.imported_at|date:"d/m/Y H:i" }} · Actualizado: {{ archivo.updated_at|date:"d/m/Y H:i" }}</p>
   <p class="muted" style="margin:0;">Tareas: <strong>{{ n_tasks }}</strong> · Cambios manuales: <strong>{{ n_cambios }}</strong></p>
+  <p class="muted" style="margin:0.5rem 0 0;">% trabajo completado &gt; 0: <strong>{{ n_con_trabajo }}</strong> · % avance planificado &gt; 0: <strong>{{ n_con_avance }}</strong></p>
+  {% if n_con_trabajo == 0 %}
+  <p class="muted" style="margin:0.35rem 0 0; font-size:0.85rem;">Si el .mpp tiene avance en MS Project y aquí sale 0, vuelva a <strong>Importar</strong> el archivo tras actualizar el módulo.</p>
+  {% endif %}
 </div>
 
 <div class="dashboard-actions">

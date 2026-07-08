@@ -255,6 +255,7 @@
       </table>
     </div>
     <button type="submit" class="btn btn-primary">Guardar y sincronizar Excel</button>
+    <button type="submit" class="btn btn-primary" name="action" value="create_document">CREAR DOCUMENTO</button>
     <button type="button" class="btn btn-outline" id="transmital-fill-titulos-btn">Tomar nombres de archivos</button>
     <input type="file" id="transmital-fill-titulos-input" multiple style="display:none;" />
     <a class="btn btn-outline" href="{% url 'transmital_download_xlsx' obj.pk %}">Descargar Excel</a>

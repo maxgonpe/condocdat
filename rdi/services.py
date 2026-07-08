@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta, timezone as py_timezone
 
 import xlrd
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 from openpyxl import load_workbook
 
@@ -13,6 +14,8 @@ from .models import (
     PlanosInicialesImport,
     PlanosInicialesRecord,
     PlanosRecord,
+    PlanosDiferenciasMensualesSnapshot,
+    PlanosDiferenciasMensualesRecord,
     RDIImport,
     RDIRecord,
     RDI_STATUS_CHOICES,
@@ -1245,4 +1248,274 @@ def get_planos_updated_vs_iniciales(q: str = "", specialty: str = "", limit: int
     out.sort(key=lambda r: (r.get("specialty") or "", r["code"]))
     out = _filter_planos_actualizados_rows(out, q=q, specialty=specialty)
     return out[:limit]
+
+
+def _parse_year_month(value: str) -> date | None:
+    """
+    Convierte YYYY-MM -> fecha (primer día del mes).
+    """
+    if not value:
+        return None
+    s = str(value).strip()
+    if not re.match(r"^\d{4}-\d{2}$", s):
+        return None
+    y, m = s.split("-")
+    try:
+        y_i = int(y)
+        m_i = int(m)
+        return date(y_i, m_i, 1)
+    except Exception:
+        return None
+
+
+def _month_end(month_start: date) -> date:
+    """
+    Último día del mes para un month_start (primer día).
+    """
+    # Primer día del mes siguiente - 1 día
+    if month_start.month == 12:
+        next_month = date(month_start.year + 1, 1, 1)
+    else:
+        next_month = date(month_start.year, month_start.month + 1, 1)
+    return next_month - timedelta(days=1)
+
+
+def _iter_month_starts(start_month: date, end_month: date):
+    """
+    Genera month_start (primer día de mes) desde start_month hasta end_month incluido.
+    """
+    if start_month > end_month:
+        return
+    y, m = start_month.year, start_month.month
+    cur = date(y, m, 1)
+    while cur <= end_month:
+        yield cur
+        if cur.month == 12:
+            cur = date(cur.year + 1, 1, 1)
+        else:
+            cur = date(cur.year, cur.month + 1, 1)
+
+
+def get_planos_diferencias_mensuales_rows_for_month(month_start: date) -> list[dict]:
+    """
+    Calcula diferencias (Planos actualizados vs iniciales) SOLO para el mes indicado,
+    filtrando por `planos_last_update` (última actualización del proyecto).
+    """
+    month_end = _month_end(month_start)
+    rows = get_planos_updated_vs_iniciales(q="", specialty="", limit=50000)
+    out: list[dict] = []
+    for r in rows:
+        s = r.get("planos_last_update") or ""
+        if not s:
+            continue
+        try:
+            d = date.fromisoformat(s[:10])
+        except Exception:
+            continue
+        if month_start <= d <= month_end:
+            out.append(r)
+    # Orden consistente para UI/exports
+    out.sort(key=lambda x: ((x.get("specialty") or ""), x.get("code") or ""))
+    return out
+
+
+@transaction.atomic
+def ensure_planos_diferencias_mensuales_snapshot(
+    month_start: date,
+    computed_by: str = "",
+    force_recompute: bool = False,
+) -> PlanosDiferenciasMensualesSnapshot:
+    """
+    Crea/actualiza el snapshot mensual en la tabla de historial.
+    - Si force_recompute=True: recalcula siempre.
+    - Si no: recalcula solo si hay imports más recientes que el computed_at del snapshot.
+    """
+    if month_start is None:
+        raise ValueError("month_start no puede ser None")
+
+    snapshot, created = PlanosDiferenciasMensualesSnapshot.objects.get_or_create(
+        month_start=month_start,
+        defaults={"computed_by": computed_by or ""},
+    )
+
+    # Determina si existen imports posteriores al último cálculo.
+    latest_planos_import = (
+        PlanosImport.objects.aggregate(mx=Max("imported_at")).get("mx")
+    )
+    latest_iniciales_import = (
+        PlanosInicialesImport.objects.aggregate(mx=Max("imported_at")).get("mx")
+    )
+    latest_import_dt = latest_planos_import
+    if latest_iniciales_import and (
+        latest_import_dt is None or latest_iniciales_import > latest_import_dt
+    ):
+        latest_import_dt = latest_iniciales_import
+
+    should_recompute = force_recompute or created
+    if not should_recompute and latest_import_dt and snapshot.computed_at:
+        if latest_import_dt > snapshot.computed_at:
+            should_recompute = True
+
+    if not should_recompute:
+        return snapshot
+
+    rows = get_planos_diferencias_mensuales_rows_for_month(month_start)
+
+    # Reemplazo completo: borramos y reconstruimos filas.
+    PlanosDiferenciasMensualesRecord.objects.filter(snapshot=snapshot).delete()
+
+    records = [
+        PlanosDiferenciasMensualesRecord(
+            snapshot=snapshot,
+            specialty=(r.get("specialty") or "").lower(),
+            code=r.get("code") or "",
+            version_matriz=r.get("version_matriz") or "",
+            version_planos=r.get("version_planos") or "",
+            version_transition=r.get("version_transition") or "",
+            planos_last_update=date.fromisoformat((r.get("planos_last_update") or "")[:10])
+            if r.get("planos_last_update")
+            else None,
+            iniciales_last_date=date.fromisoformat((r.get("iniciales_last_date") or "")[:10])
+            if r.get("iniciales_last_date")
+            else None,
+            iniciales_version=r.get("iniciales_version") or "",
+            iniciales_rev_raw=r.get("iniciales_rev_raw") or "",
+            folder_path=r.get("folder_path") or "",
+        )
+        for r in rows
+    ]
+    PlanosDiferenciasMensualesRecord.objects.bulk_create(records, batch_size=500)
+
+    snapshot.total_differences = len(records)
+    snapshot.computed_by = computed_by or snapshot.computed_by
+    snapshot.computed_at = timezone.now()
+    snapshot.save(update_fields=["total_differences", "computed_by", "computed_at"])
+    return snapshot
+
+
+def ensure_planos_diferencias_mensuales_snapshots_range(
+    start_month: date,
+    end_month: date,
+    computed_by: str = "",
+    force_recompute: bool = False,
+):
+    # Determina cuál(es) meses requieren recalcular.
+    latest_planos_import = PlanosImport.objects.aggregate(mx=Max("imported_at")).get("mx")
+    latest_iniciales_import = (
+        PlanosInicialesImport.objects.aggregate(mx=Max("imported_at")).get("mx")
+    )
+    latest_import_dt = latest_planos_import
+    if latest_iniciales_import and (latest_import_dt is None or latest_iniciales_import > latest_import_dt):
+        latest_import_dt = latest_iniciales_import
+
+    months_to_recompute: list[date] = []
+    existing_snapshots = PlanosDiferenciasMensualesSnapshot.objects.filter(
+        month_start__gte=start_month, month_start__lte=end_month
+    ).in_bulk(field_name="month_start")
+
+    for ms in _iter_month_starts(start_month, end_month):
+        snap = existing_snapshots.get(ms)
+        if force_recompute or snap is None:
+            months_to_recompute.append(ms)
+            continue
+        if latest_import_dt and snap.computed_at and latest_import_dt > snap.computed_at:
+            months_to_recompute.append(ms)
+
+    if not months_to_recompute:
+        return
+
+    # Calculamos una sola vez las diferencias globales y luego filtramos por mes.
+    rows_all = get_planos_updated_vs_iniciales(q="", specialty="", limit=50000)
+
+    rows_by_month: dict[date, list[dict]] = {ms: [] for ms in months_to_recompute}
+    for r in rows_all:
+        s = r.get("planos_last_update") or ""
+        if not s:
+            continue
+        try:
+            d = date.fromisoformat(s[:10])
+        except Exception:
+            continue
+        ms = date(d.year, d.month, 1)
+        if ms in rows_by_month:
+            rows_by_month[ms].append(r)
+
+    # Reemplazo completo por cada snapshot requerido.
+    for ms in months_to_recompute:
+        snapshot, created = PlanosDiferenciasMensualesSnapshot.objects.get_or_create(
+            month_start=ms,
+            defaults={"computed_by": computed_by or ""},
+        )
+        PlanosDiferenciasMensualesRecord.objects.filter(snapshot=snapshot).delete()
+
+        rows = rows_by_month.get(ms) or []
+        # Dedupe por `code` dentro del mes (la constraint única es snapshot+code).
+        # `get_planos_updated_vs_iniciales()` puede devolver múltiples filas con el mismo
+        # código (por ejemplo, diferencias entre rutas/archivos).
+        best_by_code: dict[str, dict] = {}
+        for r in rows:
+            code = r.get("code") or ""
+            if not code:
+                continue
+            existing = best_by_code.get(code)
+            if existing is None:
+                best_by_code[code] = r
+                continue
+
+            def _last_date_iso(row: dict) -> str:
+                v = (row.get("planos_last_update") or "")[:10]
+                return v or "0000-00-00"
+
+            # Preferimos la fila con fecha planos_last_update más alta.
+            if _last_date_iso(r) > _last_date_iso(existing):
+                best_by_code[code] = r
+                continue
+
+            if _last_date_iso(r) == _last_date_iso(existing):
+                # Si empata, elegimos determinísticamente por folder_path.
+                if (r.get("folder_path") or "") > (existing.get("folder_path") or ""):
+                    best_by_code[code] = r
+
+        deduped_rows = list(best_by_code.values())
+
+        records = [
+            PlanosDiferenciasMensualesRecord(
+                snapshot=snapshot,
+                specialty=(r.get("specialty") or "").lower(),
+                code=r.get("code") or "",
+                version_matriz=r.get("version_matriz") or "",
+                version_planos=r.get("version_planos") or "",
+                version_transition=r.get("version_transition") or "",
+                planos_last_update=date.fromisoformat((r.get("planos_last_update") or "")[:10])
+                if r.get("planos_last_update")
+                else None,
+                iniciales_last_date=date.fromisoformat((r.get("iniciales_last_date") or "")[:10])
+                if r.get("iniciales_last_date")
+                else None,
+                iniciales_version=r.get("iniciales_version") or "",
+                iniciales_rev_raw=r.get("iniciales_rev_raw") or "",
+                folder_path=r.get("folder_path") or "",
+            )
+            for r in deduped_rows
+        ]
+        PlanosDiferenciasMensualesRecord.objects.bulk_create(records, batch_size=500)
+
+        snapshot.total_differences = len(records)
+        if computed_by:
+            snapshot.computed_by = computed_by
+        snapshot.computed_at = timezone.now()
+        snapshot.save(update_fields=["total_differences", "computed_by", "computed_at"])
+
+
+def get_planos_diferencias_mensuales_records_for_range(
+    start_month: date,
+    end_month: date,
+):
+    qs = (
+        PlanosDiferenciasMensualesRecord.objects.select_related("snapshot")
+        .filter(snapshot__month_start__gte=start_month, snapshot__month_start__lte=end_month)
+        .order_by("snapshot__month_start", "specialty", "code")
+    )
+    return qs
+
 

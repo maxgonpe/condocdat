@@ -1,6 +1,8 @@
 from django.contrib import admin
 
 from .models import (
+    PlanosDiferenciasMensualesRecord,
+    PlanosDiferenciasMensualesSnapshot,
     PlanosImport,
     PlanosInicialesImport,
     PlanosInicialesRecord,
@@ -76,4 +78,54 @@ class PlanosInicialesRecordAdmin(admin.ModelAdmin):
     list_filter = ("specialty",)
     search_fields = ("search_text", "specialty")
     ordering = ("specialty", "excel_row")
+
+
+class PlanosDiferenciasMensualesRecordInline(admin.TabularInline):
+    model = PlanosDiferenciasMensualesRecord
+    extra = 0
+    fields = (
+        "specialty",
+        "code",
+        "version_matriz",
+        "version_planos",
+        "planos_last_update",
+        "iniciales_last_date",
+        "folder_path",
+    )
+    readonly_fields = ("created_at",)
+    show_change_link = True
+
+
+@admin.register(PlanosDiferenciasMensualesSnapshot)
+class PlanosDiferenciasMensualesSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "month_start",
+        "total_differences",
+        "computed_at",
+        "computed_by",
+    )
+    list_filter = ("month_start",)
+    search_fields = ("computed_by",)
+    readonly_fields = ("computed_at",)
+    ordering = ("-month_start",)
+    inlines = (PlanosDiferenciasMensualesRecordInline,)
+    date_hierarchy = "month_start"
+
+
+@admin.register(PlanosDiferenciasMensualesRecord)
+class PlanosDiferenciasMensualesRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "snapshot",
+        "specialty",
+        "code",
+        "version_matriz",
+        "version_planos",
+        "planos_last_update",
+        "iniciales_last_date",
+    )
+    list_filter = ("specialty", "snapshot")
+    search_fields = ("code", "folder_path", "specialty", "version_transition")
+    readonly_fields = ("created_at",)
+    ordering = ("snapshot__month_start", "specialty", "code")
+    raw_id_fields = ("snapshot",)
 

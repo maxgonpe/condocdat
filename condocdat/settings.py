@@ -173,4 +173,11 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'max.gonzalez@propamat.cl')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')  # Obligatorio en producción vía .env
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 # Evita que el envío SMTP cuelgue indefinidamente (el navegador queda “cargando”)
-EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '90'))
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '180'))
+# Límites envío correo (Office 365 ~25 MB mensaje; base64 suma ~37 %)
+EMAIL_MAX_ATTACHMENT_BYTES = int(os.environ.get('EMAIL_MAX_ATTACHMENT_BYTES', str(22 * 1024 * 1024)))
+EMAIL_MAX_ATTACHMENTS = int(os.environ.get('EMAIL_MAX_ATTACHMENTS', '30'))
+EMAIL_MAX_RECIPIENTS = int(os.environ.get('EMAIL_MAX_RECIPIENTS', '500'))
+# Subidas multipart grandes (muchos adjuntos): memoria antes de volcar a disco temporal
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('DATA_UPLOAD_MAX_MEMORY_SIZE', str(64 * 1024 * 1024)))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('FILE_UPLOAD_MAX_MEMORY_SIZE', str(8 * 1024 * 1024)))

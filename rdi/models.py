@@ -182,6 +182,69 @@ def _empty_json_list():
     return []
 
 
+class PlanosDiferenciasMensualesSnapshot(models.Model):
+    """
+    Historial: snapshot de diferencias (Planos actualizados vs iniciales)
+    acotadas a un mes calendario específico (campo month_start).
+    """
+
+    month_start = models.DateField(db_index=True, unique=True)
+    computed_at = models.DateTimeField(auto_now_add=True)
+    computed_by = models.CharField(max_length=255, blank=True, default="")
+    total_differences = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Planos Diferencias Mensuales (Snapshot)"
+        verbose_name_plural = "Planos Diferencias Mensuales (Snapshots)"
+        ordering = ["-month_start"]
+
+    def __str__(self) -> str:
+        return f"Diferencias mensuales {self.month_start.isoformat()}"
+
+
+class PlanosDiferenciasMensualesRecord(models.Model):
+    """
+    Fila por cada plano en el snapshot mensual.
+    """
+
+    snapshot = models.ForeignKey(
+        PlanosDiferenciasMensualesSnapshot,
+        on_delete=models.CASCADE,
+        related_name="records",
+    )
+
+    specialty = models.CharField(max_length=32, blank=True, default="")
+    code = models.CharField(max_length=80, db_index=True)
+
+    version_matriz = models.CharField(max_length=255, blank=True, default="")
+    version_planos = models.CharField(max_length=255, blank=True, default="")
+    version_transition = models.CharField(max_length=400, blank=True, default="")
+
+    planos_last_update = models.DateField(null=True, blank=True)
+    iniciales_last_date = models.DateField(null=True, blank=True)
+
+    iniciales_version = models.CharField(max_length=255, blank=True, default="")
+    iniciales_rev_raw = models.CharField(max_length=255, blank=True, default="")
+
+    folder_path = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Planos Diferencias Mensuales (Record)"
+        verbose_name_plural = "Planos Diferencias Mensuales (Records)"
+        ordering = ["code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["snapshot", "code"],
+                name="uniq_planos_diferencias_mensuales_snapshot_code",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.snapshot_id} - {self.code}"
+
+
 # Hojas de especialidad en planos_iniciales.xls (comparación sin distinguir mayúsculas).
 PLANOS_INICIALES_SHEET_SLUGS = (
     "arq",

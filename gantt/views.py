@@ -31,6 +31,11 @@ from .services import (
 @login_required
 def gantt_hub(request):
     archivo = latest_archivo()
+    n_con_trabajo = 0
+    n_con_avance = 0
+    if archivo:
+        n_con_trabajo = archivo.tasks.filter(trabajo_completado__gt=0).count()
+        n_con_avance = archivo.tasks.filter(avance_planificado__gt=0).count()
     return render(
         request,
         "gantt/hub.html",
@@ -38,6 +43,8 @@ def gantt_hub(request):
             "archivo": archivo,
             "n_tasks": archivo.tasks.count() if archivo else 0,
             "n_cambios": archivo.cambios.count() if archivo else 0,
+            "n_con_trabajo": n_con_trabajo,
+            "n_con_avance": n_con_avance,
         },
     )
 
@@ -54,11 +61,15 @@ def gantt_import_view(request):
         messages.error(request, "El archivo debe ser .mpp")
         return redirect("gantt_hub")
     try:
-        archivo = replace_archivo_with_import(uploaded, original_filename=name)
-        messages.success(
-            request,
-            f"Archivo importado: {name}. Tareas cargadas: {archivo.tasks.count()}",
+        archivo, stats = replace_archivo_with_import(uploaded, original_filename=name)
+        alias_trab = ", ".join(stats.get("aliases_trabajo") or []) or "—"
+        msg = (
+            f"Archivo importado: {name}. Tareas: {stats['total']}. "
+            f"Con trabajo completado > 0: {stats['con_trabajo_completado']}. "
+            f"Con avance planificado > 0: {stats['con_avance_planificado']}. "
+            f"Columnas detectadas (trabajo): {alias_trab}."
         )
+        messages.success(request, msg)
     except Exception as e:
         messages.error(request, f"Error al importar: {e}")
     return redirect("gantt_hub")
@@ -316,26 +327,45 @@ def gantt_task_edit(request, pk: int):
 @login_required
 def gantt_s_curve(request):
     archivo = latest_archivo()
-    if archivo:
-        series_data = [
-            {
-                "fecha": row["fecha"].isoformat(),
-                "planificado": row["planificado"],
-                "real": row["real"],
-            }
-            for row in build_s_curve_series(archivo)
-        ]
-    else:
-        series_data = []
     return render(
         request,
         "gantt/s_curve.html",
         {
             "archivo": archivo,
-            "series_data": series_data,
-            "series_count": len(series_data),
         },
     )
+
+
+@login_required
+@require_GET
+def gantt_s_curve_series_json(request):
+    """JSON para construir la curva S en el navegador (evita bloquear la página)."""
+    archivo = latest_archivo()
+    if not archivo:
+        return JsonResponse({"ok": False, "error": "No hay archivo Gantt cargado."})
+    try:
+        series, meta = build_s_curve_series(archivo)
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+    if not series:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "No hay puntos para graficar. Se necesitan tareas hoja con "
+                    "fechas de comienzo y fin."
+                ),
+            }
+        )
+    payload = [
+        {
+            "fecha": row["fecha"].isoformat(),
+            "planificado": row["planificado"],
+            "real": row["real"],
+        }
+        for row in series
+    ]
+    return JsonResponse({"ok": True, "series": payload, "meta": meta})
 
 
 @login_required
@@ -345,7 +375,7 @@ def gantt_s_curve_export_csv(request):
     if not archivo:
         messages.error(request, "No hay archivo Gantt cargado.")
         return redirect("gantt_hub")
-    series = build_s_curve_series(archivo)
+    series, _meta = build_s_curve_series(archivo)
     if not series:
         messages.warning(
             request,
@@ -356,7 +386,8 @@ def gantt_s_curve_export_csv(request):
     writer = csv.writer(buf)
     writer.writerow(["fecha", "planificado_pct", "real_modelado_pct"])
     for row in series:
-        writer.writerow([row["fecha"].isoformat(), row["planificado"], row["real"]])
+        real_cell = row["real"] if row["real"] is not None else ""
+        writer.writerow([row["fecha"].isoformat(), row["planificado"], real_cell])
     payload = "\ufeff" + buf.getvalue()
     resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = 'attachment; filename="curva_s_gantt.csv"'

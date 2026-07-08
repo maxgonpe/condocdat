@@ -1,17 +1,19 @@
 """
 Trazabilidad de transmittals ODATA / TRN: documentos en carpetas de seguimiento
 y recorrido inferido por revisiones / apariciones en el sistema.
+Incluye correos enviados relacionados en la misma línea de tiempo.
 """
+import html
 import os
 import re
 from collections import defaultdict
 from datetime import datetime, time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from django.db.models import Prefetch, Q
 from django.utils import timezone as dj_tz
 
-from .models import Document, FolderFile
+from .models import CorreoEnviado, Document, FolderFile
 
 
 # Carpetas de interés (patrones en Folder.code)
@@ -82,6 +84,142 @@ def _name_matches_search(name: str, q: str) -> bool:
         return False
     n = name.lower()
     return all(t.lower() in n for t in terms)
+
+
+def _plain_text_preview(text: str, max_len: int = 280) -> str:
+    t = re.sub(r"<[^>]+>", " ", text or "")
+    t = html.unescape(t)
+    t = re.sub(r"\s+", " ", t).strip()
+    if len(t) <= max_len:
+        return t
+    return t[: max_len - 1].rstrip() + "…"
+
+
+def _correo_matches_query(correo: CorreoEnviado, q: str) -> bool:
+    q = (q or "").strip().lower()
+    if not q:
+        return False
+    terms = [t for t in re.split(r"\s+", q) if t]
+    if not terms:
+        return False
+    haystack = " ".join(
+        [
+            correo.asunto or "",
+            correo.cuerpo or "",
+            correo.adjuntos_nombres or "",
+            correo.destinatarios or "",
+            correo.copia or "",
+            correo.destinatarios_grupos or "",
+            correo.copia_grupos or "",
+        ]
+    ).lower()
+    return all(t in haystack for t in terms)
+
+
+def _correo_links_document(correo: CorreoEnviado, doc: Document) -> bool:
+    if correo.document_id and correo.document_id == doc.pk:
+        return True
+    blob = " ".join(
+        [
+            correo.asunto or "",
+            correo.cuerpo or "",
+            correo.adjuntos_nombres or "",
+        ]
+    ).upper()
+    if doc.code and doc.code.upper() in blob:
+        return True
+    if doc.folder and doc.folder.code and doc.folder.code.upper() in blob:
+        return True
+    return False
+
+
+def _correos_for_documents(docs: List[Document]) -> List[CorreoEnviado]:
+    """Correos vinculados por FK document o por código de documento/carpeta en el texto."""
+    if not docs:
+        return []
+    doc_ids = [d.pk for d in docs]
+    codes = sorted({d.code for d in docs if d.code})[:40]
+    folders = sorted({d.folder.code for d in docs if d.folder and d.folder.code})[:40]
+
+    qs = CorreoEnviado.objects.select_related("enviado_por", "document")
+    pks: Set[int] = set(qs.filter(document_id__in=doc_ids).values_list("pk", flat=True))
+
+    q_or = Q()
+    for c in codes:
+        q_or |= (
+            Q(asunto__icontains=c)
+            | Q(cuerpo__icontains=c)
+            | Q(adjuntos_nombres__icontains=c)
+        )
+    for fc in folders:
+        q_or |= Q(asunto__icontains=fc) | Q(cuerpo__icontains=fc)
+    if q_or:
+        pks.update(qs.filter(q_or).values_list("pk", flat=True)[:300])
+
+    if not pks:
+        return []
+    return list(qs.filter(pk__in=pks).order_by("-enviado_at"))
+
+
+def _build_correo_step(correo: CorreoEnviado, q: str) -> Dict[str, Any]:
+    trace_instant = correo.enviado_at or dj_tz.now()
+    adjuntos = [
+        n.strip()
+        for n in (correo.adjuntos_nombres or "").split(",")
+        if n.strip()
+    ]
+    return {
+        "event_type": "email",
+        "order": 0,
+        "step_label": "",
+        "trace_instant": trace_instant,
+        "email_id": correo.pk,
+        "asunto": correo.asunto,
+        "cuerpo_preview": _plain_text_preview(correo.cuerpo),
+        "destinatarios": correo.destinatarios,
+        "copia": correo.copia,
+        "destinatarios_grupos": correo.destinatarios_grupos,
+        "copia_grupos": correo.copia_grupos,
+        "destinatarios_count": correo.destinatarios_count,
+        "copia_count": correo.copia_count,
+        "adjuntos": adjuntos,
+        "enviado_ok": correo.enviado_ok,
+        "error_msg": correo.error_msg,
+        "enviado_por": (
+            correo.enviado_por.get_full_name()
+            or correo.enviado_por.get_username()
+            if correo.enviado_por
+            else ""
+        ),
+        "document_code": correo.document.code if correo.document else "",
+        "is_search_hit": _correo_matches_query(correo, q),
+        "side": "email",
+        "side_label": "Correo enviado",
+    }
+
+
+def _expand_matched_ids_from_correos(
+    scope_list: List[Document], q_stripped: str, matched_ids: Set[int]
+) -> None:
+    """Si la búsqueda coincide con un correo, incluye los documentos del recorrido relacionados."""
+    terms = [t for t in re.split(r"\s+", q_stripped) if t]
+    if not terms:
+        return
+    correo_q = Q()
+    for t in terms:
+        correo_q |= (
+            Q(asunto__icontains=t)
+            | Q(cuerpo__icontains=t)
+            | Q(adjuntos_nombres__icontains=t)
+            | Q(destinatarios__icontains=t)
+            | Q(copia__icontains=t)
+        )
+    for correo in CorreoEnviado.objects.filter(correo_q).select_related("document")[:150]:
+        if correo.document_id:
+            matched_ids.add(correo.document_id)
+        for d in scope_list:
+            if _correo_links_document(correo, d):
+                matched_ids.add(d.pk)
 
 
 def _trace_chrono_instant(doc: Document) -> datetime:
@@ -159,6 +297,7 @@ def _build_steps_for_documents(
         trace_instant = _trace_chrono_instant(d)
         steps.append(
             {
+                "event_type": "document",
                 "order": i + 1,
                 "step_label": "Más reciente" if i == 0 else ("Origen (inicio)" if i == n - 1 else ""),
                 "trace_instant": trace_instant,
@@ -187,6 +326,32 @@ def _build_steps_for_documents(
             }
         )
     return steps, primary
+
+
+def _merge_document_and_email_steps(
+    docs: List[Document],
+    q: str,
+    matched_ids: set,
+) -> Tuple[List[Dict[str, Any]], Document, int]:
+    doc_steps, primary = _build_steps_for_documents(docs, q, matched_ids)
+    correos = _correos_for_documents(docs)
+    email_steps = [_build_correo_step(c, q) for c in correos]
+
+    merged = doc_steps + email_steps
+    merged.sort(
+        key=lambda s: (s.get("trace_instant") or dj_tz.now(), s.get("email_id") or s.get("document_id") or 0),
+        reverse=True,
+    )
+    n = len(merged)
+    for i, s in enumerate(merged):
+        s["order"] = i + 1
+        if i == 0:
+            s["step_label"] = "Más reciente"
+        elif i == n - 1:
+            s["step_label"] = "Origen (inicio)"
+        else:
+            s["step_label"] = ""
+    return merged, primary, len(email_steps)
 
 
 def _doc_matches_query(doc: Document, q: str) -> bool:
@@ -272,17 +437,24 @@ def build_journeys_for_query(
         return [], summary
 
     matched_ids = {d.pk for d in scope_list if _doc_matches_query(d, q_stripped)}
+    _expand_matched_ids_from_correos(scope_list, q_stripped, matched_ids)
 
     journeys: List[Dict[str, Any]] = []
+    total_emails = 0
     for key, docs in key_to_docs.items():
         if not any(d.pk in matched_ids for d in docs):
             continue
-        steps, primary = _build_steps_for_documents(docs, q_stripped, matched_ids)
+        steps, primary, n_emails = _merge_document_and_email_steps(
+            docs, q_stripped, matched_ids
+        )
+        total_emails += n_emails
         journeys.append(
             {
                 "key": key,
                 "title_hint": (primary.title or primary.code)[:200],
-                "n_steps": len(docs),
+                "n_docs": len(docs),
+                "n_steps": len(steps),
+                "n_emails": n_emails,
                 "sort_instant": _trace_chrono_instant(primary),
                 "steps": steps,
                 "folder_codes": sorted({d.folder.code for d in docs if d.folder}),
@@ -299,6 +471,7 @@ def build_journeys_for_query(
     summary = {
         "scope_documents": len(scope_list),
         "journeys_shown": min(len(journeys), max_journeys),
+        "emails_in_journeys": total_emails,
         "odata_folder_marker": ODATA_FOLDER_SUB,
         "trn_folder_marker": TRN_FOLDER_SUB,
         "odata_docs": odata_n,

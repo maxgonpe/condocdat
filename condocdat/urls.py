@@ -6,10 +6,11 @@ from django.urls import path, re_path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
-from documents.views import pizarra, dashboard, CustomLoginView, custom_logout
+from documents.views import pizarra, dashboard, hub_centro, CustomLoginView, custom_logout
 
 urlpatterns = [
     path('', pizarra, name='pizarra'),
+    path('centro/', hub_centro, name='hub_centro'),
     path('panel/', dashboard, name='dashboard'),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', custom_logout, name='logout'),

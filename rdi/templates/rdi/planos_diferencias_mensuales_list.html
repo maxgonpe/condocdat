@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Resumen diferencias mensuales Planos{% endblock %}
+
+{% block content %}
+<header class="page-header">
+  <h1>Resumen diferencias mensuales (Planos actualizados vs iniciales)</h1>
+  <p class="muted">
+    Muestra las diferencias cuya <strong>fecha de Planos</strong> cae dentro del rango mensual seleccionado.
+  </p>
+</header>
+
+<div class="card card--list">
+  <form method="get" style="max-width: 680px;">
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end; margin-bottom: 1rem;">
+      <div>
+        <label for="start_month">Mes inicio</label>
+        <input id="start_month" name="start_month" type="month" class="form-control" value="{{ start_month|date:'Y-m' }}">
+      </div>
+      <div>
+        <label for="end_month">Mes fin</label>
+        <input id="end_month" name="end_month" type="month" class="form-control" value="{{ end_month|date:'Y-m' }}">
+      </div>
+      <button type="submit" class="btn btn-primary">
+        Actualizar
+      </button>
+    </div>
+  </form>
+
+  <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; margin-bottom: 1rem;">
+    <a class="btn btn-outline" id="pd-excel-btn"
+       href="{% url 'planos_diferencias_mensuales_export_excel' %}?start_month={{ start_month|date:'Y-m' }}&end_month={{ end_month|date:'Y-m' }}">
+      Descargar Excel
+    </a>
+    <a class="btn btn-outline" id="pd-pdf-btn"
+       href="{% url 'planos_diferencias_mensuales_export_pdf' %}?start_month={{ start_month|date:'Y-m' }}&end_month={{ end_month|date:'Y-m' }}">
+      Generar PDF
+    </a>
+    <span class="muted" style="font-size:0.9rem;">
+      Total diferencias: <strong>{{ total_records }}</strong>
+    </span>
+  </div>
+
+  {% if not records %}
+    <p class="muted mb-0">No hay diferencias para el rango seleccionado.</p>
+  {% else %}
+    <div style="overflow:auto;">
+      <table class="data-table" style="min-width: 980px;">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th>Esp.</th>
+            <th>Plano</th>
+            <th>Versión matriz</th>
+            <th>Versión Planos</th>
+            <th>F. Planos</th>
+            <th>F. matriz</th>
+            <th>Ruta</th>
+            <th>Transición</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+            <tr>
+              <td>{{ r.snapshot.month_start|date:'Y-m' }}</td>
+              <td>{{ r.specialty }}</td>
+              <td style="white-space:nowrap; max-width: 160px; overflow:hidden; text-overflow:ellipsis;" title="{{ r.code }}">
+                {{ r.code }}
+              </td>
+              <td style="max-width: 200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ r.version_matriz }}">
+                {{ r.version_matriz }}
+              </td>
+              <td style="max-width: 200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ r.version_planos }}">
+                {{ r.version_planos }}
+              </td>
+              <td style="white-space:nowrap;">{{ r.planos_last_update|date:'d/m/Y' }}</td>
+              <td style="white-space:nowrap;">{{ r.iniciales_last_date|date:'d/m/Y' }}</td>
+              <td style="max-width: 420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ r.folder_path }}">
+                {{ r.folder_path }}
+              </td>
+              <td style="max-width: 260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ r.version_transition }}">
+                {{ r.version_transition }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-3">
+      <h4 class="mb-2">Resumen por mes</h4>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        {% for ms, cnt in counts_by_month.items %}
+          <span class="badge bg-secondary">{{ ms|date:'Y-m' }}: {{ cnt }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+

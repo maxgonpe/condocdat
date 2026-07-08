@@ -25,6 +25,21 @@ urlpatterns = [
         name="planos_actualizados_export_pdf",
     ),
     path(
+        "planos-diferencias-mensuales/",
+        views.planos_diferencias_mensuales_list_view,
+        name="planos_diferencias_mensuales_list",
+    ),
+    path(
+        "planos-diferencias-mensuales/export/excel/",
+        views.planos_diferencias_mensuales_export_excel,
+        name="planos_diferencias_mensuales_export_excel",
+    ),
+    path(
+        "planos-diferencias-mensuales/export/pdf/",
+        views.planos_diferencias_mensuales_export_pdf,
+        name="planos_diferencias_mensuales_export_pdf",
+    ),
+    path(
         "planos-iniciales/",
         views.planos_iniciales_list_view,
         name="planos_iniciales_list",

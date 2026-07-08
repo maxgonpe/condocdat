@@ -13,7 +13,7 @@
     <h1>Trazabilidad</h1>
     <p class="muted trace-hero__lead">
       Seguimiento en carpetas <strong>ODATA-ST01-F5-TTAL-PPT-*</strong>, <strong>ODATA-BUF-*</strong> y <strong>TRN-PRO-CM-TRN-*</strong>:
-      cada recorrido va en una tarjeta, <strong>del documento más reciente por fecha de creación (arriba) al más antiguo (abajo)</strong>. Busque por título, código o nombre de archivo (adjuntos y archivos de carpeta).
+      cada recorrido va en una tarjeta, <strong>del evento más reciente (arriba) al más antiguo (abajo)</strong>, mezclando versiones del documento y <strong>correos enviados</strong> del sistema. Busque por título, código, asunto de correo o nombre de archivo.
     </p>
   </div>
 </header>
@@ -54,6 +54,15 @@
       <div class="trace-stat__value">{{ summary.scope_documents|default:0 }}</div>
     </div>
   </div>
+  {% if not summary.needs_query and summary.emails_in_journeys %}
+  <div class="trace-stat trace-stat--mail">
+    <span class="trace-stat__icon" aria-hidden="true">✉</span>
+    <div>
+      <div class="trace-stat__label">Correos en recorridos mostrados</div>
+      <div class="trace-stat__value">{{ summary.emails_in_journeys }}</div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 {% if summary.needs_query %}
@@ -71,12 +80,14 @@
   <article class="card trace-journey">
     <header class="trace-journey__head">
       <h2 class="trace-journey__title">{{ j.title_hint|truncatewords:25 }}</h2>
-      <span class="trace-journey__badge">{{ j.n_steps }} versión(es) / aparición(es)</span>
+      <span class="trace-journey__badge">{{ j.n_docs }} doc. · {{ j.n_emails }} correo(s) · {{ j.n_steps }} evento(s)</span>
     </header>
     <p class="trace-journey__legend muted">
-      <span class="trace-journey__legend-i trace-journey__legend-i--new">↑</span> Más reciente (creación del documento)
+      <span class="trace-journey__legend-i trace-journey__legend-i--new">↑</span> Más reciente (documento o correo)
       <span class="trace-journey__legend-sep">·</span>
-      <span class="trace-journey__legend-i trace-journey__legend-i--old">↓</span> Origen (inicio del flujo en el sistema)
+      <span class="trace-journey__legend-i trace-journey__legend-i--mail">✉</span> Correo enviado
+      <span class="trace-journey__legend-sep">·</span>
+      <span class="trace-journey__legend-i trace-journey__legend-i--old">↓</span> Origen (inicio del flujo)
     </p>
 
     <div class="trace-timeline trace-timeline--in-card" role="list">
@@ -84,9 +95,66 @@
       <div class="trace-node trace-node--{{ s.side }}{% if s.is_search_hit %} trace-node--hit{% endif %}" role="listitem">
         <div class="trace-node__rail" aria-hidden="true"></div>
         <div class="trace-node__icon" aria-hidden="true">
-          {% if s.side == "odata" %}☁{% elif s.side == "trn" %}⮕{% else %}📄{% endif %}
+          {% if s.event_type == "email" %}✉{% elif s.side == "odata" %}☁{% elif s.side == "trn" %}⮕{% else %}📄{% endif %}
         </div>
         <div class="trace-node__body">
+          {% if s.event_type == "email" %}
+          <div class="trace-node__meta">
+            {% if s.step_label %}
+              <span class="trace-pill trace-pill--step">{{ s.step_label }}</span>
+            {% endif %}
+            <span class="trace-pill trace-pill--side trace-pill--mail">{{ s.side_label }}</span>
+            {% if s.trace_instant %}
+              <time datetime="{{ s.trace_instant|date:'c' }}" title="Fecha y hora del envío.">{{ s.trace_instant|date:"d/m/Y H:i" }}</time>
+            {% endif %}
+            {% if s.enviado_ok %}
+              <span class="trace-pill trace-pill--ok">Enviado OK</span>
+            {% else %}
+              <span class="trace-pill trace-pill--err">Error envío</span>
+            {% endif %}
+          </div>
+          <div class="trace-node__title">
+            <a href="{% url 'correos_enviados_list' %}">{{ s.asunto }}</a>
+          </div>
+          <div class="trace-node__state trace-mail-meta">
+            {% if s.enviado_por %}
+              <span class="trace-chip trace-chip--soft">Por: {{ s.enviado_por }}</span>
+            {% endif %}
+            {% if s.document_code %}
+              <span class="trace-chip">Doc. {{ s.document_code }}</span>
+            {% endif %}
+            {% if s.destinatarios_count %}
+              <span class="trace-chip trace-chip--soft">Para: {{ s.destinatarios_count }}</span>
+            {% endif %}
+            {% if s.copia_count %}
+              <span class="trace-chip trace-chip--soft">CC: {{ s.copia_count }}</span>
+            {% endif %}
+          </div>
+          {% if s.destinatarios or s.copia %}
+          <div class="trace-mail-recipients muted">
+            {% if s.destinatarios %}<div><strong>Para:</strong> {{ s.destinatarios|truncatechars:200 }}</div>{% endif %}
+            {% if s.copia %}<div><strong>CC:</strong> {{ s.copia|truncatechars:200 }}</div>{% endif %}
+            {% if s.destinatarios_grupos %}<div><strong>Grupos Para:</strong> {{ s.destinatarios_grupos }}</div>{% endif %}
+            {% if s.copia_grupos %}<div><strong>Grupos CC:</strong> {{ s.copia_grupos }}</div>{% endif %}
+          </div>
+          {% endif %}
+          {% if s.cuerpo_preview %}
+          <p class="trace-mail-preview muted">{{ s.cuerpo_preview }}</p>
+          {% endif %}
+          {% if not s.enviado_ok and s.error_msg %}
+          <p class="trace-mail-error">{{ s.error_msg }}</p>
+          {% endif %}
+          {% if s.adjuntos %}
+          <div class="trace-files trace-files--mail">
+            <div class="trace-files__label">Adjuntos del correo</div>
+            <ul class="trace-files__list">
+              {% for name in s.adjuntos %}
+              <li class="trace-file"><span>{{ name }}</span></li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          {% else %}
           <div class="trace-node__meta">
             {% if s.step_label %}
               <span class="trace-pill trace-pill--step">{{ s.step_label }}</span>
@@ -155,6 +223,7 @@
               {% endfor %}
             </ul>
           </div>
+          {% endif %}
           {% endif %}
         </div>
       </div>

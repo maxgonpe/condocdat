@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta
 from io import BytesIO, StringIO
-from typing import Any
+from typing import Any, Callable
 
 import csv
 import openpyxl
@@ -57,20 +58,97 @@ def _safe_datetime(v: Any):
         return None
 
 
-def _safe_percent(v: Any) -> float | None:
+def _java_number_to_float(v: Any) -> float | None:
+    """Convierte números Java (JPype) a float de Python."""
     if v is None:
         return None
     try:
-        return round(float(v), 2)
+        if hasattr(v, "doubleValue"):
+            return float(v.doubleValue())
+        if hasattr(v, "intValue"):
+            return float(v.intValue())
+        if hasattr(v, "floatValue"):
+            return float(v.floatValue())
     except Exception:
         pass
-    s = str(v).strip().replace("%", "").replace(",", ".")
-    if not s:
+    return None
+
+
+def _norm_field_alias(name: str) -> str:
+    n = (name or "").strip().lower()
+    n = n.replace("%", " % ").replace("_", " ")
+    n = re.sub(r"\s+", " ", n).strip()
+    return n
+
+
+# Alias habituales en MS Project (español e inglés) para la columna visible «Trabajo completado»
+TRABAJO_COMPLETADO_ALIASES = (
+    "Trabajo completado",
+    "% Trabajo completado",
+    "% trabajo completado",
+    "Trabajo Completado",
+    "Percent Work Complete",
+    "% Work Complete",
+)
+
+AVANCE_PLANIFICADO_ALIASES = (
+    "% Avance planificado",
+    "Avance planificado",
+    "% Completado",
+    "Completado",
+    "Percent Complete",
+    "% Complete",
+)
+
+
+def _is_trabajo_completado_alias(name: str) -> bool:
+    n = _norm_field_alias(name)
+    if not n:
+        return False
+    if "trabajo" in n and "complet" in n:
+        return True
+    if "work" in n and "complete" in n:
+        return True
+    return False
+
+
+def _is_avance_planificado_alias(name: str) -> bool:
+    n = _norm_field_alias(name)
+    if not n or _is_trabajo_completado_alias(name):
+        return False
+    if "avance" in n and "plan" in n:
+        return True
+    if n in {"completado", "percent complete", "completo", "complete"}:
+        return True
+    if "complet" in n and "plan" in n:
+        return True
+    return False
+
+
+def _safe_percent(v: Any) -> float | None:
+    if v is None:
         return None
+    if "percent" in type(v).__name__.lower():
+        jn = _java_number_to_float(v)
+        if jn is not None:
+            v = jn
+    jn = _java_number_to_float(v)
+    if jn is not None:
+        v = jn
     try:
-        return round(float(s), 2)
+        val = float(v)
     except Exception:
-        return None
+        s = str(v).strip().replace("%", "").replace(",", ".")
+        if not s:
+            return None
+        try:
+            val = float(s)
+        except Exception:
+            return None
+    # MPXJ a veces entrega fracción 0–1 (ej. 0.45 = 45 %)
+    if 0 < val <= 1.0:
+        val = val * 100.0
+    return round(max(0.0, min(100.0, val)), 2)
 
 
 def _first_percent(task, candidates) -> float | None:
@@ -83,6 +161,170 @@ def _first_percent(task, candidates) -> float | None:
         if parsed is not None:
             return parsed
     return None
+
+
+def _read_percent_by_aliases(t, aliases: tuple[str, ...]) -> float | None:
+    """Lee % usando el alias de columna de MS Project (getFieldByAlias)."""
+    for alias in aliases:
+        try:
+            if not hasattr(t, "getFieldByAlias"):
+                break
+            val = t.getFieldByAlias(alias)
+            parsed = _safe_percent(val)
+            if parsed is not None:
+                return parsed
+        except Exception:
+            continue
+    return None
+
+
+def _read_percent_from_project_custom_fields(
+    t, project, matcher: Callable[[str], bool]
+) -> float | None:
+    """
+    Recorre campos personalizados del .mpp cuyo alias coincide (ej. «Trabajo completado»).
+    """
+    if project is None:
+        return None
+    TASK = None
+    try:
+        import jpype
+
+        FieldTypeClass = jpype.JClass("org.mpxj.FieldTypeClass")
+        TASK = FieldTypeClass.TASK
+    except Exception:
+        pass
+    try:
+        custom_fields = project.getCustomFields()
+    except Exception:
+        return None
+    if not custom_fields:
+        return None
+    try:
+        field_iter = list(custom_fields)
+    except Exception:
+        field_iter = []
+    for cf in field_iter:
+        try:
+            ft = cf.getFieldType()
+            if TASK is not None:
+                try:
+                    if ft.getFieldTypeClass() != TASK:
+                        continue
+                except Exception:
+                    pass
+            alias = _safe_text(cf.getAlias())
+            if not alias or not matcher(alias):
+                continue
+            val = None
+            for getter in (
+                lambda: t.getCachedValue(ft) if hasattr(t, "getCachedValue") else None,
+                lambda: t.get(ft),
+            ):
+                try:
+                    val = getter()
+                except Exception:
+                    val = None
+                if val is not None:
+                    break
+            parsed = _safe_percent(val)
+            if parsed is not None:
+                return parsed
+        except Exception:
+            continue
+    return None
+
+
+def _read_task_percents(t, TaskField, project=None) -> tuple[float | None, float | None]:
+    """
+    % avance planificado y % trabajo completado desde MS Project.
+
+    Orden para «Trabajo completado»:
+    1) Alias de columna (Trabajo completado, % Trabajo completado, …)
+    2) Campos personalizados del proyecto con alias coincidente
+    3) Campos estándar MPXJ (PERCENT_WORK_COMPLETE)
+    4) NUMBER2/TEXT11 solo si lo anterior no existe
+    """
+    trabajo_completado = _read_percent_by_aliases(t, TRABAJO_COMPLETADO_ALIASES)
+    if trabajo_completado is None:
+        trabajo_completado = _read_percent_from_project_custom_fields(
+            t, project, _is_trabajo_completado_alias
+        )
+    if trabajo_completado is None:
+        trabajo_completado = _first_percent(
+            t,
+            [
+                lambda: t.getPercentageWorkComplete(),
+                lambda: t.get(TaskField.PERCENT_WORK_COMPLETE),
+            ],
+        )
+    if trabajo_completado is None:
+        trabajo_completado = _first_percent(
+            t,
+            [
+                lambda: t.get(TaskField.NUMBER2),
+                lambda: t.get(TaskField.TEXT11),
+            ],
+        )
+
+    avance_planificado = _read_percent_by_aliases(t, AVANCE_PLANIFICADO_ALIASES)
+    if avance_planificado is None:
+        avance_planificado = _read_percent_from_project_custom_fields(
+            t, project, _is_avance_planificado_alias
+        )
+    if avance_planificado is None:
+        avance_planificado = _first_percent(
+            t,
+            [
+                lambda: t.getPercentageComplete(),
+                lambda: t.get(TaskField.PERCENT_COMPLETE),
+                lambda: t.get(TaskField.PHYSICAL_PERCENT_COMPLETE),
+            ],
+        )
+    if avance_planificado is None:
+        avance_planificado = _first_percent(
+            t,
+            [
+                lambda: t.get(TaskField.NUMBER1),
+                lambda: t.get(TaskField.TEXT10),
+            ],
+        )
+    return avance_planificado, trabajo_completado
+
+
+def discover_percent_aliases(project) -> dict[str, list[str]]:
+    """Alias detectados en el .mpp (para mensajes de importación)."""
+    out: dict[str, list[str]] = {"trabajo": [], "avance": []}
+    if project is None:
+        return out
+    try:
+        for cf in list(project.getCustomFields()):
+            alias = _safe_text(cf.getAlias())
+            if not alias:
+                continue
+            if _is_trabajo_completado_alias(alias) and alias not in out["trabajo"]:
+                out["trabajo"].append(alias)
+            if _is_avance_planificado_alias(alias) and alias not in out["avance"]:
+                out["avance"].append(alias)
+    except Exception:
+        pass
+    return out
+
+
+def import_percent_stats(rows: list[dict[str, Any]]) -> dict[str, int]:
+    n_trabajo = sum(1 for r in rows if (r.get("trabajo_completado") or 0) > 0)
+    n_avance = sum(1 for r in rows if (r.get("avance_planificado") or 0) > 0)
+    n_ambos = sum(
+        1
+        for r in rows
+        if (r.get("trabajo_completado") or 0) > 0 and (r.get("avance_planificado") or 0) > 0
+    )
+    return {
+        "total": len(rows),
+        "con_trabajo_completado": n_trabajo,
+        "con_avance_planificado": n_avance,
+        "con_ambos": n_ambos,
+    }
 
 
 def _relaciones_txt(rels, side: str) -> str:
@@ -112,11 +354,12 @@ def _arranca_jvm_si_corresponde():
     return jpype
 
 
-def _parse_mpp_to_rows(path: str) -> list[dict[str, Any]]:
+def _parse_mpp_to_rows(path: str) -> tuple[list[dict[str, Any]], dict[str, list[str]]]:
     jpype = _arranca_jvm_si_corresponde()
     Reader = jpype.JClass("org.mpxj.reader.UniversalProjectReader")
     TaskField = jpype.JClass("org.mpxj.TaskField")
     project = Reader().read(path)
+    alias_map = discover_percent_aliases(project)
 
     rows: list[dict[str, Any]] = []
     row_num = 1
@@ -128,38 +371,7 @@ def _parse_mpp_to_rows(path: str) -> list[dict[str, Any]]:
         nombre = _safe_text(t.getName())
         if task_id is None and not nombre:
             continue
-        # Soporte robusto: primero campos custom usados en nuestros layouts,
-        # luego fallback a campos estándar de MS Project.
-        avance_planificado = _first_percent(
-            t,
-            [
-                lambda: t.get(TaskField.NUMBER1),
-                lambda: t.get(TaskField.TEXT10),
-                lambda: t.getPercentageComplete(),
-                lambda: t.get(TaskField.PERCENT_COMPLETE),
-            ],
-        )
-        trabajo_completado = _first_percent(
-            t,
-            [
-                lambda: t.get(TaskField.NUMBER2),
-                lambda: t.get(TaskField.TEXT11),
-                lambda: t.getPercentageWorkComplete(),
-                lambda: t.get(TaskField.PERCENT_WORK_COMPLETE),
-                lambda: t.getPercentageComplete(),
-                lambda: t.get(TaskField.PERCENT_COMPLETE),
-            ],
-        )
-        if avance_planificado is None:
-            try:
-                avance_planificado = _safe_percent(t.get(TaskField.PERCENT_COMPLETE))
-            except Exception:
-                pass
-        if trabajo_completado is None:
-            try:
-                trabajo_completado = _safe_percent(t.get(TaskField.PERCENT_WORK_COMPLETE))
-            except Exception:
-                pass
+        avance_planificado, trabajo_completado = _read_task_percents(t, TaskField, project)
         rows.append(
             {
                 "excel_row": row_num,
@@ -181,11 +393,13 @@ def _parse_mpp_to_rows(path: str) -> list[dict[str, Any]]:
             }
         )
         row_num += 1
-    return rows
+    return rows, alias_map
 
 
 @transaction.atomic
-def replace_archivo_with_import(uploaded_file, original_filename: str) -> GanttArchivo:
+def replace_archivo_with_import(
+    uploaded_file, original_filename: str
+) -> tuple[GanttArchivo, dict[str, int]]:
     for old in GanttArchivo.objects.all():
         if old.file:
             old.file.delete(save=False)
@@ -198,9 +412,12 @@ def replace_archivo_with_import(uploaded_file, original_filename: str) -> GanttA
     uploaded_file.seek(0)
     archivo.file.save("cronograma_actual.mpp", uploaded_file, save=True)
 
-    rows = _parse_mpp_to_rows(archivo.file.path)
+    rows, alias_map = _parse_mpp_to_rows(archivo.file.path)
     GanttTask.objects.bulk_create([GanttTask(archivo=archivo, **r) for r in rows])
-    return archivo
+    stats = import_percent_stats(rows)
+    stats["aliases_trabajo"] = alias_map.get("trabajo") or []
+    stats["aliases_avance"] = alias_map.get("avance") or []
+    return archivo, stats
 
 
 def log_task_changes(archivo: GanttArchivo, user, task: GanttTask, before: dict, fields: list[str]):
@@ -362,12 +579,54 @@ def build_estado_atraso_records(archivo: GanttArchivo) -> list[dict[str, Any]]:
     return rows
 
 
+def _s_curve_real_cutoff_date(
+    weighted: list[tuple[datetime, datetime, float, float]], today: date
+) -> date | None:
+    """
+    Último día con avance real en el cronograma (tareas con trabajo_completado > 0).
+    Por tarea: min(hoy, fin); el máximo de esas fechas es el corte de la curva real.
+    """
+    candidates: list[date] = []
+    for s, e, _w, pa in weighted:
+        if pa <= 0:
+            continue
+        s_d = timezone.localtime(s).date()
+        e_d = timezone.localtime(e).date()
+        if today < s_d:
+            continue
+        candidates.append(min(today, e_d))
+    if not candidates:
+        return None
+    return max(candidates)
+
+
+def _real_contribution_at_day(
+    s: datetime, e: datetime, w: float, pa: float, day: date, today: date
+) -> float:
+    """Contribución ponderada al % real acumulado en un día del eje temporal."""
+    if pa <= 0:
+        return 0.0
+    s_d = timezone.localtime(s).date()
+    e_d = timezone.localtime(e).date()
+    if day < s_d:
+        return 0.0
+    effective_end = min(e_d, today)
+    if day > effective_end:
+        return w * pa
+    if e_d <= today:
+        real_span_end = e
+    else:
+        real_span_end = timezone.now()
+    f_real = _schedule_fraction_at_day(s, real_span_end, day)
+    return w * pa * f_real
+
+
 def build_s_curve_series(
     archivo: GanttArchivo,
     *,
     step_days: int = 1,
     max_points: int = 2000,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
     Serie temporal para curva S (planeado vs real).
 
@@ -375,15 +634,13 @@ def build_s_curve_series(
     por duración en días (mínimo 1 día).
 
     - Curva planificada: 0% -> 100% por tarea sobre su ventana temporal.
-      Esto evita depender de un snapshot de "% programado" y alinea la curva
-      con el cronograma completo por día.
-    - Curva real: referencia al corte actual usando `% trabajo_completado`
-      distribuido linealmente hasta hoy (sin reconstruir histórico real).
+    - Curva real (trabajo completado): modelada hasta el último día con avance;
+      después de ese corte el valor es null (la línea no se prolonga).
     """
     tasks = _leaf_tasks_with_dates(archivo)
 
     if not tasks:
-        return []
+        return [], {"n_tasks": 0, "n_points": 0, "real_cutoff": None}
 
     dates_min = min(timezone.localtime(x.comienzo).date() for x in tasks)
     dates_max = max(timezone.localtime(x.fin).date() for x in tasks)
@@ -398,6 +655,7 @@ def build_s_curve_series(
 
     weighted: list[tuple[datetime, datetime, float, float]] = []
     total_w = 0.0
+    n_with_progress = 0
     for t in tasks:
         s = t.comienzo
         e = t.fin
@@ -406,11 +664,15 @@ def build_s_curve_series(
             (timezone.localtime(e) - timezone.localtime(s)).total_seconds() / 86400.0,
         )
         pa = float(t.trabajo_completado or 0)
+        if pa > 0:
+            n_with_progress += 1
         weighted.append((s, e, dur_days, pa))
         total_w += dur_days
 
     if total_w <= 0:
-        return []
+        return [], {"n_tasks": len(tasks), "n_points": 0, "real_cutoff": None}
+
+    real_cutoff = _s_curve_real_cutoff_date(weighted, today)
 
     sample_days: list[date] = []
     d = dates_min
@@ -427,25 +689,31 @@ def build_s_curve_series(
         for s, e, w, pa in weighted:
             f_plan = _schedule_fraction_at_day(s, e, day)
             plan_sum += w * 100.0 * f_plan
+            if real_cutoff is not None and day <= real_cutoff:
+                real_sum += _real_contribution_at_day(s, e, w, pa, day, today)
 
-            today_or_finish = min(timezone.localtime(e).date(), today)
-            if day <= today_or_finish:
-                real_span_end = (
-                    e if timezone.localtime(e).date() <= today else timezone.now()
-                )
-                f_real = _schedule_fraction_at_day(s, real_span_end, day)
-                real_sum += w * pa * f_real
-            else:
-                real_sum += w * pa
+        real_val = None
+        if real_cutoff is not None and day <= real_cutoff:
+            real_val = round(real_sum / total_w, 2)
+
         points.append(
             {
                 "fecha": day,
                 "planificado": round(plan_sum / total_w, 2),
-                "real": round(real_sum / total_w, 2),
+                "real": real_val,
             }
         )
 
-    return points
+    meta = {
+        "n_tasks": len(tasks),
+        "n_with_progress": n_with_progress,
+        "n_points": len(points),
+        "real_cutoff": real_cutoff.isoformat() if real_cutoff else None,
+        "dates_min": dates_min.isoformat(),
+        "dates_max": dates_max.isoformat(),
+        "today": today.isoformat(),
+    }
+    return points, meta
 
 
 def _parse_pred_task_ids(predecesoras: str) -> list[int]:
@@ -637,6 +905,8 @@ def build_critical_path_snapshot(
                 "fin": finish,
                 "duracion_dias": round(dur, 1),
                 "duracion_acumulada_dias": round(cum, 1),
+                "avance_planificado": float(t.avance_planificado or 0),
+                "trabajo_completado": float(t.trabajo_completado or 0),
                 "left_pct": max(0.0, min(100.0, left_pct)),
                 "width_pct": max(1.0, min(100.0, width_pct)),
                 "frente": _frente_from_task(t),
@@ -699,7 +969,10 @@ def build_critical_graph_dataset(
             {
                 "id": tid,
                 "task_id": tid,
-                "label": f"ID {tid} | EDT {edt or '-'}",
+                "label": (
+                    f"ID {tid} | {float(t.trabajo_completado or 0):.0f}% trab. "
+                    f"| EDT {edt or '-'}"
+                ),
                 "name": t.nombre_tarea or "",
                 "dur": round(
                     max(
@@ -711,6 +984,8 @@ def build_critical_graph_dataset(
                 ),
                 "start": timezone.localtime(t.comienzo).date().strftime("%d/%m/%Y"),
                 "finish": timezone.localtime(t.fin).date().strftime("%d/%m/%Y"),
+                "avance_planificado": float(t.avance_planificado or 0),
+                "trabajo_completado": float(t.trabajo_completado or 0),
                 "esp": esp,
                 "edt": edt,
                 "tramo_edt": _tramo_edt_from_task(t),
@@ -741,7 +1016,7 @@ def build_excel_buffer(archivo: GanttArchivo) -> BytesIO:
         "ESP (EDT/WBS)",
         "Duracion",
         "% Avance planificado",
-        "% Trabajo completado",
+        "Trabajo completado (%)",
         "Comienzo",
         "Fin",
         "Predecesoras",

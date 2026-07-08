@@ -12,6 +12,11 @@ urlpatterns = [
     ),
     path("curva-s/", views.gantt_s_curve, name="gantt_s_curve"),
     path(
+        "curva-s/series.json",
+        views.gantt_s_curve_series_json,
+        name="gantt_s_curve_series_json",
+    ),
+    path(
         "curva-s/export.csv",
         views.gantt_s_curve_export_csv,
         name="gantt_s_curve_export_csv",

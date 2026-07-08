@@ -308,8 +308,8 @@ class CorreoEnviado(models.Model):
     Registro de correos enviados desde el sistema (destinatario, CC, asunto, cuerpo).
     Permite guardar en BD las variables del envío para historial o reutilización.
     """
-    destinatarios = models.CharField(max_length=1024, help_text="Emails separados por coma o punto y coma")
-    copia = models.CharField(max_length=1024, blank=True, default="", help_text="CC, separados por coma o punto y coma")
+    destinatarios = models.TextField(help_text="Emails separados por coma o punto y coma")
+    copia = models.TextField(blank=True, default="", help_text="CC, separados por coma o punto y coma")
     destinatarios_grupos = models.CharField(
         max_length=512,
         blank=True,
@@ -326,9 +326,21 @@ class CorreoEnviado(models.Model):
     copia_count = models.PositiveIntegerField(default=0, help_text="Cantidad total de destinatarios en CC")
     asunto = models.CharField(max_length=512)
     cuerpo = models.TextField(blank=True, default="")
-    adjuntos_nombres = models.CharField(max_length=1024, blank=True, default="", help_text="Nombres de archivos adjuntos separados por coma")
+    adjuntos_nombres = models.TextField(
+        blank=True,
+        default="",
+        help_text="Nombres de archivos adjuntos separados por coma",
+    )
     enviado_ok = models.BooleanField(default=False, help_text="True si el envío SMTP fue exitoso")
-    error_msg = models.CharField(max_length=512, blank=True, default="")
+    error_msg = models.TextField(blank=True, default="")
+    document = models.ForeignKey(
+        "Document",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="correos_enviados",
+        help_text="Documento informado al enviar (si se indicó en el formulario)",
+    )
     enviado_at = models.DateTimeField(auto_now_add=True)
     enviado_por = models.ForeignKey(
         "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="correos_enviados"

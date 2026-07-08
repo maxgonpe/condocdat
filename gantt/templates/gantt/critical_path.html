@@ -76,6 +76,7 @@
       </div>
       <div class="muted" style="font-size:0.82rem; margin-top:0.2rem;">
         ID {{ n.task_id }}{% if n.edt %} · EDT {{ n.edt }}{% endif %} · {{ n.duracion_dias }} dias · acumulado {{ n.duracion_acumulada_dias }} dias
+        · % trab. {{ n.trabajo_completado|floatformat:0 }} · % plan. {{ n.avance_planificado|floatformat:0 }}
         {% if n.especialidad %} · {{ n.especialidad }}{% endif %}
         {% if n.frente %} · Frente {{ n.frente }}{% endif %}
       </div>
