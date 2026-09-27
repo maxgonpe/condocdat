@@ -143,6 +143,41 @@ class Document(models.Model):
     STATUS_CERTIFICADO = "CERTIFICADO"
     STATUS_ENT_FINAL = "ENT_FINAL"
 
+    # ---------------------------------------------------------
+    # Liberación / aprobación final
+    #
+    # IMPORTANTE:
+    # revision == "0" NO significa por sí sola que el documento
+    # esté liberado. La liberación se controla de forma separada.
+    # ---------------------------------------------------------
+    LIBERACION_NO_APLICA = "NO_APLICA"
+    LIBERACION_PENDIENTE = "PENDIENTE"
+    LIBERACION_INFORMADA = "INFORMADA"
+    LIBERACION_LIBERADA = "LIBERADO"
+    LIBERACION_RECHAZADA = "RECHAZADO"
+
+    LIBERACION_CHOICES = [
+        (LIBERACION_NO_APLICA, "No aplica"),
+        (LIBERACION_PENDIENTE, "Pendiente de liberación"),
+        (LIBERACION_INFORMADA, "Liberación informada"),
+        (LIBERACION_LIBERADA, "Liberado"),
+        (LIBERACION_RECHAZADA, "Rechazado"),
+    ]
+
+    FUENTE_LIBERACION_EMAIL = "EMAIL"
+    FUENTE_LIBERACION_SELLO = "SELLO"
+    FUENTE_LIBERACION_BIM = "BIM"
+    FUENTE_LIBERACION_MANUAL = "MANUAL"
+    FUENTE_LIBERACION_OTRA = "OTRA"
+
+    FUENTE_LIBERACION_CHOICES = [
+        (FUENTE_LIBERACION_EMAIL, "Correo electrónico"),
+        (FUENTE_LIBERACION_SELLO, "Sello en documento"),
+        (FUENTE_LIBERACION_BIM, "Plataforma BIM"),
+        (FUENTE_LIBERACION_MANUAL, "Confirmación manual"),
+        (FUENTE_LIBERACION_OTRA, "Otra fuente"),
+    ]
+
     # Seguimiento “Informar” (carpetas ODATA-BUF-* y documentos TRN-PRO-CM-TRN-*)
     INFORMADO_NO = "no_informados"
     INFORMADO_SI = "informados"
@@ -196,6 +231,104 @@ class Document(models.Model):
         default=INFORMADO_NO,
         db_index=True,
         help_text="Estado de información para documentos ODATA-BUF / TRN-PRO-CM-TRN-",
+    )
+
+    # ---------------------------------------------------------
+    # Liberación / aprobación final
+    # ---------------------------------------------------------
+    estado_liberacion = models.CharField(
+        max_length=20,
+        choices=LIBERACION_CHOICES,
+        default=LIBERACION_NO_APLICA,
+        db_index=True,
+        help_text=(
+            "Estado de liberación oficial. Una revisión 0 no implica "
+            "por sí sola que el documento esté liberado."
+        ),
+    )
+
+    fecha_liberacion = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Fecha efectiva en que el documento fue liberado oficialmente.",
+    )
+
+    liberacion_observada_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Fecha y hora en que el sistema o un usuario conoció/registró "
+            "la liberación."
+        ),
+    )
+
+    fuente_liberacion = models.CharField(
+        max_length=20,
+        choices=FUENTE_LIBERACION_CHOICES,
+        blank=True,
+        default="",
+        help_text="Fuente principal que informó o confirmó la liberación.",
+    )
+
+    sello_liberado_verificado = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "True cuando se verificó visualmente en el archivo el sello "
+            "oficial de liberación."
+        ),
+    )
+
+    sello_verificado_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha y hora en que se verificó el sello en el documento.",
+    )
+
+    sello_verificado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="documentos_sello_verificado",
+        help_text="Usuario que verificó visualmente el sello de liberación.",
+    )
+
+    liberacion_transmittal = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text=(
+            "Código o referencia del transmittal asociado a la liberación. "
+            "Se mantiene como texto para permitir históricos aún no cargados."
+        ),
+    )
+
+    liberacion_referencia = models.CharField(
+        max_length=512,
+        blank=True,
+        default="",
+        help_text=(
+            "Referencia breve de la evidencia: asunto de correo, comunicación, "
+            "número de aviso u otra referencia."
+        ),
+    )
+
+    liberacion_observacion = models.TextField(
+        blank=True,
+        default="",
+        help_text="Observaciones del proceso de liberación del documento.",
+    )
+
+    liberacion_registrada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="documentos_liberacion_registrada",
+        help_text="Usuario que registró la información de liberación.",
     )
 
     # opcional: adjunto del documento

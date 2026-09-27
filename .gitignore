@@ -13,6 +13,8 @@ venv/
 /staticfiles
 /data
 condocdat/settings_local.py
+condocdat/settings.py
+condocdat/settings*.py
 
 # Volcados de base (sync prod -> local)
 scripts/condocdat_db_sync.env
