@@ -1,0 +1,37 @@
+root@vmi2747120:/home/max/otros# RESUME_EXISTING=1 PG_ADMIN_PASSWORD='celsa1961' /home/max/otros/alta-clon-postgres-central.sh taller1 taller1.netgogo.cl /home/max/taller1
+== Reanudando clon existente taller1 ==
+ALTER ROLE
+[+] Building 5.8s (12/12) FINISHED                                           
+ => [internal] load local bake definitions                              0.0s
+ => => reading from stdin 474B                                          0.0s
+ => [internal] load build definition from Dockerfile                    0.1s
+ => => transferring dockerfile: 244B                                    0.0s
+ => [internal] load metadata for docker.io/library/python:3.11-slim     0.8s
+ => [internal] load .dockerignore                                       0.6s
+ => => transferring context: 2B                                         0.0s
+ => [1/5] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e3154  0.0s
+ => [internal] load build context                                       0.2s
+ => => transferring context: 2.50kB                                     0.0s
+ => CACHED [2/5] WORKDIR /app                                           0.0s
+ => CACHED [3/5] COPY requirements.txt .                                0.0s
+ => CACHED [4/5] RUN pip install --no-cache-dir -r requirements.txt     0.0s
+ => [5/5] COPY . .                                                      0.2s
+ => exporting to image                                                  2.2s
+ => => exporting layers                                                 0.2s
+ => => writing image sha256:00daf693729e7b8e3bc65a3bb88eca7a0d6e88ecad  1.5s
+ => => naming to docker.io/library/taller1-app                          0.0s
+ => resolving provenance for metadata file                              0.0s
+[+] up 3/3
+ ✔ Image taller1-app        Built                                        6.0s
+ ✔ Volume taller1_app_media Created                                      0.0s
+ ✔ Container taller1_app    Started                                      1.6s
+
+Clon creado correctamente: taller1.netgogo.cl
+Base: taller1_db (en postgres_talleres)
+Verificación: curl -k https://taller1.netgogo.cl/health/database
+root@vmi2747120:/home/max/otros# curl -k https://taller1.netgogo.cl/
+404 page not found
+root@vmi2747120:/home/max/otros# curl -k https://taller1.netgogo.cl/health/database
+404 page not found
+root@vmi2747120:/home/max/otros# 
+

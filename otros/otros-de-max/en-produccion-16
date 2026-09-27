@@ -1,0 +1,9 @@
+ => resolving provenance for metadata file                              0.0s
+[+] up 3/3
+ ✔ Image demo-netgogo-app       Built                                    4.5s
+ ✔ Container demo-netgogo-db-1  Healthy                                  1.8s
+ ✔ Container demo-netgogo-app-1 Started                                  2.3s
+root@vmi2747120:/home/max/demo-netgogo# curl -k https://demo.netgogo.cl/
+{"application":"demo_netgogo","domain":"demo.netgogo.cl","status":"ok"}
+root@vmi2747120:/home/max/demo-netgogo# 
+

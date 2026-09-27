@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    container_name: condocdat
+    container_name: condocdat_app
     restart: unless-stopped
     # Las variables ${...} se resuelven en el HOST al ejecutar docker compose.
     # update_condocdat.sh carga el .env en el shell antes de compose para que no queden vacías.

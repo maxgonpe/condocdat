@@ -1,0 +1,7 @@
+maxgonpe@baruch:~/max/subdomain-panel$ curl -X POST http://127.0.0.1:8090/api/applications/1/deploy -H 'X-Panel-Token: token-local-seguro'
+{"output":"ERROR: postgres_talleres no est\u00e1 activo","status":"failed"}
+maxgonpe@baruch:~/max/subdomain-panel$ curl -X POST http://127.0.0.1:8090/api/applications/1/deploy/ -H 'X-Panel-Token: token-local-seguro'
+{"output":"ERROR: postgres_talleres no est\u00e1 activo","status":"failed"}
+maxgonpe@baruch:~/max/subdomain-panel$ 
+
+

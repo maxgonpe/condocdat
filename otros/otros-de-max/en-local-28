@@ -1,0 +1,70 @@
+terminal 1
+
+L_TOKEN='token-local-seguro' python3 app.py
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8090
+Press CTRL+C to quit
+127.0.0.1 - - [03/Sep/2026 16:34:04] "POST /api/applications/1/deploy HTTP/1.1" 500 -
+127.0.0.1 - - [03/Sep/2026 16:34:19] "POST /api/applications/1/deploy/ HTTP/1.1" 500 -
+^C(.venv) maxgonpe@baruch:~/max/subdomain-panel$ PANEL_DEPLOY_ENABLED=true PANEL_TOKEN='token-local-seguro' python3 app.py
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8090
+Press CTRL+C to quit
+[2026-09-03 16:36:44,226] ERROR in app: Exception on /api/applications/1/deploy/ [POST]
+Traceback (most recent call last):
+  File "/home/maxgonpe/max/subdomain-panel/.venv/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxgonpe/max/subdomain-panel/.venv/lib/python3.11/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxgonpe/max/subdomain-panel/.venv/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxgonpe/max/subdomain-panel/.venv/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxgonpe/max/subdomain-panel/app.py", line 152, in deploy
+    db.execute("UPDATE applications SET status = ?, last_output = ? WHERE id = ?", (status, output, application_id))
+sqlite3.OperationalError: no such column: last_output
+127.0.0.1 - - [03/Sep/2026 16:36:44] "POST /api/applications/1/deploy/ HTTP/1.1" 500 -
+[2026-09-03 16:37:02,908] ERROR in app: Exception on /api/applications/1/deploy [POST]
+Traceback (most recent call last):
+  File "/home/maxgonpe/max/subdomain-panel/.venv/lib/python3.11/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxgonpe/max/subdomain-panel/.venv/lib/python3.11/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxgonpe/max/subdomain-panel/.venv/lib/python3.11/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxgonpe/max/subdomain-panel/.venv/lib/python3.11/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxgonpe/max/subdomain-panel/app.py", line 152, in deploy
+    db.execute("UPDATE applications SET status = ?, last_output = ? WHERE id = ?", (status, output, application_id))
+sqlite3.OperationalError: no such column: last_output
+127.0.0.1 - - [03/Sep/2026 16:37:02] "POST /api/applications/1/deploy HTTP/1.1" 500 -
+
+
+terminal 2
+
+maxgonpe@baruch:~/max/subdomain-panel$ curl -X POST http://127.0.0.1:8090/api/applications/1/deploy/ -H 'X-Panel-Token: token-local-seguro'
+<!doctype html>
+<html lang=en>
+<title>500 Internal Server Error</title>
+<h1>Internal Server Error</h1>
+<p>The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.</p>
+maxgonpe@baruch:~/max/subdomain-panel$ curl -X POST http://127.0.0.1:8090/api/applications/1/deploy -H 'X-Panel-Token: token-local-seguro'
+<!doctype html>
+<html lang=en>
+<title>500 Internal Server Error</title>
+<h1>Internal Server Error</h1>
+<p>The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.</p>
+maxgonpe@baruch:~/max/subdomain-panel$ 
+

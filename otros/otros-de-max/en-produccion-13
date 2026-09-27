@@ -1,0 +1,36 @@
+
+root@vmi2747120:/home/max/traefik# docker exec traefik-traefik-1 wget \ ---
+wget: bad address ' ---'
+root@vmi2747120:/home/max/traefik# docker exec traefik-traefik-1 wget --header="Host: condocdat.netgogo.cl" -S -o- http://condocdat:8000/
+Connecting to condocdat:8000 (172.18.0.8:8000)
+  HTTP/1.1 302 Found
+  Server: gunicorn
+  Date: Thu, 03 Sep 2026 00:35:04 GMT
+  Connection: close
+  Content-Type: text/html; charset=utf-8
+  Location: /login/?next=/
+  HTTP/1.1 200 OK
+  Server: gunicorn
+  Date: Thu, 03 Sep 2026 00:35:04 GMT
+  Connection: close
+  Content-Type: text/html; charset=utf-8
+  Expires: Thu, 03 Sep 2026 00:35:04 GMT
+  Cache-Control: max-age=0, no-cache, no-store, must-revalidate, private
+  Vary: Cookie
+  X-Frame-Options: DENY
+  Content-Length: 5833
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Cross-Origin-Opener-Policy: same-origin
+  Set-Cookie: csrftoken=O5ZPPTtDKetRXux9N18GR037OPMUY5V9; expires=Thu, 02 Sep 2027 00:35:04 GMT; Max-Age=31449600; Path=/; SameSite=Lax; Secure
+  
+saving to 'index.html'
+index.html           100% |********************************|  5833  0:00:00 ETA
+'index.html' saved
+root@vmi2747120:/home/max/traefik# curl -k -I --resolve condocdat.netgogo.cl:443:127.0.0.1 https://condocdat.netgogo.cl/
+HTTP/2 504 
+content-length: 15
+date: Thu, 03 Sep 2026 00:36:40 GMT
+
+root@vmi2747120:/home/max/traefik# 
+

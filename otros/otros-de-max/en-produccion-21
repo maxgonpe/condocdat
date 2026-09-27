@@ -1,0 +1,82 @@
+root@vmi2747120:/home/max/otros# chmod +x diagnostico-traefik.sh
+root@vmi2747120:/home/max/otros# ./diagnostico-traefik.sh
+
+===== Contenedores relevantes =====
+CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS         PORTS                                                              NAMES
+2e211225e533   taller1-app    "gunicorn app:app --…"   6 minutes ago   Up 6 minutes   8000/tcp                                                           taller1_app
+22786b8e5827   traefik:v3.6   "/entrypoint.sh --ap…"   20 hours ago    Up 20 hours    0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+ee591e38a380   postgres:15    "docker-entrypoint.s…"   11 months ago   Up 18 hours    5432/tcp                                                           postgres_talleres
+
+===== Estado detallado de la aplicación =====
+Status=running Running=true Started=2026-09-03T17:18:18.600015439Z
+
+===== Etiquetas Traefik reales =====
+com.docker.compose.config-hash = 74f3a0e6ee3379e1792f726d07beb40f2b6742ced87a2d116f32a8ee5faebb20
+com.docker.compose.container-number = 1
+com.docker.compose.depends_on = 
+com.docker.compose.image = sha256:00daf693729e7b8e3bc65a3bb88eca7a0d6e88ecad314ac7a6eedea0bb299230
+com.docker.compose.oneoff = False
+com.docker.compose.project = taller1
+com.docker.compose.project.config_files = /home/max/taller1/docker-compose.yml
+com.docker.compose.project.working_dir = /home/max/taller1
+com.docker.compose.service = app
+com.docker.compose.version = 5.5.0
+traefik.docker.network = traefik_default
+traefik.enable = true
+traefik.http.routers.${APP_NAME}.entrypoints = websecure
+traefik.http.routers.${APP_NAME}.rule = Host(`taller1.netgogo.cl`)
+traefik.http.routers.${APP_NAME}.tls = true
+traefik.http.routers.${APP_NAME}.tls.certresolver = letsencrypt
+traefik.http.services.${APP_NAME}.loadbalancer.server.port = 8000
+
+
+===== Redes de la aplicación =====
+{"myproject_netgogo_default":{"IPAMConfig":null,"Links":null,"Aliases":["taller1_app","app"],"DriverOpts":null,"GwPriority":0,"NetworkID":"62224adbc83e44a14ebebb72ed9041cece6ba76c47d5934cb27b29d03c5a4c05","EndpointID":"f8b45d1d840ffc190ceec02aad4070e2808501540a56c1024b02d424e807317d","Gateway":"172.19.0.1","IPAddress":"172.19.0.7","MacAddress":"7e:4c:d7:cb:44:b7","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["taller1_app","app","2e211225e533"]},"traefik_default":{"IPAMConfig":null,"Links":null,"Aliases":["taller1_app","app"],"DriverOpts":null,"GwPriority":0,"NetworkID":"2e0da1db9223b289788fb2a4f52eb7682cf9bcad797dace40e9ad697dd2ecc02","EndpointID":"394d9b343d6a6a335d7ff81202c6e2602b263c63eaf0f58f903a8d058d1ff6c1","Gateway":"172.18.0.1","IPAddress":"172.18.0.15","MacAddress":"26:37:54:2b:e9:ac","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["taller1_app","app","2e211225e533"]}}
+
+===== Redes de Traefik =====
+{"traefik_default":{"IPAMConfig":null,"Links":null,"Aliases":["traefik-traefik-1","traefik"],"DriverOpts":null,"GwPriority":0,"NetworkID":"2e0da1db9223b289788fb2a4f52eb7682cf9bcad797dace40e9ad697dd2ecc02","EndpointID":"f80e1beaefefcb90eacc646101cb224b6b400829ebd92574530d18c00dc2c426","Gateway":"172.18.0.1","IPAddress":"172.18.0.6","MacAddress":"e6:ae:9d:e3:26:1f","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["traefik-traefik-1","traefik","22786b8e5827"]}}
+
+===== Resolución de la aplicación desde Traefik =====
+172.18.0.15       taller1_app  taller1_app
+
+===== Respuesta directa aplicación -> HTTP =====
+Connecting to taller1_app:8000 (172.18.0.15:8000)
+  HTTP/1.1 200 OK
+  Server: gunicorn
+  Date: Thu, 03 Sep 2026 17:24:38 GMT
+  Connection: close
+  Content-Type: application/json
+  Content-Length: 70
+  
+writing to stdout
+-                    100% |********************************|    70  0:00:00 ETA
+written to stdout
+{"application":"taller1","domain":"taller1.netgogo.cl","status":"ok"}
+
+===== Respuesta HTTPS externa con Host =====
+HTTP/2 404 
+content-type: text/plain; charset=utf-8
+x-content-type-options: nosniff
+content-length: 19
+date: Thu, 03 Sep 2026 17:24:38 GMT
+
+404 page not found
+
+===== Routers y servicios detectados por Traefik API =====
+404 page not found
+404 page not found
+
+===== Logs recientes de Traefik =====
+2026-09-03T17:18:20Z ERR Router defined multiple times with different configurations configuration=["app-demo-netgogo-d4953947d142f4c0ed6a45434c95b87123432e4c74c7bb493c02b5ba5ef31d22","app-taller1-2e211225e53338ac03953c919d3c729ae3f91126d0a08d3d0f08e1154dacd5c5"] providerName=docker routerName=${APP_NAME}
+
+===== Logs recientes de la aplicación =====
+[2026-09-03 17:18:20 +0000] [1] [INFO] Starting gunicorn 23.0.0
+[2026-09-03 17:18:20 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+[2026-09-03 17:18:20 +0000] [1] [INFO] Using worker: sync
+[2026-09-03 17:18:20 +0000] [7] [INFO] Booting worker with pid: 7
+[2026-09-03 17:18:20 +0000] [8] [INFO] Booting worker with pid: 8
+
+===== Resultado =====
+Diagnóstico terminado para taller1.netgogo.cl. No se reiniciaron contenedores ni se modificaron datos.
+root@vmi2747120:/home/max/otros# 
+

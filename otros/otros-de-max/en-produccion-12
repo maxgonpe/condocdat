@@ -1,0 +1,89 @@
+root@vmi2747120:/home/max/traefik# ./diagnosticar-timeout-condocdat.sh
+
+===== Contenedores =====
+CONTAINER ID   IMAGE                 COMMAND                  CREATED         STATUS             PORTS                                                              NAMES
+7ea96e51084e   condocdat-condocdat   "/app/docker-entrypo…"   7 minutes ago   Up 7 minutes       8000/tcp                                                           condocdat
+22786b8e5827   traefik:v3.6          "/entrypoint.sh --ap…"   3 hours ago     Up 3 hours         0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+ee591e38a380   postgres:15           "docker-entrypoint.s…"   11 months ago   Up About an hour   5432/tcp                                                           postgres_talleres
+
+===== Logs recientes de Condocdat =====
+🚀 Iniciando aplicación Condocdat...
+⏳ Esperando a PostgreSQL...
+✅ PostgreSQL está listo
+📦 Ejecutando migraciones...
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, documents, equipos, gantt, rdi, sessions, transmital
+Running migrations:
+  No migrations to apply.
+📁 Recopilando archivos estáticos...
+
+0 static files copied to '/app/staticfiles', 132 unmodified.
+✅ Aplicación lista para iniciar
+[2026-09-02 20:21:53 -0400] [1] [INFO] Starting gunicorn 23.0.0
+[2026-09-02 20:21:53 -0400] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+[2026-09-02 20:21:53 -0400] [1] [INFO] Using worker: sync
+[2026-09-02 20:21:53 -0400] [14] [INFO] Booting worker with pid: 14
+[2026-09-02 20:21:53 -0400] [15] [INFO] Booting worker with pid: 15
+[2026-09-02 20:21:53 -0400] [16] [INFO] Booting worker with pid: 16
+
+===== Resolución DNS de PostgreSQL desde Condocdat =====
+172.19.0.5      postgres_talleres
+
+===== Conectividad PostgreSQL desde Condocdat =====
+postgres_talleres:5432 - accepting connections
+
+===== Variables DB reales =====
+DB_ENGINE=django.db.backends.postgresql
+DB_PORT=5432
+DB_USER=maxgonpe
+DB_HOST=postgres_talleres
+DB_NAME=condocdat_db
+
+===== Redes de Condocdat =====
+{"myproject_netgogo_default":{"IPAMConfig":null,"Links":null,"Aliases":["condocdat","condocdat"],"DriverOpts":null,"GwPriority":0,"NetworkID":"62224adbc83e44a14ebebb72ed9041cece6ba76c47d5934cb27b29d03c5a4c05","EndpointID":"fa6855f73865c4caae5bbbd00623660f2a1cd7f1907f0a40e2d4ce32268f9e05","Gateway":"172.19.0.1","IPAddress":"172.19.0.6","MacAddress":"0a:76:b0:b1:5a:31","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["condocdat","7ea96e51084e"]},"traefik_default":{"IPAMConfig":null,"Links":null,"Aliases":["condocdat","condocdat"],"DriverOpts":null,"GwPriority":0,"NetworkID":"2e0da1db9223b289788fb2a4f52eb7682cf9bcad797dace40e9ad697dd2ecc02","EndpointID":"9b7b9b4c4357a2cb18ace0379104f8b64700d9442f5896341c62f5b5b3cd9f05","Gateway":"172.18.0.1","IPAddress":"172.18.0.8","MacAddress":"ce:cd:ac:32:d6:d2","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["condocdat","7ea96e51084e"]}}
+
+===== Redes de PostgreSQL =====
+{"myproject_netgogo_default":{"IPAMConfig":{},"Links":null,"Aliases":[],"DriverOpts":{},"GwPriority":0,"NetworkID":"62224adbc83e44a14ebebb72ed9041cece6ba76c47d5934cb27b29d03c5a4c05","EndpointID":"6b151cc124f2b82be153a6fb824ad44dee8b734688d2640b44b20e6e7ebd3221","Gateway":"172.19.0.1","IPAddress":"172.19.0.5","MacAddress":"22:02:1d:5f:18:ef","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["postgres_talleres","ee591e38a380"]},"traefik_default":{"IPAMConfig":null,"Links":null,"Aliases":["postgres_talleres","db"],"DriverOpts":null,"GwPriority":0,"NetworkID":"2e0da1db9223b289788fb2a4f52eb7682cf9bcad797dace40e9ad697dd2ecc02","EndpointID":"2b5af0193ac97fa92ba36dd09cdc46e37eb9906b12aa5a2eabeffd86683567c9","Gateway":"172.18.0.1","IPAddress":"172.18.0.13","MacAddress":"86:d4:f6:07:2e:4e","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["postgres_talleres","db","ee591e38a380"]}}
+
+===== Puerto 8000 dentro de Condocdat =====
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/local/lib/python3.11/urllib/request.py", line 216, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/urllib/request.py", line 525, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/urllib/request.py", line 634, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/urllib/request.py", line 563, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/urllib/request.py", line 496, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/urllib/request.py", line 643, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request
+
+===== Prueba desde Traefik hacia Condocdat =====
+Connecting to condocdat:8000 (172.18.0.8:8000)
+  HTTP/1.1 400 Bad Request
+wget: server returned error: HTTP/1.1 400 Bad Request
+
+===== Datos en la base histórica =====
+ carpetas 
+----------
+      847
+(1 row)
+
+ documentos 
+------------
+        848
+(1 row)
+
+
+Diagnóstico terminado. No se detuvieron contenedores ni se modificaron datos.
+root@vmi2747120:/home/max/traefik# 
+

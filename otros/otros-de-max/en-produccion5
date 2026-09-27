@@ -1,0 +1,167 @@
+root@vmi2747120:/home/max/myproject_netgogo# cd ..
+root@vmi2747120:/home/max# cd traefik
+root@vmi2747120:/home/max/traefik# docker version
+Client: Docker Engine - Community
+ Version:           29.7.2
+ API version:       1.55
+ Go version:        go1.26.5
+ Git commit:        a7dcaa6
+ Built:             Wed Aug  5 18:28:36 2026
+ OS/Arch:           linux/amd64
+ Context:           default
+
+Server: Docker Engine - Community
+ Engine:
+  Version:          29.7.2
+  API version:      1.55 (minimum version 1.40)
+  Go version:       go1.26.5
+  Git commit:       6a43e3d
+  Built:            Wed Aug  5 18:28:36 2026
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          v2.3.4
+  GitCommit:        db8809540e1a7a9da5d518876894933ff55692ab
+ runc:
+  Version:          1.4.3
+  GitCommit:        v1.4.3-0-gbb14dabe
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
+root@vmi2747120:/home/max/traefik# docker info
+Client: Docker Engine - Community
+ Version:    29.7.2
+ Context:    default
+ Debug Mode: false
+ Plugins:
+  buildx: Docker Buildx (Docker Inc.)
+    Version:  v0.36.1
+    Path:     /usr/libexec/docker/cli-plugins/docker-buildx
+  compose: Docker Compose (Docker Inc.)
+    Version:  v5.5.0
+    Path:     /usr/libexec/docker/cli-plugins/docker-compose
+
+Server:
+ Containers: 14
+  Running: 8
+  Paused: 0
+  Stopped: 6
+ Images: 404
+ Server Version: 29.7.2
+ Storage Driver: overlay2
+  Backing Filesystem: extfs
+  Supports d_type: true
+  Using metacopy: false
+  Native Overlay Diff: true
+  userxattr: false
+ Logging Driver: json-file
+ Cgroup Driver: systemd
+ Cgroup Version: 2
+ Plugins:
+  Volume: local
+  Network: bridge host ipvlan macvlan null overlay
+  Log: awslogs fluentd gcplogs gelf journald json-file local splunk syslog
+ CDI spec directories:
+  /etc/cdi
+  /var/run/cdi
+ Swarm: inactive
+ Runtimes: io.containerd.runc.v2 runc
+ Default Runtime: runc
+ Init Binary: docker-init
+ containerd version: db8809540e1a7a9da5d518876894933ff55692ab
+ runc version: v1.4.3-0-gbb14dabe
+ init version: de40ad0
+ Security Options:
+  apparmor
+  seccomp
+   Profile: builtin
+  cgroupns
+ Kernel Version: 6.1.0-52-amd64
+ Operating System: Debian GNU/Linux 12 (bookworm)
+ OSType: linux
+ Architecture: x86_64
+ CPUs: 3
+ Total Memory: 7.755GiB
+ Name: vmi2747120.contaboserver.net
+ ID: c81219a6-a376-4d90-8158-70da60f271a8
+ Docker Root Dir: /var/lib/docker
+ Debug Mode: false
+ Experimental: false
+ Insecure Registries:
+  ::1/128
+  127.0.0.0/8
+ Live Restore Enabled: false
+ Firewall Backend: iptables
+  EnableUserlandProxy: true
+  UserlandProxyPath: /usr/bin/docker-proxy
+
+root@vmi2747120:/home/max/traefik# env | grep DOCKER_API || true
+root@vmi2747120:/home/max/traefik# docker ps --filter name=traefik
+CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS          PORTS                                                              NAMES
+cda9da19772d   traefik:v3.1   "/entrypoint.sh --ap…"   11 months ago   Up 32 minutes   0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+root@vmi2747120:/home/max/traefik# docker inspect traefik-traefik-1 --format '{{.Config.Image}}'
+traefik:v3.1
+root@vmi2747120:/home/max/traefik# nano /home/max/traefik/docker-compose.yml
+root@vmi2747120:/home/max/traefik# docker-compose pull traefik
+-bash: docker-compose: command not found
+root@vmi2747120:/home/max/traefik# docker compose pull traefik
+[+] pull 5/5
+ ✔ Image traefik:v3.5 Pulled                                             9.5s
+root@vmi2747120:/home/max/traefik# docker compose stop traefik
+[+] stop 1/1
+ ✔ Container traefik-traefik-1 Stopped                                   1.2s
+root@vmi2747120:/home/max/traefik# docker compose rm -f traefik
+Going to remove traefik-traefik-1
+[+] remove 1/1
+ ✔ Container traefik-traefik-1 Removed                                   0.1s
+root@vmi2747120:/home/max/traefik# docker compose rm -d traefik
+unknown shorthand flag: 'd' in -d
+root@vmi2747120:/home/max/traefik# docker compose up -d traefik
+[+] up 1/1
+ ✔ Container traefik-traefik-1 Started                                   1.2s
+root@vmi2747120:/home/max/traefik# docker ps --filter name=traefik
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                                                              NAMES
+83fbc5b341bc   traefik:v3.5   "/entrypoint.sh --ap…"   49 seconds ago   Up 48 seconds   0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+root@vmi2747120:/home/max/traefik# docker logs --tail 100 traefik-traefik-1
+2026-09-02T21:13:13Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:13Z ERR Provider error, retrying in 302.957005ms error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:14Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:14Z ERR Provider error, retrying in 887.240632ms error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:15Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:15Z ERR Provider error, retrying in 1.489902689s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:16Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:16Z ERR Provider error, retrying in 2.192431037s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:18Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:18Z ERR Provider error, retrying in 2.360368873s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:21Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:21Z ERR Provider error, retrying in 4.296771825s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:25Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:25Z ERR Provider error, retrying in 7.325810572s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:32Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:32Z ERR Provider error, retrying in 10.471357122s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:43Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:43Z ERR Provider error, retrying in 9.482203145s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:52Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:52Z ERR Provider error, retrying in 731.912012ms error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:53Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:53Z ERR Provider error, retrying in 878.063706ms error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:54Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:54Z ERR Provider error, retrying in 762.696522ms error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:55Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:55Z ERR Provider error, retrying in 1.598483518s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:56Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:56Z ERR Provider error, retrying in 1.717348303s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:58Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:13:58Z ERR Provider error, retrying in 1.912519034s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:14:00Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:14:00Z ERR Provider error, retrying in 8.159914197s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:14:08Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:14:08Z ERR Provider error, retrying in 12.545768505s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:14:21Z ERR Failed to retrieve information of the docker client and server host error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+2026-09-02T21:14:21Z ERR Provider error, retrying in 14.421986283s error="Error response from daemon: client version 1.24 is too old. Minimum supported API version is 1.40, please upgrade your client to a newer version" providerName=docker
+root@vmi2747120:/home/max/traefik# curl http//127.0.0.1:8080/api/http/routers
+curl: (6) Could not resolve host: http
+root@vmi2747120:/home/max/traefik# curl http//127.0.0.1:8080/api/http/routers
+curl: (6) Could not resolve host: http
+root@vmi2747120:/home/max/traefik# 
+

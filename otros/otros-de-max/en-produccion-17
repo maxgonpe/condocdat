@@ -1,0 +1,131 @@
+maxgonpe@baruch:~/max$ ssh root@94.72.119.222
+root@94.72.119.222's password: 
+Linux vmi2747120.contaboserver.net 6.1.0-52-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.180-1 (2026-08-03) x86_64
+  _____
+ / ___/___  _  _ _____ _   ___  ___
+| |   / _ \| \| |_   _/ \ | _ )/ _ \
+| |__| (_) | .` | | |/ _ \| _ \ (_) |
+ \____\___/|_|\_| |_/_/ \_|___/\___/
+
+Welcome!
+
+This server is hosted by Contabo. If you have any questions or need help,
+please don't hesitate to contact us at support@contabo.com.
+
+Last login: Wed Sep  2 17:51:30 2026 from 201.187.193.233
+root@vmi2747120:~# cd /home
+root@vmi2747120:/home# cd /max
+-bash: cd: /max: No such file or directory
+root@vmi2747120:/home# cd /maxgonpe
+-bash: cd: /maxgonpe: No such file or directory
+root@vmi2747120:/home# ls
+max  max.zip  user
+root@vmi2747120:/home# cd max
+root@vmi2747120:/home/max# ls
+alta_auxilio.sh        deploy_tienda.sh    nginx-static.conf
+alta_cliente_motos.sh  docker-compose.yml  otros
+backups		       myproject	   traefik
+check_db_backend.sh    myprojectenv	   update_all_motos.sh
+check_product_db.sh    myproject_motos	   update_talleres_static.sh
+clientes	       myproject_netgogo
+demo-netgogo	       netgogo_temp
+root@vmi2747120:/home/max# cd myproject
+root@vmi2747120:/home/max/myproject# ls
+backup_antes_limpieza.sql	     media
+backup_gcmotori_20251016_231457.sql  myproject
+backup_repuesto_en_stock.sql	     myproject.sock
+build.log			     otros
+car				     reiniciar_postgres.sh
+cliente_solutioncar_db.sql	     reinicio_postgres_automatico.sh
+comparar_estructuras_backup.py	     requirements.txt
+condocdat			     restaurar_fix_sql.py
+db.vieja			     scripts
+diagnosticar_postgres.sh	     start.sh
+Dockerfile			     static
+env				     staticfiles
+Logo1.png			     trabajos
+Logo1.svg			     update_all_talleres.sh
+Logo2.png			     varios
+manage.py			     verificar_conectividad.sh
+mantto				     verificar_logs_django.sh
+root@vmi2747120:/home/max/myproject# nano myproject/settings.py
+root@vmi2747120:/home/max/myproject# ls -la
+total 1636
+drwxr-xr-x 15 max  max    4096 Mar  1  2026 .
+drwxr-xr-x 12 root root   4096 Sep  2 20:36 ..
+-rw-r--r--  1 max  max       0 Oct 22  2025 backup_antes_limpieza.sql
+-rw-r--r--  1 max  max  126845 Oct 16  2025 backup_gcmotori_20251016_231457.sql
+-rw-r--r--  1 max  max       0 Oct 22  2025 backup_repuesto_en_stock.sql
+-rw-r--r--  1 max  max       0 Sep 26  2025 build.log
+drwxr-xr-x  6 max  max    4096 Dec 15  2025 car
+-rw-r--r--  1 root root 689507 Dec 16  2025 cliente_solutioncar_db.sql
+-rw-r--r--  1 root root   6122 Dec 16  2025 comparar_estructuras_backup.py
+drwxr-xr-x 18 root root   4096 May 29 08:40 condocdat
+-rw-r--r--  1 max  max  503808 Sep 28  2025 db.vieja
+-rwxr-xr-x  1 root root   4889 Jan 19  2026 diagnosticar_postgres.sh
+-rw-r--r--  1 max  max    1313 Oct  9  2025 Dockerfile
+drwxr-xr-x  4 max  max    4096 Aug 15  2025 env
+drwxr-xr-x  8 max  max    4096 Dec 24  2025 .git
+-rw-r--r--  1 max  max      77 Aug 18  2025 .gitignore
+-rw-r--r--  1 max  max   54164 Oct  3  2025 Logo1.png
+-rw-r--r--  1 max  max   74600 Oct  3  2025 Logo1.svg
+-rw-r--r--  1 max  max   92689 Oct  3  2025 Logo2.png
+-rwxr-xr-x  1 max  max     665 Aug 15  2025 manage.py
+drwxr-xr-x  8 max  max    4096 Mar  1  2026 mantto
+drwxr-xr-x  3 max  max    4096 Sep 14  2025 media
+drwxr-xr-x  3 max  max    4096 Sep  3 11:29 myproject
+srwxrwxrwx  1 max  max       0 Oct 13  2025 myproject.sock
+drwxr-xr-x  3 max  max    4096 Oct 19  2025 otros
+-rwxr-xr-x  1 root root   2292 Jan 19  2026 reiniciar_postgres.sh
+-rwxr-xr-x  1 root root   1435 Jan 19  2026 reinicio_postgres_automatico.sh
+-rw-r--r--  1 max  max     628 Dec 15  2025 requirements.txt
+-rw-r--r--  1 root root   3855 Dec 16  2025 restaurar_fix_sql.py
+drwxr-xr-x  2 root root   4096 Dec 18  2025 scripts
+-rw-r--r--  1 max  max    2188 Oct  1  2025 start.sh
+drwxr-xr-x  6 max  max    4096 Oct 28  2025 static
+drwxr-xr-x  6 max  max    4096 Feb  1  2026 staticfiles
+drwxr-xr-x  3 max  max    4096 Sep 14  2025 trabajos
+-rwxr-xr-x  1 max  max    3480 Oct  5  2025 update_all_talleres.sh
+drwxr-xr-x  2 max  max    4096 Sep 26  2025 varios
+-rwxr-xr-x  1 root root   2899 Jan 19  2026 verificar_conectividad.sh
+-rwxr-xr-x  1 root root   2381 Jan 19  2026 verificar_logs_django.sh
+root@vmi2747120:/home/max/myproject# ls
+backup_antes_limpieza.sql	     media
+backup_gcmotori_20251016_231457.sql  myproject
+backup_repuesto_en_stock.sql	     myproject.sock
+build.log			     otros
+car				     reiniciar_postgres.sh
+cliente_solutioncar_db.sql	     reinicio_postgres_automatico.sh
+comparar_estructuras_backup.py	     requirements.txt
+condocdat			     restaurar_fix_sql.py
+db.vieja			     scripts
+diagnosticar_postgres.sh	     start.sh
+Dockerfile			     static
+env				     staticfiles
+Logo1.png			     trabajos
+Logo1.svg			     update_all_talleres.sh
+Logo2.png			     varios
+manage.py			     verificar_conectividad.sh
+mantto				     verificar_logs_django.sh
+root@vmi2747120:/home/max/myproject# cd ..
+root@vmi2747120:/home/max# cd otros
+root@vmi2747120:/home/max/otros# ls
+crear-demo-subdominio.sh  plantilla-clon  plantilla-subdominio
+root@vmi2747120:/home/max/otros# cd pjantilla-clon
+-bash: cd: pjantilla-clon: No such file or directory
+root@vmi2747120:/home/max/otros# cd plantilla-clon
+root@vmi2747120:/home/max/otros/plantilla-clon# ls
+app.py	docker-compose.yml  Dockerfile	README.md  requirements.txt
+root@vmi2747120:/home/max/otros/plantilla-clon# cd ..
+root@vmi2747120:/home/max/otros# ls
+alta-clon-postgres-central.sh  plantilla-clon
+crear-demo-subdominio.sh       plantilla-subdominio
+root@vmi2747120:/home/max/otros# ls
+alta-clon-postgres-central.sh  plantilla-clon
+crear-demo-subdominio.sh       plantilla-subdominio
+root@vmi2747120:/home/max/otros# chmod +x alta-clon-postgres-central.sh
+root@vmi2747120:/home/max/otros# ./alta-clon-postgres-central.sh
+Uso: alta-clon-postgres-central.sh NOMBRE SUBDOMINIO [DIRECTORIO]
+Ejemplo: alta-clon-postgres-central.sh taller1 taller1.netgogo.cl /home/max/taller1
+root@vmi2747120:/home/max/otros# 
+

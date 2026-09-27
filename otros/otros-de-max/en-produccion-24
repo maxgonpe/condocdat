@@ -1,0 +1,6 @@
+maxgonpe@baruch:~/max/subdomain-panel$ source .venv/bin/activate
+(.venv) maxgonpe@baruch:~/max/subdomain-panel$ curl -X POST http://127.0.0.1:8090/api/applications -H 'Content-Type: application/json' -d '{"name:"taller2","domain":"taller2.netgogo.cl","directory":"/home/max/taller2","database_name":"taller2_db"}'
+{"error":"Faltan campos: name, domain, directory, database_name"}
+(.venv) maxgonpe@baruch:~/max/subdomain-panel$ curl http://127.0.0.1.8090/api/applications/1/preview
+curl: (6) Could not resolve host: 127.0.0.1.8090
+(.venv) maxgonpe@baruch:~/max/subdomain-panel$ 

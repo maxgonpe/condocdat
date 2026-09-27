@@ -1,0 +1,47 @@
+root@vmi2747120:/home/max/otros/plantilla-subdominio# chmod +x /home/max/otros/crear-demo-subdominio.sh
+root@vmi2747120:/home/max/otros/plantilla-subdominio# DOMAIN=demo.netgogo.cl /home/max/otros/crear-demo-subdominio.sh
+[+] Building 15.1s (12/12) FINISHED                                          
+ => [internal] load local bake definitions                              0.0s
+ => => reading from stdin 494B                                          0.0s
+ => [internal] load build definition from Dockerfile                    0.8s
+ => => transferring dockerfile: 244B                                    0.1s
+ => [internal] load metadata for docker.io/library/python:3.11-slim     0.7s
+ => [internal] load .dockerignore                                       0.2s
+ => => transferring context: 2B                                         0.0s
+ => CACHED [1/5] FROM docker.io/library/python:3.11-slim@sha256:9534e5  0.0s
+ => [internal] load build context                                       0.2s
+ => => transferring context: 2.73kB                                     0.0s
+ => [2/5] WORKDIR /app                                                  0.3s
+ => [3/5] COPY requirements.txt .                                       0.1s
+ => [4/5] RUN pip install --no-cache-dir -r requirements.txt           11.1s
+ => [5/5] COPY . .                                                      0.1s 
+ => exporting to image                                                  0.9s 
+ => => exporting layers                                                 0.8s 
+ => => writing image sha256:adf645682863bf0e85dc764a00601299069fea9926  0.0s 
+ => => naming to docker.io/library/demo-netgogo-app                     0.0s 
+ => resolving provenance for metadata file                              0.0s 
+[+] up 5/5
+ ✔ Image demo-netgogo-app        Built                                  15.4s
+ ✔ Network demo-netgogo_internal Created                                 0.5s
+ ✔ Volume demo-netgogo_db_data   Created                                 0.1s
+ ✔ Container demo-netgogo-db-1   Healthy                                 6.6s
+ ✔ Container demo-netgogo-app-1  Started                                 6.7s
+
+Aplicación creada en /home/max/demo-netgogo
+Subdominio: demo.netgogo.cl
+Verificación: curl -k https://demo.netgogo.cl/health/database
+root@vmi2747120:/home/max/otros/plantilla-subdominio# curl -k https://demo.netgogo.cl/
+{"application":"mi_aplicacion","domain":"localhost","status":"ok"}
+root@vmi2747120:/home/max/otros/plantilla-subdominio# curl -k https://demo.netgogo.cl/health/database
+{"database":"ok","status":"ok"}
+root@vmi2747120:/home/max/otros/plantilla-subdominio# 
+
+::::: esto es lo que me muestra el navegador en internet SI FUNCIONA!!!!
+
+{
+  "application": "mi_aplicacion",
+  "domain": "localhost",
+  "status": "ok"
+}
+
+en demo.netgogo.cl

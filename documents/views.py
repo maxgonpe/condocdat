@@ -3209,13 +3209,13 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
         folders = (
             Folder.objects.filter(code__icontains="ODATA-ST01-F5-TTAL-PPT")
             .prefetch_related("folder_files", "documents__attachments")
-            .order_by(order_by, then_by)[:500]
+            .order_by(order_by, then_by)
         )
     else:
         folders = (
             Folder.objects.filter(code__icontains=code_filter)
             .prefetch_related("folder_files", "documents__attachments")
-            .order_by(order_by, then_by)[:500]
+            .order_by(order_by, then_by)
         )
     def _clean_doc_arch(text):
         """

@@ -12,8 +12,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'condocdat_db',
-        'USER': 'tu_usuario',
-        'PASSWORD': 'tu_password',
+        'USER': 'maxgonpe',
+        'PASSWORD': 'celsa1961',
         'HOST': 'localhost',
         'PORT': '5432',
         'CONN_MAX_AGE': 60,

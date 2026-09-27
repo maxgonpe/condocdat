@@ -1,0 +1,98 @@
+root@vmi2747120:/home/max# docker inspect condocdat --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
+/home/max/myproject/condocdat/staticfiles -> /app/staticfiles
+/home/max/myproject/condocdat/data -> /app/data
+/home/max/myproject/condocdat/media -> /app/media
+
+root@vmi2747120:/home/max# 
+
+asi estaba el contenedor anterior
+
+#############################################################
+
+#1 [internal] load local bake definitions
+#1 reading from stdin 500B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.01kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.11-slim
+#3 DONE 0.3s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [1/9] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 146.13kB 0.4s done
+#6 DONE 0.4s
+
+#7 [2/9] RUN groupadd -r django -g 1000 && useradd -r -u 1000 -g django django
+#7 CACHED
+
+#8 [3/9] RUN apt-get update && apt-get install -y --no-install-recommends     gcc     postgresql-client     default-jre-headless     libreoffice-calc-nogui     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [4/9] WORKDIR /app
+#9 CACHED
+
+#10 [5/9] COPY requirements.txt /app/
+#10 CACHED
+
+#11 [6/9] RUN pip install --no-cache-dir -r requirements.txt
+#11 CACHED
+
+#12 [7/9] COPY . /app/
+#12 DONE 2.5s
+
+#13 [8/9] RUN chmod +x /app/docker-entrypoint.sh
+#13 DONE 1.4s
+
+#14 [9/9] RUN chown -R django:django /app
+#14 DONE 15.1s
+
+#15 exporting to image
+#15 exporting layers
+#15 exporting layers 1.2s done
+#15 writing image sha256:e1c31f2713129a226ce26014053ca720f860a0619f829649d7fda94942bb6f94 done
+#15 naming to docker.io/library/condocdat-app 0.0s done
+#15 DONE 1.3s
+
+#16 resolving provenance for metadata file
+#16 DONE 0.0s
+NAME            IMAGE           COMMAND                  SERVICE   CREATED         STATUS                  PORTS
+condocdat_app   condocdat-app   "/app/docker-entrypo…"   app       2 seconds ago   Up Less than a second   8000/tcp
+Operación update completada para /home/max/projects/condocdat.
+
+ Image condocdat-app Building 
+ Image condocdat-app Built 
+time="2026-09-06T21:32:16-05:00" level=warning msg="Found orphan containers (condocdat) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container condocdat_app Recreate 
+ Container condocdat_app Recreated 
+ Container condocdat_app Starting 
+ Container condocdat_app Started
+
+
+ ########################################
+ logs
+
+ 🚀 Iniciando aplicación Condocdat...
+🚀 Iniciando aplicación Condocdat...
+🚀 Iniciando aplicación Condocdat...
+🚀 Iniciando aplicación Condocdat...
+🚀 Iniciando aplicación Condocdat...
+🚀 Iniciando aplicación Condocdat...
+🚀 Iniciando aplicación Condocdat...
+🚀 Iniciando aplicación Condocdat...
+mkdir: cannot create directory ‘/app/media/equipos’: Permission denied
+mkdir: cannot create directory ‘/app/media/equipos’: Permission denied
+mkdir: cannot create directory ‘/app/media/equipos’: Permission denied
+mkdir: cannot create directory ‘/app/media/equipos’: Permission denied
+mkdir: cannot create directory ‘/app/media/equipos’: Permission denied
+mkdir: cannot create directory ‘/app/media/equipos’: Permission denied
+mkdir: cannot create directory ‘/app/media/equipos’: Permission denied
+mkdir: cannot create directory ‘/app/media/equipos’: Permission denied

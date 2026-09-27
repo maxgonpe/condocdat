@@ -1,0 +1,3 @@
+maxgonpe@baruch:~/max/subdomain-panel$ curl -X POST http://127.0.0.1:8090/api/applications/1/deploy/ -H 'X-Panel-Token: token-local-seguro'
+{"output":"SIMULACI\u00d3N LOCAL: no se ejecut\u00f3 Docker ni se modific\u00f3 PostgreSQL.\nComando que se ejecutar\u00eda: /home/maxgonpe/max/otros/alta-clon-postgres-central.sh taller2 taller2.netgogo.cl /home/max/taller2","status":"simulated"}
+maxgonpe@baruch:~/max/subdomain-panel$ 

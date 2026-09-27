@@ -1,0 +1,48 @@
+services:
+  app:
+    build: .
+    container_name: ${APP_NAME}_app
+    restart: unless-stopped
+    environment:
+      DB_ENGINE: django.db.backends.postgresql
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DEBUG: ${DJANGO_DEBUG:-False}
+      SECRET_KEY: ${DJANGO_SECRET_KEY}
+      ALLOWED_HOSTS: ${DOMAIN}
+      DJANGO_SETTINGS_MODULE: condocdat.settings
+      TZ: America/Santiago
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.office365.com}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
+      EMAIL_TIMEOUT: ${EMAIL_TIMEOUT:-90}
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    networks:
+      - postgres
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_default"
+      - "traefik.http.routers.${APP_NAME}.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME}.priority=10"
+      - "traefik.http.routers.${APP_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME}.tls=true"
+      - "traefik.http.routers.${APP_NAME}.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${APP_NAME}.loadbalancer.server.port=8000"
+
+networks:
+  postgres:
+    external: true
+    name: ${POSTGRES_NETWORK}
+  traefik:
+    external: true
+    name: traefik_default

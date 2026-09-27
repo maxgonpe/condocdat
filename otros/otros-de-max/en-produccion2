@@ -1,0 +1,57 @@
+root@vmi2747120:/home/max/myproject_netgogo# ls
+backup_20251026_182143.sql     docker-compose.yml   shop
+backup_20251026_182302.sql     Dockerfile	    simulate_webhook.py
+backup_20251026_182515.sql     Dockerfile-anterior  static
+backup_20251026.sql	       entrypoint.sh	    staticfiles
+backup_20260121_151635.sql     env_example	    test_preference.py
+cart			       manage.py	    test_signature.py
+cookies.txt		       media		    test.txt
+db.sqlite3		       mis-librerias.txt    update_production.sh
+db.vieja_tienda		       myproject	    user
+django_webhook.log	       orders		    utils
+docker-compose-26-10-2025.yml  products
+docker-compose-anterior.yml    requirements.txt
+root@vmi2747120:/home/max/myproject_netgogo# ps -a
+    PID TTY          TIME CMD
+3564301 pts/0    00:00:00 ps
+root@vmi2747120:/home/max/myproject_netgogo# docker ps -a
+CONTAINER ID   IMAGE                   COMMAND                  CREATED         STATUS                   PORTS                                                              NAMES
+ab01d65db50b   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes                                                                                cliente_waldo
+2f61f75b5e66   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes                                                                                cliente_gcmotori
+45bb3895e212   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes                                                                                cliente_theskynet
+c950b9c375b6   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes                                                                                cliente_tallerdemo
+25ac9374f0ef   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes             0.0.0.0:8001->8000/tcp                                             cliente_solutioncar
+33976656be06   condocdat-condocdat     "/app/docker-entrypo…"   8 weeks ago     Up 5 hours               8000/tcp                                                           condocdat
+393708bc21ad   myproject_netgogo-web   "/usr/bin/tini -- /a…"   7 months ago    Up 5 hours               0.0.0.0:8000->8000/tcp                                             netgogo_new_web
+96bde495d1f0   mantto-mantto           "/app/docker-entrypo…"   9 months ago    Up 5 hours               8000/tcp                                                           mantto
+1092221d0ee5   postgres:15-alpine      "docker-entrypoint.s…"   10 months ago   Up 5 hours (healthy)     5432/tcp                                                           netgogo_new_db
+b833b86ab1ab   nginx:stable-alpine     "/docker-entrypoint.…"   10 months ago   Up 5 hours               80/tcp                                                             netgogo_new_static
+e5d0e33f8cbf   1416eeabcd98            "/start.sh gunicorn …"   10 months ago   Up 5 hours                                                                                  tienda_app
+6e9ee77facad   nginx:stable-alpine     "/docker-entrypoint.…"   11 months ago   Up 5 hours               80/tcp                                                             tienda_static
+ee591e38a380   postgres:15             "docker-entrypoint.s…"   11 months ago   Exited (0) 5 hours ago                                                                      postgres_talleres
+cda9da19772d   traefik:v3.1            "/entrypoint.sh --ap…"   11 months ago   Up 5 hours               0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+root@vmi2747120:/home/max/myproject_netgogo# docker start netgogo_new_db
+netgogo_new_db
+root@vmi2747120:/home/max/myproject_netgogo# docker start netgogo_new_web
+netgogo_new_web
+root@vmi2747120:/home/max/myproject_netgogo# docker start netgogo_new_static
+netgogo_new_static
+root@vmi2747120:/home/max/myproject_netgogo# docker start traefik-traefik-1
+traefik-traefik-1
+root@vmi2747120:/home/max/myproject_netgogo# docker ps
+CONTAINER ID   IMAGE                   COMMAND                  CREATED          STATUS                 PORTS                                                              NAMES
+ab01d65db50b   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes                                                                             cliente_waldo
+2f61f75b5e66   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes                                                                             cliente_gcmotori
+45bb3895e212   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes                                                                             cliente_theskynet
+c950b9c375b6   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes                                                                             cliente_tallerdemo
+25ac9374f0ef   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes          0.0.0.0:8001->8000/tcp                                             cliente_solutioncar
+33976656be06   condocdat-condocdat     "/app/docker-entrypo…"   8 weeks ago      Up 5 hours             8000/tcp                                                           condocdat
+393708bc21ad   myproject_netgogo-web   "/usr/bin/tini -- /a…"   7 months ago     Up 5 hours             0.0.0.0:8000->8000/tcp                                             netgogo_new_web
+96bde495d1f0   mantto-mantto           "/app/docker-entrypo…"   9 months ago     Up 5 hours             8000/tcp                                                           mantto
+1092221d0ee5   postgres:15-alpine      "docker-entrypoint.s…"   10 months ago    Up 5 hours (healthy)   5432/tcp                                                           netgogo_new_db
+b833b86ab1ab   nginx:stable-alpine     "/docker-entrypoint.…"   10 months ago    Up 5 hours             80/tcp                                                             netgogo_new_static
+e5d0e33f8cbf   1416eeabcd98            "/start.sh gunicorn …"   10 months ago    Up 5 hours                                                                                tienda_app
+6e9ee77facad   nginx:stable-alpine     "/docker-entrypoint.…"   11 months ago    Up 5 hours             80/tcp                                                             tienda_static
+cda9da19772d   traefik:v3.1            "/entrypoint.sh --ap…"   11 months ago    Up 5 hours             0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+root@vmi2747120:/home/max/myproject_netgogo# 
+

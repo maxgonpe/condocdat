@@ -1,0 +1,231 @@
+CON CONTRASEÑA '19331941'
+
+#1 [internal] load local bake definitions
+#1 reading from stdin 500B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.01kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.11-slim
+#3 DONE 0.4s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [1/9] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 146.55kB 0.1s done
+#6 DONE 0.1s
+
+#7 [2/9] RUN groupadd -r django -g 1000 && useradd -r -u 1000 -g django django
+#7 CACHED
+
+#8 [3/9] RUN apt-get update && apt-get install -y --no-install-recommends     gcc     postgresql-client     default-jre-headless     libreoffice-calc-nogui     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [4/9] WORKDIR /app
+#9 CACHED
+
+#10 [5/9] COPY requirements.txt /app/
+#10 CACHED
+
+#11 [7/9] COPY . /app/
+#11 CACHED
+
+#12 [8/9] RUN chmod +x /app/docker-entrypoint.sh
+#12 CACHED
+
+#13 [6/9] RUN pip install --no-cache-dir -r requirements.txt
+#13 CACHED
+
+#14 [9/9] RUN chown -R django:django /app
+#14 CACHED
+
+#15 exporting to image
+#15 exporting layers done
+#15 writing image sha256:d723c1480392221a88b6fb73c54cf5eab71f77cee78a8bc63a6f7f73108e08c3 done
+#15 naming to docker.io/library/condocdat-app 0.0s done
+#15 DONE 0.0s
+
+#16 resolving provenance for metadata file
+#16 DONE 0.0s
+
+ Image condocdat-app Building 
+ Image condocdat-app Built 
+time="2026-09-06T22:32:40-05:00" level=warning msg="Found orphan containers (condocdat) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container condocdat_app Creating 
+ Container condocdat_app Created 
+ Container condocdat_app Starting 
+ Container condocdat_app Started 
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 279, in ensure_connection
+    self.connect()
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 256, in connect
+    self.connection = self.get_new_connection(conn_params)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/postgresql/base.py", line 332, in get_new_connection
+    connection = self.Database.connect(**conn_params)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: connection to server at "postgres_talleres" (172.19.0.5), port 5432 failed: FATAL:  password authentication failed for user "maxgonpe"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/app/manage.py", line 22, in <module>
+    main()
+  File "/app/manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/base.py", line 416, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/base.py", line 460, in execute
+    output = self.handle(*args, **options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/base.py", line 107, in wrapper
+    res = handle_func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/commands/migrate.py", line 114, in handle
+    executor = MigrationExecutor(connection, self.migration_progress_callback)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/executor.py", line 18, in __init__
+    self.loader = MigrationLoader(self.connection)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/loader.py", line 58, in __init__
+    self.build_graph()
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/loader.py", line 235, in build_graph
+    self.applied_migrations = recorder.applied_migrations()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/recorder.py", line 89, in applied_migrations
+    if self.has_table():
+       ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/recorder.py", line 63, in has_table
+    with self.connection.cursor() as cursor:
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 320, in cursor
+    return self._cursor()
+           ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 296, in _cursor
+    self.ensure_connection()
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 278, in ensure_connection
+    with self.wrap_database_errors:
+  File "/usr/local/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 279, in ensure_connection
+    self.connect()
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 256, in connect
+    self.connection = self.get_new_connection(conn_params)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/postgresql/base.py", line 332, in get_new_connection
+    connection = self.Database.connect(**conn_params)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.OperationalError: connection to server at "postgres_talleres" (172.19.0.5), port 5432 failed: FATAL:  password authentication failed for user "maxgonpe"
+
+
+
+##########################################
+{
+  "command": "alta-clon-postgres-central.sh condocdat condocdat.netgogo.cl /home/max/projects/condocdat",
+  "created_at": "2026-09-07 02:27:09",
+  "database_name": "condocdat_db",
+  "directory": "/home/max/projects/condocdat",
+  "domain": "condocdat.netgogo.cl",
+  "id": 2,
+  "last_output": "#1 [internal] load local bake definitions\n#1 reading from stdin 500B done\n#1 DONE 0.0s\n\n#2 [internal] load build definition from Dockerfile\n#2 transferring dockerfile: 1.01kB 0.1s done\n#2 DONE 0.1s\n\n#3 [internal] load metadata for docker.io/library/python:3.11-slim\n#3 DONE 0.4s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.0s\n\n#5 [1/9] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534\n#5 DONE 0.0s\n\n#6 [internal] load build context\n#6 transferring context: 146.55kB 0.7s done\n#6 DONE 0.8s\n\n#7 [3/9] RUN apt-get update && apt-get install -y --no-install-recommends     gcc     postgresql-client     default-jre-headless     libreoffice-calc-nogui     && rm -rf /var/lib/apt/lists/*\n#7 CACHED\n\n#8 [5/9] COPY requirements.txt /app/\n#8 CACHED\n\n#9 [7/9] COPY . /app/\n#9 CACHED\n\n#10 [2/9] RUN groupadd -r django -g 1000 && useradd -r -u 1000 -g django django\n#10 CACHED\n\n#11 [4/9] WORKDIR /app\n#11 CACHED\n\n#12 [6/9] RUN pip install --no-cache-dir -r requirements.txt\n#12 CACHED\n\n#13 [8/9] RUN chmod +x /app/docker-entrypoint.sh\n#13 CACHED\n\n#14 [9/9] RUN chown -R django:django /app\n#14 CACHED\n\n#15 exporting to image\n#15 exporting layers done\n#15 writing image sha256:d723c1480392221a88b6fb73c54cf5eab71f77cee78a8bc63a6f7f73108e08c3\n#15 writing image sha256:d723c1480392221a88b6fb73c54cf5eab71f77cee78a8bc63a6f7f73108e08c3 0.6s done\n#15 naming to docker.io/library/condocdat-app done\n#15 DONE 0.7s\n\n#16 resolving provenance for metadata file\n#16 DONE 0.1s\n\n Image condocdat-app Building \n Image condocdat-app Built \ntime=\"2026-09-06T22:38:03-05:00\" level=warning msg=\"Found orphan containers (condocdat) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up.\"\n Container condocdat_app Recreate \n Container condocdat_app Recreated \n Container condocdat_app Starting \n Container condocdat_app Started \nTraceback (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py\", line 279, in ensure_connection\n    self.connect()\n  File \"/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py\", line 26, in inner\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py\", line 256, in connect\n    self.connection = self.get_new_connection(conn_params)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py\", line 26, in inner\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/postgresql/base.py\", line 332, in get_new_connection\n    connection = self.Database.connect(**conn_params)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/psycopg2/__init__.py\", line 122, in connect\n    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\npsycopg2.OperationalError: connection to server at \"postgres_talleres\" (172.19.0.5), port 5432 failed: FATAL:  password authentication failed for user \"maxgonpe\"\n\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/app/manage.py\", line 22, in \u003Cmodule\u003E\n    main()\n  File \"/app/manage.py\", line 18, in main\n    execute_from_command_line(sys.argv)\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/__init__.py\", line 442, in execute_from_command_line\n    utility.execute()\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/__init__.py\", line 436, in execute\n    self.fetch_command(subcommand).run_from_argv(self.argv)\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/base.py\", line 416, in run_from_argv\n    self.execute(*args, **cmd_options)\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/base.py\", line 460, in execute\n    output = self.handle(*args, **options)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/base.py\", line 107, in wrapper\n    res = handle_func(*args, **kwargs)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/core/management/commands/migrate.py\", line 114, in handle\n    executor = MigrationExecutor(connection, self.migration_progress_callback)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/migrations/executor.py\", line 18, in __init__\n    self.loader = MigrationLoader(self.connection)\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/migrations/loader.py\", line 58, in __init__\n    self.build_graph()\n  File \"/usr/local/lib/python3.11/site-packages/django/db/migrations/loader.py\", line 235, in build_graph\n    self.applied_migrations = recorder.applied_migrations()\n                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/migrations/recorder.py\", line 89, in applied_migrations\n    if self.has_table():\n       ^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/migrations/recorder.py\", line 63, in has_table\n    with self.connection.cursor() as cursor:\n         ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py\", line 26, in inner\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py\", line 320, in cursor\n    return self._cursor()\n           ^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py\", line 296, in _cursor\n    self.ensure_connection()\n  File \"/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py\", line 26, in inner\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py\", line 278, in ensure_connection\n    with self.wrap_database_errors:\n  File \"/usr/local/lib/python3.11/site-packages/django/db/utils.py\", line 91, in __exit__\n    raise dj_exc_value.with_traceback(traceback) from exc_value\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py\", line 279, in ensure_connection\n    self.connect()\n  File \"/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py\", line 26, in inner\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py\", line 256, in connect\n    self.connection = self.get_new_connection(conn_params)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py\", line 26, in inner\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/django/db/backends/postgresql/base.py\", line 332, in get_new_connection\n    connection = self.Database.connect(**conn_params)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/psycopg2/__init__.py\", line 122, in connect\n    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndjango.db.utils.OperationalError: connection to server at \"postgres_talleres\" (172.19.0.5), port 5432 failed: FATAL:  password authentication failed for user \"maxgonpe\"",
+  "mode": "preview-only",
+  "name": "condocdat",
+  "status": "failed"
+}
+
+NOMINA tambien se detuvo 
+
+Estado registrado: failed
+Estado Docker: absent
+
+Welcome!
+
+This server is hosted by Contabo. If you have any questions or need help,
+please don't hesitate to contact us at support@contabo.com.
+
+Last login: Sun Sep  6 21:25:26 2026 from 201.187.199.152
+root@vmi2747120:~# docker ps
+CONTAINER ID   IMAGE                   COMMAND                  CREATED         STATUS                          PORTS                                                              NAMES
+5c077e030777   condocdat-app           "/app/docker-entrypo…"   6 minutes ago   Restarting (1) 53 seconds ago                                                                      condocdat_app
+8d4dffd1462e   taller1-app             "gunicorn app:app --…"   3 days ago      Up 3 days                       8000/tcp                                                           taller1_app
+1a1d291d59b9   demo-netgogo-app        "gunicorn app:app --…"   3 days ago      Up 3 days                       8000/tcp                                                           demo-netgogo-app-1
+978e8c305292   postgres:15-alpine      "docker-entrypoint.s…"   3 days ago      Up 3 days (healthy)             5432/tcp                                                           demo-netgogo-db-1
+166867f5d71c   nginx:stable-alpine     "/docker-entrypoint.…"   4 days ago      Up 4 days                       80/tcp                                                             tienda_static
+a02791dd9df4   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          tienda_app
+756e9c127e88   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                       0.0.0.0:8001->8000/tcp                                             cliente_solutioncar
+0fa66e5221d0   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          cliente_tallerdemo
+71bbde5a9773   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          cliente_theskynet
+b7d699a92ebc   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          cliente_gcmotori
+5b8eacd7a7bd   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          cliente_waldo
+22786b8e5827   traefik:v3.6            "/entrypoint.sh --ap…"   4 days ago      Up 4 days                       0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+393708bc21ad   myproject_netgogo-web   "/usr/bin/tini -- /a…"   7 months ago    Up 4 days                       0.0.0.0:8000->8000/tcp                                             netgogo_new_web
+96bde495d1f0   mantto-mantto           "/app/docker-entrypo…"   9 months ago    Up 4 days                       8000/tcp                                                           mantto
+1092221d0ee5   postgres:15-alpine      "docker-entrypoint.s…"   10 months ago   Up 4 days (healthy)             5432/tcp                                                           netgogo_new_db
+b833b86ab1ab   nginx:stable-alpine     "/docker-entrypoint.…"   10 months ago   Up 4 days                       80/tcp                                                             netgogo_new_static
+ee591e38a380   postgres:15             "docker-entrypoint.s…"   11 months ago   Up 4 days                       5432/tcp                                                           postgres_talleres
+root@vmi2747120:~# docker start nomina_app
+Error response from daemon: No such container: nomina_app
+failed to start containers: nomina_app
+root@vmi2747120:~# docker ps -a
+CONTAINER ID   IMAGE                   COMMAND                  CREATED         STATUS                          PORTS                                                              NAMES
+5c077e030777   condocdat-app           "/app/docker-entrypo…"   8 minutes ago   Restarting (1) 25 seconds ago                                                                      condocdat_app
+8d4dffd1462e   taller1-app             "gunicorn app:app --…"   3 days ago      Up 3 days                       8000/tcp                                                           taller1_app
+1a1d291d59b9   demo-netgogo-app        "gunicorn app:app --…"   3 days ago      Up 3 days                       8000/tcp                                                           demo-netgogo-app-1
+978e8c305292   postgres:15-alpine      "docker-entrypoint.s…"   3 days ago      Up 3 days (healthy)             5432/tcp                                                           demo-netgogo-db-1
+a5e68283ab73   condocdat-condocdat     "/app/docker-entrypo…"   4 days ago      Exited (0) 2 hours ago                                                                             condocdat
+166867f5d71c   nginx:stable-alpine     "/docker-entrypoint.…"   4 days ago      Up 4 days                       80/tcp                                                             tienda_static
+a02791dd9df4   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          tienda_app
+756e9c127e88   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                       0.0.0.0:8001->8000/tcp                                             cliente_solutioncar
+0fa66e5221d0   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          cliente_tallerdemo
+71bbde5a9773   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          cliente_theskynet
+b7d699a92ebc   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          cliente_gcmotori
+5b8eacd7a7bd   taller_base:latest      "/start.sh gunicorn …"   4 days ago      Up 4 days                                                                                          cliente_waldo
+22786b8e5827   traefik:v3.6            "/entrypoint.sh --ap…"   4 days ago      Up 4 days                       0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+393708bc21ad   myproject_netgogo-web   "/usr/bin/tini -- /a…"   7 months ago    Up 4 days                       0.0.0.0:8000->8000/tcp                                             netgogo_new_web
+96bde495d1f0   mantto-mantto           "/app/docker-entrypo…"   9 months ago    Up 4 days                       8000/tcp                                                           mantto
+1092221d0ee5   postgres:15-alpine      "docker-entrypoint.s…"   10 months ago   Up 4 days (healthy)             5432/tcp                                                           netgogo_new_db
+b833b86ab1ab   nginx:stable-alpine     "/docker-entrypoint.…"   10 months ago   Up 4 days                       80/tcp                                                             netgogo_new_static
+ee591e38a380   postgres:15             "docker-entrypoint.s…"   11 months ago   Up 4 days                       5432/tcp                                                           postgres_talleres
+root@vmi2747120:~# docker ps -la
+CONTAINER ID   IMAGE           COMMAND                  CREATED         STATUS                         PORTS     NAMES
+5c077e030777   condocdat-app   "/app/docker-entrypo…"   9 minutes ago   Restarting (1) 8 seconds ago             condocdat_app
+root@vmi2747120:~# 
+
+
+

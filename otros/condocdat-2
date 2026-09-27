@@ -1,0 +1,8 @@
+20251224_132033  restaurar_backup_completo.sh
+root@vmi2747120:/home/max/backups# docker exec -e PGPASSWORD='19331941' postgres_talleres pg_dump -Fc -U maxgonpe -d condocdat_db /home/max/backups/condocdat_db.dump
+pg_dump: error: too many command-line arguments (first is "/home/max/backups/condocdat_db.dump")
+pg_dump: hint: Try "pg_dump --help" for more information.
+root@vmi2747120:/home/max/backups# docker exec -e PGPASSWORD='19331941' postgres_talleres \ pg_dump -Fc -U maxgonpe -d condocdat_db \ /home/max/backups/condocdat_db.dump
+OCI runtime exec failed: exec failed: unable to start container process: exec: " pg_dump": executable file not found in $PATH
+root@vmi2747120:/home/max/backups# 
+

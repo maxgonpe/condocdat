@@ -1,0 +1,5 @@
+(.venv) maxgonpe@baruch:~/max/subdomain-panel$ curl -X POST http://127.0.0.1:8090/api/applications -H 'Content-Type: application/json' -d '{"name":"taller2","domain":"taller2.netgogo.cl","directory":"/home/max/taller2","database_name":"taller2_db"}'
+{"error":"name, domain o database_name ya existe"}
+(.venv) maxgonpe@baruch:~/max/subdomain-panel$ curl http://127.0.0.1:8090/api/applications/1/preview
+{"command":"alta-clon-postgres-central.sh taller2 taller2.netgogo.cl /home/max/taller2","created_at":"2026-09-03 20:03:04","database_name":"taller2_db","directory":"/home/max/taller2","domain":"taller2.netgogo.cl","id":1,"mode":"preview-only","name":"taller2","status":"planned"}
+(.venv) maxgonpe@baruch:~/max/subdomain-panel$ 

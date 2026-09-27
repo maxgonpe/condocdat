@@ -1,0 +1,76 @@
+root@vmi2747120:/home/max/traefik# docker exec -it postgres_talleres psql -U maxgonpe -d condocdat_db
+psql (15.14 (Debian 15.14-1.pgdg13+1))
+Type "help" for help.
+
+condocdat_db=# SELECT COUNT(*) documents_folder;
+ documents_folder 
+------------------
+                1
+(1 row)
+
+condocdat_db=# SELECT COUNT(*) documents_document;
+ documents_document 
+--------------------
+                  1
+(1 row)
+
+condocdat_db=# SELECT COUNT(*) documents_carpetas;
+ documents_carpetas 
+--------------------
+                  1
+(1 row)
+
+condocdat_db=# SELECT COUNT(*) documents_folderfile;
+ documents_folderfile 
+----------------------
+                    1
+(1 row)
+
+condocdat_db=# SELECT COUNT(*) FROM documents_folder;
+ count 
+-------
+   847
+(1 row)
+
+condocdat_db=# SELECT COUNT(*) FROM documents_document;
+ count 
+-------
+   848
+(1 row)
+
+condocdat_db=# SELECT COUNT(*) FROM documents_carpetas;
+ERROR:  relation "documents_carpetas" does not exist
+LINE 1: SELECT COUNT(*) FROM documents_carpetas;
+                             ^
+condocdat_db=# SELECT COUNT(*) FROM auth_user;
+ count 
+-------
+    12
+(1 row)
+
+condocdat_db=# 
+
+#############################
+
+root@vmi2747120:/home/max/traefik# ./consultar-bases-condocdat.sh
+== Contenedor PostgreSQL ==
+CONTAINER ID   IMAGE         COMMAND                  CREATED         STATUS          PORTS      NAMES
+ee591e38a380   postgres:15   "docker-entrypoint.s…"   11 months ago   Up 27 minutes   5432/tcp   postgres_talleres
+== Bases de datos disponibles ==
+cliente_gcmotori_db
+cliente_motosdemo_db
+cliente_solutioncar_db
+cliente_tallerdemo_db
+cliente_theskynet_db
+cliente_waldo_db
+condocdat_db
+netgogo_talleres
+postgres
+== Conteos en condocdat_db ==
+== Tablas documents_* y conteos ==
+== Volúmenes y redes del contenedor ==
+Mounts: [{"Type":"volume","Name":"netgogo_temp_postgres_data","Source":"/var/lib/docker/volumes/netgogo_temp_postgres_data/_data","Destination":"/var/lib/postgresql/data","Driver":"local","Mode":"rw","RW":true,"Propagation":""}]
+Networks: {"myproject_netgogo_default":{"IPAMConfig":{},"Links":null,"Aliases":[],"DriverOpts":{},"GwPriority":0,"NetworkID":"62224adbc83e44a14ebebb72ed9041cece6ba76c47d5934cb27b29d03c5a4c05","EndpointID":"6b151cc124f2b82be153a6fb824ad44dee8b734688d2640b44b20e6e7ebd3221","Gateway":"172.19.0.1","IPAddress":"172.19.0.5","MacAddress":"22:02:1d:5f:18:ef","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["postgres_talleres","ee591e38a380"]},"traefik_default":{"IPAMConfig":null,"Links":null,"Aliases":["postgres_talleres","db"],"DriverOpts":null,"GwPriority":0,"NetworkID":"2e0da1db9223b289788fb2a4f52eb7682cf9bcad797dace40e9ad697dd2ecc02","EndpointID":"2b5af0193ac97fa92ba36dd09cdc46e37eb9906b12aa5a2eabeffd86683567c9","Gateway":"172.18.0.1","IPAddress":"172.18.0.13","MacAddress":"86:d4:f6:07:2e:4e","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["postgres_talleres","db","ee591e38a380"]}}
+Consulta terminada. No se modificaron datos.
+root@vmi2747120:/home/max/traefik# 
+

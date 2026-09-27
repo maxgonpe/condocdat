@@ -1,0 +1,19 @@
+root@vmi2747120:/home/max/traefik# chmod +x buscar-datos-condocdat-en-todas-las-bases.sh
+root@vmi2747120:/home/max/traefik# ./buscar-datos-condocdat-en-todas-las-bases.sh
+BASE                             CARPETAS   DOCUMENTOS   USUARIOS
+------------------------------ ---------- ------------ ----------
+cliente_gcmotori_db                     -            -          3
+cliente_motosdemo_db                    -            -          2
+cliente_solutioncar_db                  -            -          5
+cliente_tallerdemo_db                   -            -          2
+cliente_theskynet_db                    -            -          4
+cliente_waldo_db                        -            -          3
+condocdat_db                          847          848         12
+netgogo_talleres                        -            -          2
+postgres                                -            -          -
+
+Volumen y redes del PostgreSQL:
+Mounts: [{"Type":"volume","Name":"netgogo_temp_postgres_data","Source":"/var/lib/docker/volumes/netgogo_temp_postgres_data/_data","Destination":"/var/lib/postgresql/data","Driver":"local","Mode":"rw","RW":true,"Propagation":""}]
+Networks: {"myproject_netgogo_default":{"IPAMConfig":{},"Links":null,"Aliases":[],"DriverOpts":{},"GwPriority":0,"NetworkID":"62224adbc83e44a14ebebb72ed9041cece6ba76c47d5934cb27b29d03c5a4c05","EndpointID":"6b151cc124f2b82be153a6fb824ad44dee8b734688d2640b44b20e6e7ebd3221","Gateway":"172.19.0.1","IPAddress":"172.19.0.5","MacAddress":"22:02:1d:5f:18:ef","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["postgres_talleres","ee591e38a380"]},"traefik_default":{"IPAMConfig":null,"Links":null,"Aliases":["postgres_talleres","db"],"DriverOpts":null,"GwPriority":0,"NetworkID":"2e0da1db9223b289788fb2a4f52eb7682cf9bcad797dace40e9ad697dd2ecc02","EndpointID":"2b5af0193ac97fa92ba36dd09cdc46e37eb9906b12aa5a2eabeffd86683567c9","Gateway":"172.18.0.1","IPAddress":"172.18.0.13","MacAddress":"86:d4:f6:07:2e:4e","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"DNSNames":["postgres_talleres","db","ee591e38a380"]}}
+root@vmi2747120:/home/max/traefik# 
+

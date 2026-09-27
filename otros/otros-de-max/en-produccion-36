@@ -1,0 +1,37 @@
+(.venv) root@vmi2747120:/home/max/subdomain-panel# docker logs --tail 200 nomina_app
+[2026-09-06 20:10:40 +0000] [1] [INFO] Starting gunicorn 23.0.0
+[2026-09-06 20:10:40 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+[2026-09-06 20:10:40 +0000] [1] [INFO] Using worker: sync
+[2026-09-06 20:10:40 +0000] [7] [INFO] Booting worker with pid: 7
+[2026-09-06 20:10:40 +0000] [8] [INFO] Booting worker with pid: 8
+[2026-09-06 20:10:40 +0000] [9] [INFO] Booting worker with pid: 9
+(.venv) root@vmi2747120:/home/max/subdomain-panel# docker logs --since 2m nomina_app
+(.venv) root@vmi2747120:/home/max/subdomain-panel# docker excec -it nomina_app python3 manage.py showmigrations
+unknown shorthand flag: 'i' in -it
+
+Usage:  docker [OPTIONS] COMMAND [ARG...]
+
+Run 'docker --help' for more information
+(.venv) root@vmi2747120:/home/max/subdomain-panel# docker excec -it nomina_app python3 manage.py shell -c
+unknown shorthand flag: 'i' in -it
+
+Usage:  docker [OPTIONS] COMMAND [ARG...]
+
+Run 'docker --help' for more information
+(.venv) root@vmi2747120:/home/max/subdomain-panel# docker excec -it nomina_app python3 manage.py shell -c "from django.contrib.auth import get_user_model; print(get_user_model().objects.count())"
+unknown shorthand flag: 'i' in -it
+
+Usage:  docker [OPTIONS] COMMAND [ARG...]
+
+Run 'docker --help' for more information
+(.venv) root@vmi2747120:/home/max/subdomain-panel# sudo docker excec -it nomina_app python3 manage.py showmigrations
+unknown shorthand flag: 'i' in -it
+
+Usage:  docker [OPTIONS] COMMAND [ARG...]
+
+Run 'docker --help' for more information
+(.venv) root@vmi2747120:/home/max/subdomain-panel# run docker excec -it nomina_app python3 manage.py showmigrations
+-bash: run: command not found
+(.venv) root@vmi2747120:/home/max/subdomain-panel# ^C
+(.venv) root@vmi2747120:/home/max/subdomain-panel# 
+

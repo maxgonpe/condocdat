@@ -1,0 +1,60 @@
+root@vmi2747120:/home/max# cd demo-netgogo
+root@vmi2747120:/home/max/demo-netgogo# ls
+app.py	docker-compose.yml  Dockerfile	requirements.txt
+root@vmi2747120:/home/max/demo-netgogo# docker compose up -d --force-recreate --build
+[+] Building 2.7s (12/12) FINISHED                                           
+ => [internal] load local bake definitions                              0.0s
+ => => reading from stdin 494B                                          0.0s
+ => [internal] load build definition from Dockerfile                    0.1s
+ => => transferring dockerfile: 244B                                    0.0s
+ => [internal] load metadata for docker.io/library/python:3.11-slim     0.5s
+ => [internal] load .dockerignore                                       0.0s
+ => => transferring context: 2B                                         0.0s
+ => [1/5] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e3154  0.0s
+ => [internal] load build context                                       0.0s
+ => => transferring context: 1.53kB                                     0.0s
+ => CACHED [2/5] WORKDIR /app                                           0.0s
+ => CACHED [3/5] COPY requirements.txt .                                0.0s
+ => CACHED [4/5] RUN pip install --no-cache-dir -r requirements.txt     0.0s
+ => [5/5] COPY . .                                                      0.1s
+ => exporting to image                                                  0.9s
+ => => exporting layers                                                 0.2s
+ => => writing image sha256:6fb52962331435f3a25754c5fda8a8e0c1839644ee  0.1s
+ => => naming to docker.io/library/demo-netgogo-app                     0.1s
+ => resolving provenance for metadata file                              0.1s
+[+] up 3/3
+ ✔ Image demo-netgogo-app       Built                                    2.9s
+ ✔ Container demo-netgogo-db-1  Healthy                                  9.7s
+ ✔ Container demo-netgogo-app-1 Started                                  9.6s
+root@vmi2747120:/home/max/demo-netgogo# curl -k https://taller1.netgogo.cl/
+{"application":"taller1","domain":"taller1.netgogo.cl","status":"ok"}
+root@vmi2747120:/home/max/demo-netgogo# curl -k https://taller1.netgogo.cl/health/database
+{"database":"taller1_db","status":"ok"}
+root@vmi2747120:/home/max/demo-netgogo# curl -k https://demo.netgogo.cl/
+{"application":"demo_netgogo","domain":"demo.netgogo.cl","status":"ok"}
+root@vmi2747120:/home/max/demo-netgogo# docker inspect taller_app --format '{{range $k,$v :=  .Config.Labels}}{{println $k "=" $v}}{{}}'
+template parsing error: template: :1: missing value for command
+root@vmi2747120:/home/max/demo-netgogo# docker inspect taller1_app --format '{{range $k,$v :=  .Config.Labels}}{{println $k "=" $v}}{{}}'
+template parsing error: template: :1: missing value for command
+root@vmi2747120:/home/max/demo-netgogo# docker inspect taller1_app --format '{{range $k,$v :=  .Config.Labels}}{{println $k "=" $v}}{{end}}'
+com.docker.compose.config-hash = 74f3a0e6ee3379e1792f726d07beb40f2b6742ced87a2d116f32a8ee5faebb20
+com.docker.compose.container-number = 1
+com.docker.compose.depends_on = 
+com.docker.compose.image = sha256:00daf693729e7b8e3bc65a3bb88eca7a0d6e88ecad314ac7a6eedea0bb299230
+com.docker.compose.oneoff = False
+com.docker.compose.project = taller1
+com.docker.compose.project.config_files = /home/max/taller1/docker-compose.yml
+com.docker.compose.project.working_dir = /home/max/taller1
+com.docker.compose.replace = taller1_app
+com.docker.compose.service = app
+com.docker.compose.version = 5.5.0
+traefik.docker.network = traefik_default
+traefik.enable = true
+traefik.http.routers.${APP_NAME}.entrypoints = websecure
+traefik.http.routers.${APP_NAME}.rule = Host(`taller1.netgogo.cl`)
+traefik.http.routers.${APP_NAME}.tls = true
+traefik.http.routers.${APP_NAME}.tls.certresolver = letsencrypt
+traefik.http.services.${APP_NAME}.loadbalancer.server.port = 8000
+
+root@vmi2747120:/home/max/demo-netgogo# 
+

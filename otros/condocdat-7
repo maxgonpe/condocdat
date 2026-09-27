@@ -1,0 +1,182 @@
+🚀 Iniciando aplicación Condocdat...
+⏳ Esperando a PostgreSQL...
+✅ PostgreSQL está listo
+📦 Ejecutando migraciones...
+  File "/usr/local/lib/python3.11/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.OperationalError: connection to server at "postgres_talleres" (172.19.0.5), port 5432 failed: FATAL:  password authentication failed for user "maxgonpe"
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 279, in ensure_connection
+    self.connect()
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 256, in connect
+    self.connection = self.get_new_connection(conn_params)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/postgresql/base.py", line 332, in get_new_connection
+    connection = self.Database.connect(**conn_params)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: connection to server at "postgres_talleres" (172.19.0.5), port 5432 failed: FATAL:  password authentication failed for user "maxgonpe"
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/app/manage.py", line 22, in <module>
+    main()
+  File "/app/manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/base.py", line 416, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/base.py", line 460, in execute
+    output = self.handle(*args, **options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/base.py", line 107, in wrapper
+    res = handle_func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/management/commands/migrate.py", line 114, in handle
+    executor = MigrationExecutor(connection, self.migration_progress_callback)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/executor.py", line 18, in __init__
+    self.loader = MigrationLoader(self.connection)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/loader.py", line 58, in __init__
+    self.build_graph()
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/loader.py", line 235, in build_graph
+    self.applied_migrations = recorder.applied_migrations()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/recorder.py", line 89, in applied_migrations
+    if self.has_table():
+       ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/migrations/recorder.py", line 63, in has_table
+    with self.connection.cursor() as cursor:
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 320, in cursor
+    return self._cursor()
+           ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 296, in _cursor
+    self.ensure_connection()
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 278, in ensure_connection
+    with self.wrap_database_errors:
+  File "/usr/local/lib/python3.11/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 279, in ensure_connection
+    self.connect()
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/base/base.py", line 256, in connect
+    self.connection = self.get_new_connection(conn_params)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/asyncio.py", line 26, in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/db/backends/postgresql/base.py", line 332, in get_new_connection
+    connection = self.Database.connect(**conn_params)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/psycopg2/__init__.py", line 122, in connect
+    conn = _connect(dsn, connection_factory=connection_factory, **kwasync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.OperationalError: connection to server at "postgres_talleres" (172.19.0.5), port 5432 failed: FATAL:  password authentication failed for user "maxgonpe"
+
+######################################################################
+#####################################################################
+####################################################################
+
+esta parte lo hice con la contraseña "adminomina"
+
+#1 [internal] load local bake definitions
+#1 reading from stdin 500B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.01kB 0.0s done
+#2 DONE 0.1s
+
+#3 [internal] load metadata for docker.io/library/python:3.11-slim
+#3 DONE 0.3s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B 0.0s done
+#4 DONE 0.1s
+
+#5 [1/9] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 146.55kB 0.2s done
+#6 DONE 0.2s
+
+#7 [4/9] WORKDIR /app
+#7 CACHED
+
+#8 [5/9] COPY requirements.txt /app/
+#8 CACHED
+
+#9 [2/9] RUN groupadd -r django -g 1000 && useradd -r -u 1000 -g django django
+#9 CACHED
+
+#10 [3/9] RUN apt-get update && apt-get install -y --no-install-recommends     gcc     postgresql-client     default-jre-headless     libreoffice-calc-nogui     && rm -rf /var/lib/apt/lists/*
+#10 CACHED
+
+#11 [6/9] RUN pip install --no-cache-dir -r requirements.txt
+#11 CACHED
+
+#12 [7/9] COPY . /app/
+#12 DONE 0.8s
+
+#13 [8/9] RUN chmod +x /app/docker-entrypoint.sh
+#13 DONE 1.2s
+
+#14 [9/9] RUN chown -R django:django /app
+#14 DONE 16.0s
+
+#15 exporting to image
+#15 exporting layers
+#15 exporting layers 1.1s done
+#15 writing image sha256:dd026318531c85aa0cebc3b05814d33809bba792a8521e2fca5742471d664e3b
+#15 writing image sha256:dd026318531c85aa0cebc3b05814d33809bba792a8521e2fca5742471d664e3b 0.0s done
+#15 naming to docker.io/library/condocdat-app 0.1s done
+#15 DONE 1.3s
+
+#16 resolving provenance for metadata file
+#16 DONE 0.0s
+
+ Image condocdat-app Building 
+ Image condocdat-app Built 
+time="2026-09-06T22:21:17-05:00" level=warning msg="Found orphan containers (condocdat) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container condocdat_app Creating 
+ Container condocdat_app Created 
+ Container condocdat_app Starting 
+ Container condocdat_app Started
+
+ ######## historial ##############################
+
+ [{"action":"start","application_id":1,"created_at":"2026-09-06 21:37:17","id":11,"output":"NAME            IMAGE                 COMMAND                  SERVICE   CREATED              STATUS              PORTS\nnomina_app      nomina-app            \"gunicorn nomina.wsg\u2026\"   app       About a minute ago   Up About a minute   8000/tcp\nnomina_static   nginx:stable-alpine   \"/docker-entrypoint.\u2026\"   static    About a minute ago   Up About a minute   80/tcp\nOperaci\u00f3n start completada para /home/max/projects/nomina.\n\n Container nomina_static Running \n Container nomina_app Running","status":"running"},{"action":"update","application_id":1,"created_at":"2026-09-06 21:36:08","id":10,"output":"#1 [internal] load local bake definitions\n#1 reading from stdin 488B done\n#1 DONE 0.0s\n\n#2 [internal] load build definition from Dockerfile\n#2 transferring dockerfile: 323B 0.0s done\n#2 DONE 0.1s\n\n#3 [internal] load metadata for docker.io/library/python:3.11-slim\n#3 DONE 0.8s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.0s\n\n#5 [1/6] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534\n#5 DONE 0.0s\n\n#6 [internal] load build context\n#6 transferring context: 61.29kB 0.8s done\n#6 DONE 0.8s\n\n#7 [2/6] WORKDIR /app\n#7 CACHED\n\n#8 [3/6] COPY requirements.txt .\n#8 CACHED\n\n#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt\n#9 CACHED\n\n#10 [5/6] COPY . .\n#10 DONE 1.1s\n\n#11 [6/6] RUN python manage.py collectstatic --noinput\n#11 2.516 \n#11 2.516 129 static files copied to '/app/staticfiles'.\n#11 DONE 3.0s\n\n#12 exporting to image\n#12 exporting layers\n#12 exporting layers 0.7s done\n#12 writing image sha256:1abe798a4aae432875420d86e86cfa0d55fd26c6062192a56f3a7aefa72c5d98 done\n#12 naming to docker.io/library/nomina-app 0.0s done\n#12 DONE 0.8s\n\n#13 resolving provenance for metadata file\n#13 DONE 0.1s\nNAME            IMAGE                 COMMAND                  SERVICE   CREATED         STATUS        PORTS\nnomina_app      nomina-app            \"gunicorn nomina.wsg\u2026\"   app       4 seconds ago   Up 1 second   8000/tcp\nnomina_static   nginx:stable-alpine   \"/docker-entrypoint.\u2026\"   static    4 seconds ago   Up 1 second   80/tcp\nOperaci\u00f3n update completada para /home/max/projects/nomina.\n\n Image nomina-app Building \n Image nomina-app Built \n Container nomina_static Creating \n Container nomina_app Recreate \n Container nomina_static Created \n Container nomina_app Recreated \n Container nomina_app Starting \n Container nomina_static Starting \n Container nomina_static Started \n Container nomina_app Started","status":"running"},{"action":"deploy","application_id":1,"created_at":"2026-09-06 20:41:07","id":9,"output":"#1 [internal] load local bake definitions\n#1 reading from stdin 488B done\n#1 DONE 0.0s\n\n#2 [internal] load build definition from Dockerfile\n#2 transferring dockerfile: 323B 0.0s done\n#2 DONE 0.0s\n\n#3 [internal] load metadata for docker.io/library/python:3.11-slim\n#3 DONE 0.3s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.0s\n\n#5 [1/6] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534\n#5 DONE 0.0s\n\n#6 [internal] load build context\n#6 transferring context: 54.79kB 0.1s done\n#6 DONE 0.1s\n\n#7 [2/6] WORKDIR /app\n#7 CACHED\n\n#8 [3/6] COPY requirements.txt .\n#8 CACHED\n\n#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt\n#9 CACHED\n\n#10 [5/6] COPY . .\n#10 CACHED\n\n#11 [6/6] RUN python manage.py collectstatic --noinput\n#11 CACHED\n\n#12 exporting to image\n#12 exporting layers done\n#12 writing image sha256:0016ffd17b2ed848e884ddde77f5e2f8b8683fa2776d7a78a11d1581030f8a59 done\n#12 naming to docker.io/library/nomina-app done\n#12 DONE 0.0s\n\n#13 resolving provenance for metadata file\n#13 DONE 0.0s\nOperations to perform:\n  Apply all migrations: admin, auth, balance, contabilidad, contenttypes, core, facturacion, finanzas, impuestos, integracion_excel, remuneraciones, rendiciones, rrhh, sessions\nRunning migrations:\n  Applying contenttypes.0001_initial... OK\n  Applying auth.0001_initial... OK\n  Applying admin.0001_initial... OK\n  Applying admin.0002_logentry_remove_auto_add... OK\n  Applying admin.0003_logentry_add_action_flag_choices... OK\n  Applying contenttypes.0002_remove_content_type_name... OK\n  Applying auth.0002_alter_permission_name_max_length... OK\n  Applying auth.0003_alter_user_email_max_length... OK\n  Applying auth.0004_alter_user_username_opts... OK\n  Applying auth.0005_alter_user_last_login_null... OK\n  Applying auth.0006_require_contenttypes_0002... OK\n  Applying auth.0007_alter_validators_add_error_messages... OK\n  Applying auth.0008_alter_user_username_max_length... OK\n  Applying auth.0009_alter_user_last_name_max_length... OK\n  Applying auth.0010_alter_group_name_max_length... OK\n  Applying auth.0011_update_proxy_permissions... OK\n  Applying auth.0012_alter_user_first_name_max_length... OK\n  Applying balance.0001_initial... OK\n  Applying balance.0002_cierrebalance... OK\n  Applying balance.0003_alter_cierrebalance_options... OK\n  Applying core.0001_initial... OK\n  Applying rrhh.0001_initial... OK\n  Applying rendiciones.0001_initial... OK\n  Applying remuneraciones.0001_initial... OK\n  Applying facturacion.0001_initial... OK\n  Applying impuestos.0001_initial... OK\n  Applying finanzas.0001_initial... OK\n  Applying contabilidad.0001_initial... OK\n  Applying core.0002_catalogo_parametros... OK\n  Applying facturacion.0002_pago_compra_anulacion... OK\n  Applying facturacion.0003_cobro_venta_anulacion... OK\n  Applying facturacion.0004_categoriacompra_documentocompra_categoria_compra... OK\n  Applying facturacion.0005_clasificar_compras_historicas... OK\n  Applying impuestos.0002_periodo_validado... OK\n  Applying impuestos.0003_pago_impuesto_auditoria... OK\n  Applying finanzas.0002_catalogo_categorias... OK\n  Applying finanzas.0003_fin002_pago_remuneracion... OK\n  Applying finanzas.0004_fin003_cobro_documento... OK\n  Applying finanzas.0005_fin004_pagos... OK\n  Applying finanzas.0006_fin005_anulacion_manual... OK\n  Applying finanzas.0007_categoriafinanciera_afecta_resultado_and_more... OK\n  Applying finanzas.0008_pagoobligacionfinanciera_anulado_and_more... OK\n  Applying integracion_excel.0001_initial... OK\n  Applying integracion_excel.0002_importacionfila_advertencias_importacionfila_bloque_and_more... OK\n  Applying remuneraciones.0002_alter_periodoremuneracion_options_and_more... OK\n  Applying remuneraciones.0003_catalogo_conceptos... OK\n  Applying remuneraciones.0004_prestamo_entregado... OK\n  Applying remuneraciones.0005_finiquito_motivo_archivo... OK\n  Applying remuneraciones.0006_conceptos_costo_catalogo... OK\n  Applying remuneraciones.0007_seed_conceptos_costo... OK\n  Applying remuneraciones.0008_pago_remuneracion_anulacion... OK\n  Applying rendiciones.0002_documento_upload_to... OK\n  Applying rendiciones.0003_flujo_aprobacion... OK\n  Applying rrhh.0002_alter_anexocontrato_options_alter_cargo_options_and_more... OK\n  Applying sessions.0001_initial... OK\n\n0 static files copied to '/app/staticfiles', 129 unmodified.\nNAME         IMAGE        COMMAND                  SERVICE   CREATED          STATUS          PORTS\nnomina_app   nomina-app   \"gunicorn nomina.wsg\u2026\"   app       42 seconds ago   Up 40 seconds   8000/tcp\nProyecto desplegado: https://nomina.netgogo.cl/\n\n Image nomina-app Building \n Image nomina-app Built \n Container nomina_app Creating \n Container nomina_app Created \n Container nomina_app Starting \n Container nomina_app Started","status":"deployed"},{"action":"retire","application_id":1,"created_at":"2026-09-06 20:39:51","id":8,"output":"Going to remove nomina_app\nContenedores retirados; datos y vol\u00famenes conservados.\nNAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS\nOperaci\u00f3n retire completada para /home/max/projects/nomina.\n\n Container nomina_app Stopping \n Container nomina_app Stopped \n Container nomina_app Removing \n Container nomina_app Removed","status":"retired"},{"action":"update","application_id":1,"created_at":"2026-09-06 20:10:40","id":7,"output":"#1 [internal] load local bake definitions\n#1 reading from stdin 488B done\n#1 DONE 0.0s\n\n#2 [internal] load build definition from Dockerfile\n#2 transferring dockerfile: 323B done\n#2 DONE 0.0s\n\n#3 [internal] load metadata for docker.io/library/python:3.11-slim\n#3 DONE 0.3s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B 0.0s done\n#4 DONE 0.1s\n\n#5 [internal] load build context\n#5 DONE 0.0s\n\n#6 [1/6] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534\n#6 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 54.49kB 0.1s done\n#5 DONE 0.2s\n\n#7 [5/6] COPY . .\n#7 CACHED\n\n#8 [2/6] WORKDIR /app\n#8 CACHED\n\n#9 [3/6] COPY requirements.txt .\n#9 CACHED\n\n#10 [4/6] RUN pip install --no-cache-dir -r requirements.txt\n#10 CACHED\n\n#11 [6/6] RUN python manage.py collectstatic --noinput\n#11 CACHED\n\n#12 exporting to image\n#12 exporting layers done\n#12 writing image sha256:0016ffd17b2ed848e884ddde77f5e2f8b8683fa2776d7a78a11d1581030f8a59\n#12 writing image sha256:0016ffd17b2ed848e884ddde77f5e2f8b8683fa2776d7a78a11d1581030f8a59 0.2s done\n#12 naming to docker.io/library/nomina-app\n#12 naming to docker.io/library/nomina-app 0.0s done\n#12 DONE 0.3s\n\n#13 resolving provenance for metadata file\n#13 DONE 0.0s\nNAME         IMAGE        COMMAND                  SERVICE   CREATED         STATUS        PORTS\nnomina_app   nomina-app   \"gunicorn nomina.wsg\u2026\"   app       2 seconds ago   Up 1 second   8000/tcp\nOperaci\u00f3n update completada para /home/max/projects/nomina.\n\n Image nomina-app Building \n Image nomina-app Built \n Container nomina_app Recreate \n Container nomina_app Recreated \n Container nomina_app Starting \n Container nomina_app Started","status":"running"},{"action":"stop","application_id":1,"created_at":"2026-09-06 20:10:20","id":6,"output":"NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS\nOperaci\u00f3n stop completada para /home/max/projects/nomina.\n\n Container nomina_app Stopping \n Container nomina_app Stopped","status":"stopped"},{"action":"update","application_id":1,"created_at":"2026-09-06 19:56:05","id":5,"output":"#1 [internal] load local bake definitions\n#1 reading from stdin 488B done\n#1 DONE 0.0s\n\n#2 [internal] load build definition from Dockerfile\n#2 transferring dockerfile: 323B 0.0s done\n#2 DONE 0.1s\n\n#3 [internal] load metadata for docker.io/library/python:3.11-slim\n#3 DONE 0.2s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 DONE 0.0s\n\n#6 [1/6] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534\n#6 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 54.49kB 0.1s done\n#5 DONE 0.2s\n\n#7 [2/6] WORKDIR /app\n#7 CACHED\n\n#8 [3/6] COPY requirements.txt .\n#8 CACHED\n\n#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt\n#9 CACHED\n\n#10 [5/6] COPY . .\n#10 CACHED\n\n#11 [6/6] RUN python manage.py collectstatic --noinput\n#11 CACHED\n\n#12 exporting to image\n#12 exporting layers done\n#12 writing image sha256:0016ffd17b2ed848e884ddde77f5e2f8b8683fa2776d7a78a11d1581030f8a59 done\n#12 naming to docker.io/library/nomina-app done\n#12 DONE 0.0s\n\n#13 resolving provenance for metadata file\n#13 DONE 0.0s\nNAME         IMAGE        COMMAND                  SERVICE   CREATED         STATUS        PORTS\nnomina_app   nomina-app   \"gunicorn nomina.wsg\u2026\"   app       2 seconds ago   Up 1 second   8000/tcp\nOperaci\u00f3n update completada para /home/max/projects/nomina.\n\n Image nomina-app Building \n Image nomina-app Built \n Container nomina_app Recreate \n Container nomina_app Recreated \n Container nomina_app Starting \n Container nomina_app Started","status":"running"},{"action":"stop","application_id":1,"created_at":"2026-09-06 19:55:48","id":4,"output":"NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS\nOperaci\u00f3n stop completada para /home/max/projects/nomina.\n\n Container nomina_app Stopping \n Container nomina_app Stopped","status":"stopped"},{"action":"start","application_id":1,"created_at":"2026-09-06 19:54:40","id":3,"output":"NAME         IMAGE        COMMAND                  SERVICE   CREATED          STATUS          PORTS\nnomina_app   nomina-app   \"gunicorn nomina.wsg\u2026\"   app       18 seconds ago   Up 16 seconds   8000/tcp\nOperaci\u00f3n start completada para /home/max/projects/nomina.\n\n Container nomina_app Running","status":"running"},{"action":"deploy","application_id":1,"created_at":"2026-09-06 19:54:25","id":2,"output":"CREATE DATABASE\n#1 [internal] load local bake definitions\n#1 reading from stdin 488B done\n#1 DONE 0.0s\n\n#2 [internal] load build definition from Dockerfile\n#2 transferring dockerfile:\n#2 transferring dockerfile: 323B 0.1s done\n#2 DONE 0.3s\n\n#3 [internal] load metadata for docker.io/library/python:3.11-slim\n#3 DONE 0.7s\n\n#4 [internal] load .dockerignore\n#4 transferring context: 2B done\n#4 DONE 0.1s\n\n#5 [1/6] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534\n#5 DONE 0.0s\n\n#6 [internal] load build context\n#6 transferring context: 4.44MB 0.6s done\n#6 DONE 0.7s\n\n#7 [2/6] WORKDIR /app\n#7 CACHED\n\n#8 [3/6] COPY requirements.txt .\n#8 DONE 0.5s\n\n#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt\n#9 11.92 Collecting asgiref==3.12.1 (from -r requirements.txt (line 1))\n#9 11.99   Downloading asgiref-3.12.1-py3-none-any.whl.metadata (9.4 kB)\n#9 12.63 Collecting Django==5.2.17 (from -r requirements.txt (line 2))\n#9 12.65   Downloading django-5.2.17-py3-none-any.whl.metadata (4.1 kB)\n#9 12.81 Collecting openpyxl==3.1.5 (from -r requirements.txt (line 3))\n#9 12.83   Downloading openpyxl-3.1.5-py2.py3-none-any.whl.metadata (2.5 kB)\n#9 12.86 Collecting sqlparse==0.6.0 (from -r requirements.txt (line 4))\n#9 12.87   Downloading sqlparse-0.6.0-py3-none-any.whl.metadata (6.0 kB)\n#9 12.93 Collecting gunicorn==23.0.0 (from -r requirements.txt (line 5))\n#9 12.95   Downloading gunicorn-23.0.0-py3-none-any.whl.metadata (4.4 kB)\n#9 13.03 Collecting psycopg==3.2.3 (from psycopg[binary]==3.2.3->-r requirements.txt (line 6))\n#9 13.04   Downloading psycopg-3.2.3-py3-none-any.whl.metadata (4.3 kB)\n#9 13.13 Collecting et-xmlfile (from openpyxl==3.1.5->-r requirements.txt (line 3))\n#9 13.16   Downloading et_xmlfile-2.0.0-py3-none-any.whl.metadata (2.7 kB)\n#9 13.17 Requirement already satisfied: packaging in /usr/local/lib/python3.11/site-packages (from gunicorn==23.0.0->-r requirements.txt (line 5)) (26.3)\n#9 13.26 Collecting typing-extensions>=4.6 (from psycopg==3.2.3->psycopg[binary]==3.2.3->-r requirements.txt (line 6))\n#9 13.27   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)\n#9 13.84 Collecting psycopg-binary==3.2.3 (from psycopg[binary]==3.2.3->-r requirements.txt (line 6))\n#9 13.87   Downloading psycopg_binary-3.2.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.8 kB)\n#9 14.00 Downloading asgiref-3.12.1-py3-none-any.whl (25 kB)\n#9 14.02 Downloading django-5.2.17-py3-none-any.whl (8.3 MB)\n#9 14.76    \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 8.3/8.3 MB 11.6 MB/s eta 0:00:00\n#9 14.79 Downloading openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)\n#9 14.81    \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 250.9/250.9 kB 31.7 MB/s eta 0:00:00\n#9 14.86 Downloading sqlparse-0.6.0-py3-none-any.whl (50 kB)\n#9 14.91    \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 50.1/50.1 kB 12.9 MB/s eta 0:00:00\n#9 14.94 Downloading gunicorn-23.0.0-py3-none-any.whl (85 kB)\n#9 14.97    \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 85.0/85.0 kB 13.4 MB/s eta 0:00:00\n#9 15.01 Downloading psycopg-3.2.3-py3-none-any.whl (197 kB)\n#9 15.02    \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 197.9/197.9 kB 57.8 MB/s eta 0:00:00\n#9 15.05 Downloading psycopg_binary-3.2.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (4.2 MB)\n#9 15.24    \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 4.2/4.2 MB 24.1 MB/s eta 0:00:00\n#9 15.25 Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)\n#9 15.26    \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 45.6/45.6 kB 46.5 MB/s eta 0:00:00\n#9 15.28 Downloading et_xmlfile-2.0.0-py3-none-any.whl (18 kB)\n#9 15.54 Installing collected packages: typing-extensions, sqlparse, psycopg-binary, gunicorn, et-xmlfile, asgiref, psycopg, openpyxl, Django\n#9 24.02 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv\n#9 24.03 Successfully installed Django-5.2.17 asgiref-3.12.1 et-xmlfile-2.0.0 gunicorn-23.0.0 openpyxl-3.1.5 psycopg-3.2.3 psycopg-binary-3.2.3 sqlparse-0.6.0 typing-extensions-4.16.0\n#9 24.27 \n#9 24.27 [notice] A new release of pip is available: 24.0 -> 26.2.1\n#9 24.27 [notice] To update, run: pip install --upgrade pip\n#9 DONE 25.6s\n\n#10 [5/6] COPY . .\n#10 DONE 0.7s\n\n#11 [6/6] RUN python manage.py collectstatic --noinput\n#11 1.349 \n#11 1.349 129 static files copied to '/app/staticfiles'.\n#11 DONE 1.7s\n\n#12 exporting to image\n#12 exporting layers\n#12 exporting layers 3.6s done\n#12 writing image sha256:0016ffd17b2ed848e884ddde77f5e2f8b8683fa2776d7a78a11d1581030f8a59 0.0s done\n#12 naming to docker.io/library/nomina-app 0.0s done\n#12 DONE 3.7s\n\n#13 resolving provenance for metadata file\n#13 DONE 0.3s\nNAME         IMAGE        COMMAND                  SERVICE   CREATED         STATUS        PORTS\nnomina_app   nomina-app   \"gunicorn nomina.wsg\u2026\"   app       3 seconds ago   Up 1 second   8000/tcp\nProyecto desplegado: https://nomina.netgogo.cl/\n\n Image nomina-app Building \n Image nomina-app Built \n Volume nomina_media Creating \n Volume nomina_media Creating \n Volume nomina_staticfiles Creating \n Volume nomina_staticfiles Creating \n Volume nomina_staticfiles Created \n Volume nomina_staticfiles Created \n Volume nomina_media Created \n Volume nomina_media Created \n Container nomina_app Creating \n Container nomina_app Created \n Container nomina_app Starting \n Container nomina_app Started","status":"deployed"},{"action":"deploy","application_id":1,"created_at":"2026-09-06 19:24:47","id":1,"output":"ERROR: directorio inexistente: /home/maxgonpe/max/projects/nomina","status":"failed"}]
+
+
+ NOTA
+ NOTA
+ NOTA
+
+ EL ESTADO REGISTRADO DICE FAILED
+ PERO EL DOCKER DICE RUNNING

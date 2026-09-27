@@ -1,0 +1,13 @@
+root@vmi2747120:/home/max/traefik# ls
+arrancar-postgres-talleres.sh		      letsencrypt
+buscar-datos-condocdat-en-todas-las-bases.sh  parche-traefik-docker-api.sh
+consultar-bases-condocdat.sh		      traefik.yml
+docker-compose.yml
+root@vmi2747120:/home/max/traefik# chmod +x buscar-datos-condocdat-en-todas-las-bases.sh
+root@vmi2747120:/home/max/traefik# ./buscar-datos-condocdat-en-todas-las-bases.sh
+BASE                             CARPETAS   DOCUMENTOS   USUARIOS
+------------------------------ ---------- ------------ ----------
+ERROR:  relation "documents_folder" does not exist
+LINE 1: ...IS NULL THEN '-' ELSE (SELECT COUNT(*)::text FROM documents_...
+                                                             ^
+root@vmi2747120:/home/max/traefik# 

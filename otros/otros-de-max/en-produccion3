@@ -1,0 +1,711 @@
+root@vmi2747120:/home/max/myproject_netgogo# ls
+backup_20251026_182143.sql     docker-compose.yml   shop
+backup_20251026_182302.sql     Dockerfile	    simulate_webhook.py
+backup_20251026_182515.sql     Dockerfile-anterior  static
+backup_20251026.sql	       entrypoint.sh	    staticfiles
+backup_20260121_151635.sql     env_example	    test_preference.py
+cart			       manage.py	    test_signature.py
+cookies.txt		       media		    test.txt
+db.sqlite3		       mis-librerias.txt    update_production.sh
+db.vieja_tienda		       myproject	    user
+django_webhook.log	       orders		    utils
+docker-compose-26-10-2025.yml  products
+docker-compose-anterior.yml    requirements.txt
+root@vmi2747120:/home/max/myproject_netgogo# ps -a
+    PID TTY          TIME CMD
+3564301 pts/0    00:00:00 ps
+root@vmi2747120:/home/max/myproject_netgogo# docker ps -a
+CONTAINER ID   IMAGE                   COMMAND                  CREATED         STATUS                   PORTS                                                              NAMES
+ab01d65db50b   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes                                                                                cliente_waldo
+2f61f75b5e66   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes                                                                                cliente_gcmotori
+45bb3895e212   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes                                                                                cliente_theskynet
+c950b9c375b6   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes                                                                                cliente_tallerdemo
+25ac9374f0ef   taller_base:latest      "/start.sh gunicorn …"   5 minutes ago   Up 5 minutes             0.0.0.0:8001->8000/tcp                                             cliente_solutioncar
+33976656be06   condocdat-condocdat     "/app/docker-entrypo…"   8 weeks ago     Up 5 hours               8000/tcp                                                           condocdat
+393708bc21ad   myproject_netgogo-web   "/usr/bin/tini -- /a…"   7 months ago    Up 5 hours               0.0.0.0:8000->8000/tcp                                             netgogo_new_web
+96bde495d1f0   mantto-mantto           "/app/docker-entrypo…"   9 months ago    Up 5 hours               8000/tcp                                                           mantto
+1092221d0ee5   postgres:15-alpine      "docker-entrypoint.s…"   10 months ago   Up 5 hours (healthy)     5432/tcp                                                           netgogo_new_db
+b833b86ab1ab   nginx:stable-alpine     "/docker-entrypoint.…"   10 months ago   Up 5 hours               80/tcp                                                             netgogo_new_static
+e5d0e33f8cbf   1416eeabcd98            "/start.sh gunicorn …"   10 months ago   Up 5 hours                                                                                  tienda_app
+6e9ee77facad   nginx:stable-alpine     "/docker-entrypoint.…"   11 months ago   Up 5 hours               80/tcp                                                             tienda_static
+ee591e38a380   postgres:15             "docker-entrypoint.s…"   11 months ago   Exited (0) 5 hours ago                                                                      postgres_talleres
+cda9da19772d   traefik:v3.1            "/entrypoint.sh --ap…"   11 months ago   Up 5 hours               0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+root@vmi2747120:/home/max/myproject_netgogo# docker start netgogo_new_db
+netgogo_new_db
+root@vmi2747120:/home/max/myproject_netgogo# docker start netgogo_new_web
+netgogo_new_web
+root@vmi2747120:/home/max/myproject_netgogo# docker start netgogo_new_static
+netgogo_new_static
+root@vmi2747120:/home/max/myproject_netgogo# docker start traefik-traefik-1
+traefik-traefik-1
+root@vmi2747120:/home/max/myproject_netgogo# docker ps
+CONTAINER ID   IMAGE                   COMMAND                  CREATED          STATUS                 PORTS                                                              NAMES
+ab01d65db50b   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes                                                                             cliente_waldo
+2f61f75b5e66   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes                                                                             cliente_gcmotori
+45bb3895e212   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes                                                                             cliente_theskynet
+c950b9c375b6   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes                                                                             cliente_tallerdemo
+25ac9374f0ef   taller_base:latest      "/start.sh gunicorn …"   12 minutes ago   Up 12 minutes          0.0.0.0:8001->8000/tcp                                             cliente_solutioncar
+33976656be06   condocdat-condocdat     "/app/docker-entrypo…"   8 weeks ago      Up 5 hours             8000/tcp                                                           condocdat
+393708bc21ad   myproject_netgogo-web   "/usr/bin/tini -- /a…"   7 months ago     Up 5 hours             0.0.0.0:8000->8000/tcp                                             netgogo_new_web
+96bde495d1f0   mantto-mantto           "/app/docker-entrypo…"   9 months ago     Up 5 hours             8000/tcp                                                           mantto
+1092221d0ee5   postgres:15-alpine      "docker-entrypoint.s…"   10 months ago    Up 5 hours (healthy)   5432/tcp                                                           netgogo_new_db
+b833b86ab1ab   nginx:stable-alpine     "/docker-entrypoint.…"   10 months ago    Up 5 hours             80/tcp                                                             netgogo_new_static
+e5d0e33f8cbf   1416eeabcd98            "/start.sh gunicorn …"   10 months ago    Up 5 hours                                                                                tienda_app
+6e9ee77facad   nginx:stable-alpine     "/docker-entrypoint.…"   11 months ago    Up 5 hours             80/tcp                                                             tienda_static
+cda9da19772d   traefik:v3.1            "/entrypoint.sh --ap…"   11 months ago    Up 5 hours             0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+root@vmi2747120:/home/max/myproject_netgogo# curl I https://netgogo.cl
+curl: (6) Could not resolve host: I
+404 page not found
+root@vmi2747120:/home/max/myproject_netgogo# docker inspect netgogo_new_web
+[
+    {
+        "Id": "393708bc21ad570e3faeb9570340f06d7410daaff4b9a89d8ae13be121da1918",
+        "Created": "2026-01-25T16:14:14.059526764Z",
+        "Path": "/usr/bin/tini",
+        "Args": [
+            "--",
+            "/app/entrypoint.sh",
+            "gunicorn",
+            "myproject.wsgi:application",
+            "--bind",
+            "0.0.0.0:8000",
+            "--workers",
+            "3",
+            "--timeout",
+            "90"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 3461784,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-09-02T15:19:07.081276395Z",
+            "FinishedAt": "2026-09-02T15:18:53.91536363Z"
+        },
+        "Image": "sha256:bc89261b5481228a6ad7083229bf00653eb0c283bc7f7d23a5241284e8b3d277",
+        "ResolvConfPath": "/var/lib/docker/containers/393708bc21ad570e3faeb9570340f06d7410daaff4b9a89d8ae13be121da1918/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/393708bc21ad570e3faeb9570340f06d7410daaff4b9a89d8ae13be121da1918/hostname",
+        "HostsPath": "/var/lib/docker/containers/393708bc21ad570e3faeb9570340f06d7410daaff4b9a89d8ae13be121da1918/hosts",
+        "LogPath": "/var/lib/docker/containers/393708bc21ad570e3faeb9570340f06d7410daaff4b9a89d8ae13be121da1918/393708bc21ad570e3faeb9570340f06d7410daaff4b9a89d8ae13be121da1918-json.log",
+        "Name": "/netgogo_new_web",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "myproject_netgogo_staticfiles_new:/app/staticfiles:rw",
+                "myproject_netgogo_media_new:/app/products:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "myproject_netgogo_default",
+            "PortBindings": {
+                "8000/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "8000"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/asound",
+                "/proc/acpi",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/sys/firmware",
+                "/sys/devices/virtual/powercap"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "ID": "393708bc21ad570e3faeb9570340f06d7410daaff4b9a89d8ae13be121da1918",
+                "LowerDir": "/var/lib/docker/overlay2/5b9c56bcae59e6b9d4ab1f64769712e771d19b4fd0bb0cd589416554fd605520-init/diff:/var/lib/docker/overlay2/y2izk2z280qs4ugp9uozy27o4/diff:/var/lib/docker/overlay2/87p8smwlayo1kt2d96ki6kod5/diff:/var/lib/docker/overlay2/mj3izjzzuax6tctb9uz4y6nwo/diff:/var/lib/docker/overlay2/01zh0fscc77yhdctu83s10h16/diff:/var/lib/docker/overlay2/mjdtv6m68eko8jdvp37txu3vi/diff:/var/lib/docker/overlay2/vt31fqwjahgqdjb0t0nnjskx8/diff:/var/lib/docker/overlay2/i0o52acdilsfhcvdhe6rhh0np/diff:/var/lib/docker/overlay2/gw4ny5nu797o4xei4fzyo4arp/diff:/var/lib/docker/overlay2/50c53e63eb6ab8792446c390afc9ec22f60e80f1c6761564e774b7c822397ebd/diff:/var/lib/docker/overlay2/9d11854435fc0e54d515541d617bf6d1dc5eb7f5472eee48cf8ddeeacb5797a7/diff:/var/lib/docker/overlay2/23bc67a41ff093500671d8979f234113c23dad3d9306a63a9b09cc3f410e530d/diff:/var/lib/docker/overlay2/fb5995841415124430d7c2c92e34b5bc82851004b51053c2aeefb876d89ca01a/diff",
+                "MergedDir": "/var/lib/docker/overlay2/5b9c56bcae59e6b9d4ab1f64769712e771d19b4fd0bb0cd589416554fd605520/merged",
+                "UpperDir": "/var/lib/docker/overlay2/5b9c56bcae59e6b9d4ab1f64769712e771d19b4fd0bb0cd589416554fd605520/diff",
+                "WorkDir": "/var/lib/docker/overlay2/5b9c56bcae59e6b9d4ab1f64769712e771d19b4fd0bb0cd589416554fd605520/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "myproject_netgogo_media_new",
+                "Source": "/var/lib/docker/volumes/myproject_netgogo_media_new/_data",
+                "Destination": "/app/products",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "volume",
+                "Name": "myproject_netgogo_staticfiles_new",
+                "Source": "/var/lib/docker/volumes/myproject_netgogo_staticfiles_new/_data",
+                "Destination": "/app/staticfiles",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "393708bc21ad",
+            "Domainname": "",
+            "User": "appuser",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "8000/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "POSTGRES_HOST=db",
+                "ALLOWED_HOSTS=netgogo.cl,www.netgogo.cl",
+                "MERCADO_PAGO_PUBLIC_KEY=APP_USR-04a796e7-ecaf-4161-9453-dd6cd7242b5c",
+                "CSRF_TRUSTED_ORIGINS=https://netgogo.cl,https://www.netgogo.cl",
+                "MERCADO_PAGO_SANDBOX=False",
+                "MERCADO_PAGO_WEBHOOK_SECRET=534a549d840b79e20aba88857bac7bd122e2f97820644f22905554b2746f6a66",
+                "POSTGRES_PASSWORD=19331941",
+                "WAIT_FOR_DB=1",
+                "DB_CONN_MAX_AGE=60",
+                "DJANGO_SETTINGS_MODULE=myproject.settings",
+                "POSTGRES_PORT=5432",
+                "DJANGO_SECRET_KEY=jf)uv)6xa&o0#@wmt+37zvlwf=atbi)%et^7=%3#",
+                "DJANGO_DEBUG=False",
+                "POSTGRES_DB=virtualmarket",
+                "POSTGRES_USER=maxgonpe",
+                "MERCADO_PAGO_WEBHOOK_URL=https://www.netgogo.cl/webhook",
+                "MERCADO_PAGO_ACCESS_TOKEN=APP_USR-890466553071537-031315-9c23bfc2d1b396b7b4d5c999f1121881-2305406626",
+                "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "LANG=C.UTF-8",
+                "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+                "PYTHON_VERSION=3.11.14",
+                "PYTHON_SHA256=8d3ed8ec5c88c1c95f5e558612a725450d2452813ddad5e58fdb1a53b1209b78",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "PYTHONUNBUFFERED=1",
+                "PIP_NO_CACHE_DIR=1"
+            ],
+            "Cmd": [
+                "gunicorn",
+                "myproject.wsgi:application",
+                "--bind",
+                "0.0.0.0:8000",
+                "--workers",
+                "3",
+                "--timeout",
+                "90"
+            ],
+            "Image": "myproject_netgogo-web",
+            "Volumes": null,
+            "WorkingDir": "/app",
+            "Entrypoint": [
+                "/usr/bin/tini",
+                "--",
+                "/app/entrypoint.sh"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "57100a1c5c22959cdd1e64476acf46c22649bce524309784f0ff475e10450f3b",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "",
+                "com.docker.compose.image": "sha256:bc89261b5481228a6ad7083229bf00653eb0c283bc7f7d23a5241284e8b3d277",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "myproject_netgogo",
+                "com.docker.compose.project.config_files": "/home/max/myproject_netgogo/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/home/max/myproject_netgogo",
+                "com.docker.compose.replace": "netgogo_new_web",
+                "com.docker.compose.service": "web",
+                "com.docker.compose.version": "2.39.4",
+                "traefik.docker.network": "traefik_default",
+                "traefik.enable": "true",
+                "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme": "https",
+                "traefik.http.routers.netgogo-new-http-apex.entrypoints": "web",
+                "traefik.http.routers.netgogo-new-http-apex.middlewares": "redirect-to-https",
+                "traefik.http.routers.netgogo-new-http-apex.rule": "Host(`netgogo.cl`) || Host(`www.netgogo.cl`)",
+                "traefik.http.routers.netgogo-new-http-apex.service": "netgogo-new-svc",
+                "traefik.http.routers.netgogo-new-https-apex.entrypoints": "websecure",
+                "traefik.http.routers.netgogo-new-https-apex.rule": "Host(`netgogo.cl`) || Host(`www.netgogo.cl`)",
+                "traefik.http.routers.netgogo-new-https-apex.service": "netgogo-new-svc",
+                "traefik.http.routers.netgogo-new-https-apex.tls": "true",
+                "traefik.http.routers.netgogo-new-https-apex.tls.certresolver": "letsencrypt",
+                "traefik.http.services.netgogo-new-svc.loadbalancer.server.port": "8000"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "9720e5138a39ccb5b02ff01fc0ae9fd86751b951f62fa0934f01566d0c67a0e3",
+            "SandboxKey": "/var/run/docker/netns/9720e5138a39",
+            "Ports": {
+                "8000/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8000"
+                    }
+                ]
+            },
+            "Networks": {
+                "myproject_netgogo_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "netgogo_new_web",
+                        "web"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "62224adbc83e44a14ebebb72ed9041cece6ba76c47d5934cb27b29d03c5a4c05",
+                    "EndpointID": "ba897dd03fe9c11721b3f0c9c9c5eac2dbc7b6a60810609ea2777f6f17dd2bf9",
+                    "Gateway": "172.19.0.1",
+                    "IPAddress": "172.19.0.3",
+                    "MacAddress": "1e:cd:75:c8:16:f7",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "netgogo_new_web",
+                        "web",
+                        "393708bc21ad"
+                    ]
+                },
+                "traefik_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "netgogo_new_web",
+                        "web"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "2e0da1db9223b289788fb2a4f52eb7682cf9bcad797dace40e9ad697dd2ecc02",
+                    "EndpointID": "d54bb457afbf896687f6beea3765f2f16b47157d08a65473fa140cba35e3b6ba",
+                    "Gateway": "172.18.0.1",
+                    "IPAddress": "172.18.0.7",
+                    "MacAddress": "f6:9c:89:15:d2:f2",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "netgogo_new_web",
+                        "web",
+                        "393708bc21ad"
+                    ]
+                }
+            }
+        }
+    }
+]
+root@vmi2747120:/home/max/myproject_netgogo# docker inspect traefik-traefik-1
+[
+    {
+        "Id": "cda9da19772d1e8dec63577e7b83975b754b2ae101624e22cefef1fed2eca29a",
+        "Created": "2025-09-28T05:01:55.714081823Z",
+        "Path": "/entrypoint.sh",
+        "Args": [
+            "--api.dashboard=true",
+            "--api.insecure=true",
+            "--providers.docker=true",
+            "--entrypoints.web.address=:80",
+            "--entrypoints.websecure.address=:443",
+            "--entrypoints.traefik.address=:8080",
+            "--certificatesresolvers.letsencrypt.acme.httpchallenge=true",
+            "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web",
+            "--certificatesresolvers.letsencrypt.acme.email=maxgonpe@gmail.com",
+            "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 3461741,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-09-02T15:19:07.029364865Z",
+            "FinishedAt": "2026-09-02T15:18:44.009250758Z"
+        },
+        "Image": "sha256:075808f3fdf72baa7b647b63631bf5fee7d143164049ebfc40a54d9f238d4b83",
+        "ResolvConfPath": "/var/lib/docker/containers/cda9da19772d1e8dec63577e7b83975b754b2ae101624e22cefef1fed2eca29a/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/cda9da19772d1e8dec63577e7b83975b754b2ae101624e22cefef1fed2eca29a/hostname",
+        "HostsPath": "/var/lib/docker/containers/cda9da19772d1e8dec63577e7b83975b754b2ae101624e22cefef1fed2eca29a/hosts",
+        "LogPath": "/var/lib/docker/containers/cda9da19772d1e8dec63577e7b83975b754b2ae101624e22cefef1fed2eca29a/cda9da19772d1e8dec63577e7b83975b754b2ae101624e22cefef1fed2eca29a-json.log",
+        "Name": "/traefik-traefik-1",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/var/run/docker.sock:/var/run/docker.sock:ro",
+                "/home/max/traefik/letsencrypt:/letsencrypt:rw",
+                "/home/max/traefik/traefik.yml:/etc/traefik/traefik.yml:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "traefik_default",
+            "PortBindings": {
+                "443/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "443"
+                    }
+                ],
+                "80/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "80"
+                    }
+                ],
+                "8080/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "8080"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/asound",
+                "/proc/acpi",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/sys/firmware",
+                "/sys/devices/virtual/powercap"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "ID": "cda9da19772d1e8dec63577e7b83975b754b2ae101624e22cefef1fed2eca29a",
+                "LowerDir": "/var/lib/docker/overlay2/344f9cfcde3b092f425064309e2bb48be8ad1745c0db888c80ff859d0023c83e-init/diff:/var/lib/docker/overlay2/98e748fe668fca022a709de20f4b58da342cda3dd12519e61ae4a33981aba952/diff:/var/lib/docker/overlay2/dd6f5f9a0b16ef33563e70be8d1dadafe9947e2b79ae2edfb94cd1f7be1bc83a/diff:/var/lib/docker/overlay2/47bae81e47ba52163a1028a2553f016497a48caa99538f47aad927cb5da16178/diff:/var/lib/docker/overlay2/b70bc00dc9dd36e0106f1bdb61d59e7b3ef0f69e2f695419395e020ba64bd21d/diff",
+                "MergedDir": "/var/lib/docker/overlay2/344f9cfcde3b092f425064309e2bb48be8ad1745c0db888c80ff859d0023c83e/merged",
+                "UpperDir": "/var/lib/docker/overlay2/344f9cfcde3b092f425064309e2bb48be8ad1745c0db888c80ff859d0023c83e/diff",
+                "WorkDir": "/var/lib/docker/overlay2/344f9cfcde3b092f425064309e2bb48be8ad1745c0db888c80ff859d0023c83e/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/home/max/traefik/traefik.yml",
+                "Destination": "/etc/traefik/traefik.yml",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/max/traefik/letsencrypt",
+                "Destination": "/letsencrypt",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/var/run/docker.sock",
+                "Destination": "/var/run/docker.sock",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "cda9da19772d",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "443/tcp": {},
+                "80/tcp": {},
+                "8080/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "--api.dashboard=true",
+                "--api.insecure=true",
+                "--providers.docker=true",
+                "--entrypoints.web.address=:80",
+                "--entrypoints.websecure.address=:443",
+                "--entrypoints.traefik.address=:8080",
+                "--certificatesresolvers.letsencrypt.acme.httpchallenge=true",
+                "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web",
+                "--certificatesresolvers.letsencrypt.acme.email=maxgonpe@gmail.com",
+                "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+            ],
+            "Image": "traefik:v3.1",
+            "Volumes": null,
+            "WorkingDir": "/",
+            "Entrypoint": [
+                "/entrypoint.sh"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "f5891a52fae0af7660c1b5c531d32cb29bce1f59196fade32c1dde33301b4296",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "",
+                "com.docker.compose.image": "sha256:075808f3fdf72baa7b647b63631bf5fee7d143164049ebfc40a54d9f238d4b83",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "traefik",
+                "com.docker.compose.project.config_files": "/home/max/traefik/docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/home/max/traefik",
+                "com.docker.compose.service": "traefik",
+                "com.docker.compose.version": "2.39.4",
+                "org.opencontainers.image.description": "A modern reverse-proxy",
+                "org.opencontainers.image.documentation": "https://docs.traefik.io",
+                "org.opencontainers.image.source": "https://github.com/traefik/traefik",
+                "org.opencontainers.image.title": "Traefik",
+                "org.opencontainers.image.url": "https://traefik.io",
+                "org.opencontainers.image.vendor": "Traefik Labs",
+                "org.opencontainers.image.version": "v3.1.7"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "820abe8c32e89823a477dd40a0235b6fac0b4da9787c379f3532be6e90f1aec3",
+            "SandboxKey": "/var/run/docker/netns/820abe8c32e8",
+            "Ports": {
+                "443/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "443"
+                    }
+                ],
+                "80/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "80"
+                    }
+                ],
+                "8080/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8080"
+                    }
+                ]
+            },
+            "Networks": {
+                "myproject_netgogo_default": {
+                    "IPAMConfig": {},
+                    "Links": null,
+                    "Aliases": [],
+                    "DriverOpts": {},
+                    "GwPriority": 0,
+                    "NetworkID": "62224adbc83e44a14ebebb72ed9041cece6ba76c47d5934cb27b29d03c5a4c05",
+                    "EndpointID": "dcf0bad591e695a483934a4bf79569c1353f5e9fbb971c9a13eb57f5c4b567c7",
+                    "Gateway": "172.19.0.1",
+                    "IPAddress": "172.19.0.2",
+                    "MacAddress": "e6:90:55:c1:ed:7e",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "traefik-traefik-1",
+                        "cda9da19772d"
+                    ]
+                },
+                "traefik_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "traefik-traefik-1",
+                        "traefik"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "2e0da1db9223b289788fb2a4f52eb7682cf9bcad797dace40e9ad697dd2ecc02",
+                    "EndpointID": "382b71788fd00a96230005dd0d22a82403dd857f72813086d501f8d479de3de1",
+                    "Gateway": "172.18.0.1",
+                    "IPAddress": "172.18.0.6",
+                    "MacAddress": "c2:5f:7e:db:22:fe",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "traefik-traefik-1",
+                        "traefik",
+                        "cda9da19772d"
+                    ]
+                }
+            }
+        }
+    }
+]
+root@vmi2747120:/home/max/myproject_netgogo# 

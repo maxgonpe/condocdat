@@ -1,0 +1,24 @@
+root@vmi2747120:/home/max/traefik# nano parche-traefik-docker-api.sh
+root@vmi2747120:/home/max/traefik# ls
+docker-compose.yml  letsencrypt  parche-traefik-docker-api.sh  traefik.yml
+root@vmi2747120:/home/max/traefik# chmod +x parche-traefik-docker-api.sh
+root@vmi2747120:/home/max/traefik# ./parche-traefik-docker-api.sh
+== Verificación inicial ==
+Docker:
+Client API: 1.55 | Server API: 1.55 (mínima 1.40)
+== Actualizando configuración de Traefik ==
+== Validando Compose ==
+== Descargando imagen ==
+[+] pull 1/1
+ ✔ Image traefik:v3.5 Pulled                                             0.4s
+== Recreando únicamente Traefik ==
+[+] up 1/1
+ ✔ Container traefik-traefik-1 Started                                   2.5s
+== Estado ==
+CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS                  PORTS                                                              NAMES
+5e22baf03d50   traefik:v3.5   "/entrypoint.sh --ap…"   2 seconds ago   Up Less than a second   0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+== Últimos logs ==
+== Routers HTTP detectados ==
+curl: (56) Recv failure: Connection reset by peer
+root@vmi2747120:/home/max/traefik# 
+

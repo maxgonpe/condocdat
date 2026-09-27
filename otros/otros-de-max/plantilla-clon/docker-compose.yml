@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    container_name: ${APP_NAME}_app
+    restart: unless-stopped
+    environment:
+      APP_NAME: ${APP_NAME}
+      DOMAIN: ${DOMAIN}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      ALLOWED_HOSTS: ${DOMAIN}
+    volumes:
+      - app_media:/app/media
+    networks:
+      - postgres
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_default"
+      - "traefik.http.routers.${APP_NAME}.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME}.tls=true"
+      - "traefik.http.routers.${APP_NAME}.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${APP_NAME}.loadbalancer.server.port=${APP_PORT:-8000}"
+
+volumes:
+  app_media:
+
+networks:
+  postgres:
+    external: true
+    name: ${POSTGRES_NETWORK:-myproject_netgogo_default}
+  traefik:
+    external: true
+    name: traefik_default

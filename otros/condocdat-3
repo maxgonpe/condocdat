@@ -1,0 +1,49 @@
+al descargar el excel::::
+
+AttributeError at /transmital/7/descargar.xlsx
+'MergedCell' object attribute 'value' is read-only
+Request Method:	GET
+Request URL:	http://localhost:8000/transmital/7/descargar.xlsx
+Django Version:	5.2.8
+Exception Type:	AttributeError
+Exception Value:	
+'MergedCell' object attribute 'value' is read-only
+Exception Location:	/home/maxgonpe/max/projects/condocdat/env/lib/python3.11/site-packages/openpyxl/worksheet/worksheet.py, line 317, in __setitem__
+Raised during:	transmital.views.transmital_download_xlsx
+Python Executable:	/home/maxgonpe/max/projects/condocdat/env/bin/python
+Python Version:	3.11.2
+Python Path:	
+['/home/maxgonpe/max/projects/condocdat',
+ '/usr/lib/python311.zip',
+ '/usr/lib/python3.11',
+ '/usr/lib/python3.11/lib-dynload',
+ '/home/maxgonpe/max/projects/condocdat/env/lib/python3.11/site-packages']
+Server time:	Sun, 06 Sep 2026 21:29:08 -0300
+Traceback Switch to copy-and-paste view
+/home/maxgonpe/max/projects/condocdat/env/lib/python3.11/site-packages/django/core/handlers/exception.py, line 55, in inner
+                response = get_response(request)
+                               ^^^^^^^^^^^^^^^^^^^^^ …
+Local vars
+/home/maxgonpe/max/projects/condocdat/env/lib/python3.11/site-packages/django/core/handlers/base.py, line 197, in _get_response
+                response = wrapped_callback(request, *callback_args, **callback_kwargs)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ …
+Local vars
+/home/maxgonpe/max/projects/condocdat/env/lib/python3.11/site-packages/django/contrib/auth/decorators.py, line 59, in _view_wrapper
+                    return view_func(request, *args, **kwargs)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ …
+Local vars
+/home/maxgonpe/max/projects/condocdat/env/lib/python3.11/site-packages/django/views/decorators/http.py, line 64, in inner
+                return func(request, *args, **kwargs)
+
+
+al descargar el PDF ::::
+
+No se pudo generar PDF: 'MergedCell' object attribute 'value' is read-only
+
+al sincornizar el documento
+
+Guardado en BD; error sincronizando Excel: 'MergedCell' object attribute 'value' is read-only
+
+al crear el documento ::::
+
+Guardado en BD; error sincronizando Excel: 'MergedCell' object attribute 'value' is read-only

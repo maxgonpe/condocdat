@@ -1,0 +1,10 @@
+root@vmi2747120:/home/max/otros# chmod +x alta-clon-postgres-central.sh
+root@vmi2747120:/home/max/otros# ./alta-clon-postgres-central.sh
+Uso: alta-clon-postgres-central.sh NOMBRE SUBDOMINIO [DIRECTORIO]
+Ejemplo: alta-clon-postgres-central.sh taller1 taller1.netgogo.cl /home/max/taller1
+root@vmi2747120:/home/max/otros# curl -k https://taller1.netgogo.cl/
+404 page not found
+root@vmi2747120:/home/max/otros# curl -k https://taller1.netgogo.cl/health/database
+404 page not found
+root@vmi2747120:/home/max/otros# 
+

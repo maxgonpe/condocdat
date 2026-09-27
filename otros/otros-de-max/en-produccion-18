@@ -1,0 +1,11 @@
+root@vmi2747120:/home/max/otros# chmod +x alta-clon-postgres-central.sh
+root@vmi2747120:/home/max/otros# ./alta-clon-postgres-central.sh
+Uso: alta-clon-postgres-central.sh NOMBRE SUBDOMINIO [DIRECTORIO]
+Ejemplo: alta-clon-postgres-central.sh taller1 taller1.netgogo.cl /home/max/taller1
+root@vmi2747120:/home/max/otros# PG_ADMIN_PASSWORD='celsa1961' /home/max/otros/alta-clon-postgres-central.sh taller1 taller1.netgogo.cl /home/max/taller1
+== Creando usuario y base taller1 ==
+CREATE ROLE
+CREATE DATABASE
+/home/max/otros/alta-clon-postgres-central.sh: line 74: docker-compose: command not found
+root@vmi2747120:/home/max/otros# 
+

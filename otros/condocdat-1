@@ -1,0 +1,124 @@
+root@vmi2747120:/home/max/backups# docker exec -e PGPASSWORD='19331941' postgres_talleres psql -U maxgonpe -d postgres -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database WHERE datistemplate = false ORDER BY datname;"
+        datname         |   size   
+------------------------+----------
+ cliente_gcmotori_db    | 12 MB
+ cliente_motosdemo_db   | 10093 kB
+ cliente_solutioncar_db | 16 MB
+ cliente_tallerdemo_db  | 12 MB
+ cliente_theskynet_db   | 12 MB
+ cliente_waldo_db       | 12 MB
+ condocdat_db           | 41 MB
+ netgogo_talleres       | 11 MB
+ nomina_db              | 13 MB
+ postgres               | 7485 kB
+ taller1_db             | 7557 kB
+(11 rows)
+
+root@vmi2747120:/home/max/backups# pg_dump -Fc -U maxgonpe -d condocdat_db -f condocdat_db.dump
+Password: 
+pg_dump: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  password authentication failed for user "maxgonpe"
+root@vmi2747120:/home/max/backups# ls
+20251012_162637  20260108_172344
+20251013_123012  20260130_155154
+20251211_160238  20260130_162059
+20251211_160822  antes_restore_20251216_121223.sql
+20251211_162425  antes_restore_datos_20251216_121800.sql
+20251211_163023  antes_restore_datos_20251216_121858.sql
+20251211_163500  antes_restore_relacionadas_20251216_122357.sql
+20251211_163708  backup_completo_corregido.sh
+20251216_124655  backup_completo.sh
+20251216_132707  condocdat_db.dump
+20251218_192650  condocdatdb.dump
+20251224_132033  restaurar_backup_completo.sh
+20251228_141727
+root@vmi2747120:/home/max/backups# ls
+20251012_162637  20251228_141727
+20251013_123012  20260108_172344
+20251211_160238  20260130_155154
+20251211_160822  20260130_162059
+20251211_162425  antes_restore_20251216_121223.sql
+20251211_163023  antes_restore_datos_20251216_121800.sql
+20251211_163500  antes_restore_datos_20251216_121858.sql
+20251211_163708  antes_restore_relacionadas_20251216_122357.sql
+20251216_124655  backup_completo_corregido.sh
+20251216_132707  backup_completo.sh
+20251218_192650  restaurar_backup_completo.sh
+20251224_132033
+root@vmi2747120:/home/max/backups# ./backup_completo_corregido.sh
+=============================================================================
+🚀 RESPALDO COMPLETO CORREGIDO
+=============================================================================
+[18:24:56] Directorio creado: /home/max/backups/20260906_182456
+[18:24:56] Obteniendo lista de bases de datos usando postgres user...
+[18:24:56] ✅ Lista de bases de datos obtenida
+[18:24:58] Bases de datos encontradas:
+cliente_solutioncar_db
+cliente_waldo_db
+cliente_tallerdemo_db
+cliente_theskynet_db
+cliente_motosdemo_db
+cliente_gcmotori_db
+------------------------------------------------------------------------
+[18:24:58] Procesando base de datos 1 de 6: cliente_solutioncar_db
+[18:24:58] Respaldando cliente_solutioncar_db...
+[18:25:01] ✅ cliente_solutioncar_db respaldado: 1.5M
+[18:25:01] Líneas en el dump: 15082
+[18:25:01] Continuando con la siguiente base de datos...
+------------------------------------------------------------------------
+[18:25:01] Procesando base de datos 2 de 6: cliente_waldo_db
+[18:25:01] Respaldando cliente_waldo_db...
+[18:25:03] ✅ cliente_waldo_db respaldado: 192K
+[18:25:03] Líneas en el dump: 5611
+[18:25:03] Continuando con la siguiente base de datos...
+------------------------------------------------------------------------
+[18:25:03] Procesando base de datos 3 de 6: cliente_tallerdemo_db
+[18:25:03] Respaldando cliente_tallerdemo_db...
+[18:25:05] ✅ cliente_tallerdemo_db respaldado: 176K
+[18:25:05] Líneas en el dump: 5508
+[18:25:05] Continuando con la siguiente base de datos...
+------------------------------------------------------------------------
+[18:25:05] Procesando base de datos 4 de 6: cliente_theskynet_db
+[18:25:05] Respaldando cliente_theskynet_db...
+[18:25:08] ✅ cliente_theskynet_db respaldado: 204K
+[18:25:08] Líneas en el dump: 5711
+[18:25:08] Continuando con la siguiente base de datos...
+------------------------------------------------------------------------
+[18:25:08] Procesando base de datos 5 de 6: cliente_motosdemo_db
+[18:25:08] Respaldando cliente_motosdemo_db...
+[18:25:11] ✅ cliente_motosdemo_db respaldado: 116K
+[18:25:11] Líneas en el dump: 3783
+[18:25:11] Continuando con la siguiente base de datos...
+------------------------------------------------------------------------
+[18:25:11] Procesando base de datos 6 de 6: cliente_gcmotori_db
+[18:25:11] Respaldando cliente_gcmotori_db...
+[18:25:12] ✅ cliente_gcmotori_db respaldado: 176K
+[18:25:13] Líneas en el dump: 5528
+[18:25:13] Continuando con la siguiente base de datos...
+./backup_completo_corregido.sh: line 69: local: can only be used in a function
+./backup_completo_corregido.sh: line 69: local: can only be used in a function
+./backup_completo_corregido.sh: line 69: local: can only be used in a function
+./backup_completo_corregido.sh: line 69: local: can only be used in a function
+./backup_completo_corregido.sh: line 69: local: can only be used in a function
+./backup_completo_corregido.sh: line 69: local: can only be used in a function
+
+=============================================================================
+[18:25:13] ✅ Respaldos completados: 6/6
+[18:25:13] Directorio: /home/max/backups/20260906_182456
+=============================================================================
+root@vmi2747120:/home/max/backups# ls
+20251012_162637  20251228_141727
+20251013_123012  20260108_172344
+20251211_160238  20260130_155154
+20251211_160822  20260130_162059
+20251211_162425  20260906_182456
+20251211_163023  antes_restore_20251216_121223.sql
+20251211_163500  antes_restore_datos_20251216_121800.sql
+20251211_163708  antes_restore_datos_20251216_121858.sql
+20251216_124655  antes_restore_relacionadas_20251216_122357.sql
+20251216_132707  backup_completo_corregido.sh
+20251218_192650  backup_completo.sh
+20251224_132033  restaurar_backup_completo.sh
+root@vmi2747120:/home/max/backups# nano _backup_completo.sh
+root@vmi2747120:/home/max/backups# nano backup_completo.sh
+root@vmi2747120:/home/max/backups# 
+

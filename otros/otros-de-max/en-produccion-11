@@ -1,0 +1,83 @@
+root@vmi2747120:/home/max/traefik# docker ps
+CONTAINER ID   IMAGE                   COMMAND                  CREATED         STATUS                 PORTS                                                              NAMES
+15ea26285fdd   condocdat-condocdat     "/app/docker-entrypo…"   4 minutes ago   Up 4 minutes           8000/tcp                                                           condocdat
+166867f5d71c   nginx:stable-alpine     "/docker-entrypoint.…"   2 hours ago     Up 2 hours             80/tcp                                                             tienda_static
+a02791dd9df4   taller_base:latest      "/start.sh gunicorn …"   2 hours ago     Up 2 hours                                                                                tienda_app
+756e9c127e88   taller_base:latest      "/start.sh gunicorn …"   2 hours ago     Up 2 hours             0.0.0.0:8001->8000/tcp                                             cliente_solutioncar
+0fa66e5221d0   taller_base:latest      "/start.sh gunicorn …"   2 hours ago     Up 2 hours                                                                                cliente_tallerdemo
+71bbde5a9773   taller_base:latest      "/start.sh gunicorn …"   2 hours ago     Up 2 hours                                                                                cliente_theskynet
+b7d699a92ebc   taller_base:latest      "/start.sh gunicorn …"   2 hours ago     Up 2 hours                                                                                cliente_gcmotori
+5b8eacd7a7bd   taller_base:latest      "/start.sh gunicorn …"   2 hours ago     Up 2 hours                                                                                cliente_waldo
+22786b8e5827   traefik:v3.6            "/entrypoint.sh --ap…"   2 hours ago     Up 2 hours             0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:8080->8080/tcp   traefik-traefik-1
+393708bc21ad   myproject_netgogo-web   "/usr/bin/tini -- /a…"   7 months ago    Up 4 hours             0.0.0.0:8000->8000/tcp                                             netgogo_new_web
+96bde495d1f0   mantto-mantto           "/app/docker-entrypo…"   9 months ago    Up 4 hours             8000/tcp                                                           mantto
+1092221d0ee5   postgres:15-alpine      "docker-entrypoint.s…"   10 months ago   Up 4 hours (healthy)   5432/tcp                                                           netgogo_new_db
+b833b86ab1ab   nginx:stable-alpine     "/docker-entrypoint.…"   10 months ago   Up 4 hours             80/tcp                                                             netgogo_new_static
+ee591e38a380   postgres:15             "docker-entrypoint.s…"   11 months ago   Up 58 minutes          5432/tcp                                                           postgres_talleres
+root@vmi2747120:/home/max/traefik# docker start postgres_talleres
+postgres_talleres
+root@vmi2747120:/home/max/traefik# docker compose up -d
+[+] up 1/1
+ ✔ Container traefik-traefik-1 Running                                   0.0s
+root@vmi2747120:/home/max/traefik# ./recrear-condocdat-con-base-correcta.sh
+== Verificando PostgreSQL histórico ==
+== Configuración Compose efectiva ==
+      DB_ENGINE: django.db.backends.postgresql
+      DB_HOST: postgres_talleres
+      DB_NAME: condocdat_db
+      DB_PORT: "5432"
+      DB_USER: maxgonpe
+== Recreando únicamente condocdat ==
+[+] Building 1.3s (16/16) FINISHED                                           
+ => [internal] load local bake definitions                              0.0s
+ => => reading from stdin 526B                                          0.0s
+ => [internal] load build definition from Dockerfile                    0.1s
+ => => transferring dockerfile: 1.01kB                                  0.0s
+ => [internal] load metadata for docker.io/library/python:3.11-slim     0.5s
+ => [internal] load .dockerignore                                       0.0s
+ => => transferring context: 376B                                       0.0s
+ => [1/9] FROM docker.io/library/python:3.11-slim@sha256:9534e5a8e3154  0.0s
+ => [internal] load build context                                       0.2s
+ => => transferring context: 19.00kB                                    0.1s
+ => CACHED [2/9] RUN groupadd -r django -g 1000 && useradd -r -u 1000   0.0s
+ => CACHED [3/9] RUN apt-get update && apt-get install -y --no-install  0.0s
+ => CACHED [4/9] WORKDIR /app                                           0.0s
+ => CACHED [5/9] COPY requirements.txt /app/                            0.0s
+ => CACHED [6/9] RUN pip install --no-cache-dir -r requirements.txt     0.0s
+ => CACHED [7/9] COPY . /app/                                           0.0s
+ => CACHED [8/9] RUN chmod +x /app/docker-entrypoint.sh                 0.0s
+ => CACHED [9/9] RUN chown -R django:django /app                        0.0s
+ => exporting to image                                                  0.1s
+ => => exporting layers                                                 0.0s
+ => => writing image sha256:7ceb30f724434856367c5386f7863ad3d65c5410f9  0.0s
+ => => naming to docker.io/library/condocdat-condocdat                  0.0s
+ => resolving provenance for metadata file                              0.0s
+[+] up 2/2
+ ✔ Image condocdat-condocdat Built                                       1.5s
+ ✔ Container condocdat       Started                                     2.3s
+== Variables reales del contenedor ==
+DB_ENGINE=django.db.backends.postgresql
+DB_PORT=5432
+DB_USER=maxgonpe
+DB_HOST=postgres_talleres
+DB_NAME=condocdat_db
+== Estado ==
+CONTAINER ID   IMAGE                 COMMAND                  CREATED         STATUS                  PORTS      NAMES
+7ea96e51084e   condocdat-condocdat   "/app/docker-entrypo…"   2 seconds ago   Up Less than a second   8000/tcp   condocdat
+== Logs recientes ==
+🚀 Iniciando aplicación Condocdat...
+⏳ Esperando a PostgreSQL...
+== Verificación de datos desde PostgreSQL ==
+ carpetas 
+----------
+      847
+(1 row)
+
+ documentos 
+------------
+        848
+(1 row)
+
+Condocdat recreado con la base histórica correcta.
+root@vmi2747120:/home/max/traefik# 
+
