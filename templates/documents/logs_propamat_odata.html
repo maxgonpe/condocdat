@@ -25,24 +25,24 @@
       <thead>
         <tr>
           <th>Transmittal</th>
-          <th>Especialidad</th>
-          <th>Referencia</th>
+          <th>Descripción</th>
+          <th>Estado de liberación</th>
           <th>Fecha envío (emisor)</th>
           {% comment %}<th>Responsable</th>{% endcomment %}
           <th>Documento - Archivo</th>
-          <th>Estado</th>
+          <th>Sello liberado verificado</th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
         <tr>
           <td>{{ row.transmittal_display|default:row.transmittal|default:"" }}</td>
-          <td>{{ row.descripcion|truncatewords:12|default:"" }}</td>
-          <td>{{ row.referencia|truncatewords:20|default:"—" }}</td>
+          <td>{{ row.description|linebreaksbr|default:"—" }}</td>
+          <td>{{ row.estado_liberacion|default:"—" }}</td>
           <td>{% if row.fecha_envio %}{{ row.fecha_envio|date:"d/m/Y" }}{% else %}—{% endif %}</td>
           {% comment %}<td>{{ row.responsable|default:"—" }}</td>{% endcomment %}
           <td>{% if row.file_url %}<a href="{{ row.file_url }}" target="_blank" rel="noopener">{{ row.documento_archivo|linebreaksbr }}</a>{% else %}{{ row.documento_archivo|linebreaksbr|default:"—" }}{% endif %}</td>
-          <td>{{ row.estado|default:"—" }}</td>
+          <td>{{ row.sello_liberado_verificado|default:"—" }}</td>
         </tr>
         {% empty %}
         <tr class="empty-state">
@@ -99,4 +99,3 @@
   <a href="{% url 'logs_propamat_odata' %}?format=pdf" class="btn btn-pdf" download>Descargar PDF</a>
 </nav>
 {% endblock %}
-

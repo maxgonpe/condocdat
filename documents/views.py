@@ -3304,6 +3304,9 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
         # Transmittal para listado/Excel/PDF: solo el código (ej. ODATA-ST01-F5-TTAL-PPT-00068), sin " — PROPAMAT-A-ODATA-XX"
         code = (f.code or "").strip()
         transmittal_display = code.split(" — ")[0].strip() if code else ""
+        # En los logs TRN la descripción relevante pertenece al documento principal;
+        # la descripción de la carpeta queda como respaldo para registros antiguos.
+        description = (main_doc.description if main_doc else "") or f.description or ""
         rows.append({
             "folder": f,
             "document": main_doc,
@@ -3312,12 +3315,22 @@ def _get_logs_folder_rows(code_filter, order_by="-date", then_by="-code"):
             "transmittal_display": transmittal_display,
             # Extracto del PDF/DOCX principal (estadísticas TRN buscan aquí «procedimiento» / «protocolo»).
             "extracto_log": (main_extract or "")[:16000],
-            "descripcion": f.description or "",
+            "description": description,
+            "descripcion": description,
             "referencia": referencia if is_odata_list else _extract_referencia_from_text(main_extract),
             "fecha_envio": f.date,
             "responsable": _extract_unidad_emisora_from_text(main_extract),
             "documento_archivo": doc_arch,
             "estado": estado,
+            "estado_liberacion": (
+                main_doc.get_estado_liberacion_display()
+                if main_doc and getattr(main_doc, "estado_liberacion", "")
+                else ""
+            ),
+            "sello_liberado_verificado": (
+                "con Sello" if main_doc and main_doc.sello_liberado_verificado
+                else "No" if main_doc else "—"
+            ),
             "informado_display": informado_display,
             "detalle": "",
             "enviado_a": "",
