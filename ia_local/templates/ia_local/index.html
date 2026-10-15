@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Consulta documental IA
+    </title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+
+        .contenedor {
+            width: min(
+                1100px,
+                calc(100% - 32px)
+            );
+            margin: 40px auto;
+        }
+
+        .cabecera {
+            margin-bottom: 24px;
+        }
+
+        .cabecera h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        .cabecera p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow:
+                0 4px 18px
+                rgba(
+                    0,
+                    0,
+                    0,
+                    0.07
+                );
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            resize: vertical;
+            padding: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .acciones {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 8px;
+            padding: 11px 18px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .btn-consultar {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-consultar:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-limpiar {
+            background: #475569;
+            color: white;
+        }
+
+        .btn-limpiar:hover {
+            background: #334155;
+        }
+
+        .btn-excel {
+            background: #15803d;
+            color: white;
+        }
+
+        .btn-excel:hover {
+            background: #166534;
+        }
+
+        .btn-pdf {
+            background: #b91c1c;
+            color: white;
+        }
+
+        .btn-pdf:hover {
+            background: #991b1b;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #estado {
+            margin-top: 18px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #estado.cargando {
+            display: block;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        #estado.ok {
+            display: block;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        #estado.error {
+            display: block;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        #bloqueResultado {
+            display: none;
+            margin-top: 28px;
+        }
+
+        .resumen {
+            display: grid;
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(
+                        160px,
+                        1fr
+                    )
+                );
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .dato {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .dato strong {
+            display: block;
+            color: #475569;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .respuesta-texto {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 18px;
+            white-space: pre-wrap;
+            line-height: 1.55;
+        }
+
+        .subtitulo-resultado {
+            margin: 20px 0 8px;
+            font-size: 16px;
+        }
+
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 18px;
+            border-radius: 10px;
+            overflow: auto;
+            max-height: 650px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .exportaciones {
+            display: none;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        @media (
+            max-width: 600px
+        ) {
+
+            .contenedor {
+                margin: 20px auto;
+            }
+
+            .panel {
+                padding: 16px;
+            }
+
+            .acciones button,
+            .exportaciones button {
+                width: 100%;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="contenedor">
+
+    <div class="cabecera">
+
+        <h1>
+            TRANSMITT-ia-L
+        </h1>
+
+        <p>
+            Consulta información del sistema
+            utilizando lenguaje natural.
+        </p>
+
+    </div>
+
+
+    <div class="panel">
+
+        <form
+            id="formConsulta"
+            method="post"
+        >
+
+            {% csrf_token %}
+
+            <label for="pregunta">
+                Pregunta
+            </label>
+
+            <textarea
+                id="pregunta"
+                name="pregunta"
+                placeholder="Ejemplo: ¿qué documentos contenía el transmittal 703?"
+                required
+            ></textarea>
+
+
+            <div class="acciones">
+
+                <button
+                    type="submit"
+                    class="btn-consultar"
+                    id="btnConsultar"
+                >
+                    Consultar
+                </button>
+
+                <button
+                    type="button"
+                    class="btn-limpiar"
+                    id="btnLimpiar"
+                >
+                    Limpiar
+                </button>
+
+            </div>
+
+        </form>
+
+
+        <div id="estado"></div>
+
+
+        <section id="bloqueResultado">
+
+            <h2>
+                Resultado
+            </h2>
+
+
+            <div
+                class="exportaciones"
+                id="exportaciones"
+            >
+
+                <form
+                    method="post"
+                    action="{% url 'ia_local:exportar_resultado_excel' %}"
+                    id="formExcel"
+                >
+
+                    {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="pregunta"
+                        id="preguntaExcel"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="respuesta_json"
+                        id="respuestaExcel"
+                    >
+
+                    <button
+                        type="submit"
+                        class="btn-excel"
+                    >
+                        Descargar Excel
+                    </button>
+
+                </form>
+
+
+                <form
+                    method="post"
+                    action="{% url 'ia_local:exportar_resultado_pdf' %}"
+                    target="_blank"
+                    id="formPdf"
+                >
+
+                    {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="pregunta"
+                        id="preguntaPdf"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="respuesta_json"
+                        id="respuestaPdf"
+                    >
+
+                    <button
+                        type="submit"
+                        class="btn-pdf"
+                    >
+                        Ver / Descargar PDF
+                    </button>
+
+                </form>
+
+            </div>
+
+
+            <div class="resumen">
+
+                <div class="dato">
+
+                    <strong>
+                        Origen
+                    </strong>
+
+                    <span id="origen">
+                        -
+                    </span>
+
+                </div>
+
+
+                <div class="dato">
+
+                    <strong>
+                        Tema
+                    </strong>
+
+                    <span id="tema">
+                        -
+                    </span>
+
+                </div>
+
+
+                <div class="dato">
+
+                    <strong>
+                        Operación
+                    </strong>
+
+                    <span id="operacion">
+                        -
+                    </span>
+
+                </div>
+
+
+                <div class="dato">
+
+                    <strong>
+                        Total
+                    </strong>
+
+                    <span id="total">
+                        -
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <h3 class="subtitulo-resultado">
+                Respuesta
+            </h3>
+
+            <div
+                id="respuestaTexto"
+                class="respuesta-texto"
+            ></div>
+
+            <div id="bloqueRegistros" style="display: none;">
+
+                <h3 class="subtitulo-resultado">
+                    Registros devueltos (JSON)
+                </h3>
+
+                <pre id="registrosJson"></pre>
+
+            </div>
+
+            <h3 class="subtitulo-resultado">
+                Salida JSON normalizada
+            </h3>
+
+            <pre id="respuestaJson"></pre>
+
+            <details style="margin-top: 18px;">
+
+                <summary style="cursor: pointer; font-weight: bold;">
+                    Detalle técnico HOST
+                </summary>
+
+                <pre id="jsonTecnico"></pre>
+
+            </details>
+
+        </section>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    let ultimaSalida = null;
+    let ultimaRespuestaTecnica = null;
+
+
+    function mostrarEstado(
+        tipo,
+        mensaje
+    ) {
+
+        const estado =
+            document.getElementById(
+                "estado"
+            );
+
+        estado.className = tipo;
+        estado.textContent = mensaje;
+    }
+
+
+    function desactivarExportaciones() {
+
+        document
+            .getElementById(
+                "exportaciones"
+            )
+            .style.display = "none";
+
+        document
+            .getElementById(
+                "preguntaExcel"
+            )
+            .value = "";
+
+        document
+            .getElementById(
+                "preguntaPdf"
+            )
+            .value = "";
+
+        document
+            .getElementById(
+                "respuestaExcel"
+            )
+            .value = "";
+
+        document
+            .getElementById(
+                "respuestaPdf"
+            )
+            .value = "";
+    }
+
+
+    function prepararExportaciones(
+        pregunta,
+        salida
+    ) {
+
+        if (
+            !salida ||
+            typeof salida !== "object"
+        ) {
+            desactivarExportaciones();
+            return;
+        }
+
+        const json = JSON.stringify(
+            salida
+        );
+
+        document
+            .getElementById(
+                "preguntaExcel"
+            )
+            .value = pregunta;
+
+        document
+            .getElementById(
+                "preguntaPdf"
+            )
+            .value = pregunta;
+
+        document
+            .getElementById(
+                "respuestaExcel"
+            )
+            .value = json;
+
+        document
+            .getElementById(
+                "respuestaPdf"
+            )
+            .value = json;
+
+        document
+            .getElementById(
+                "exportaciones"
+            )
+            .style.display = "flex";
+    }
+
+
+    function limpiarConsulta() {
+
+        document
+            .getElementById(
+                "pregunta"
+            )
+            .value = "";
+
+        document
+            .getElementById(
+                "respuestaTexto"
+            )
+            .textContent = "";
+
+        document
+            .getElementById(
+                "respuestaJson"
+            )
+            .textContent = "";
+
+        document
+            .getElementById(
+                "jsonTecnico"
+            )
+            .textContent = "";
+
+        document
+            .getElementById(
+                "registrosJson"
+            )
+            .textContent = "";
+
+        document
+            .getElementById(
+                "bloqueRegistros"
+            )
+            .style.display = "none";
+
+        document
+            .getElementById(
+                "bloqueResultado"
+            )
+            .style.display = "none";
+
+        desactivarExportaciones();
+
+        document
+            .getElementById(
+                "estado"
+            )
+            .className = "";
+
+        document
+            .getElementById(
+                "estado"
+            )
+            .textContent = "";
+
+        for (const id of [
+            "origen",
+            "tema",
+            "operacion",
+            "total",
+        ]) {
+            document
+                .getElementById(id)
+                .textContent = "-";
+        }
+
+        ultimaSalida = null;
+        ultimaRespuestaTecnica = null;
+
+        document
+            .getElementById(
+                "pregunta"
+            )
+            .focus();
+    }
+
+
+    document
+        .getElementById(
+            "btnLimpiar"
+        )
+        .addEventListener(
+            "click",
+            limpiarConsulta
+        );
+
+
+    document
+        .getElementById(
+            "formConsulta"
+        )
+        .addEventListener(
+            "submit",
+            async function (
+                event
+            ) {
+
+                event.preventDefault();
+
+                const pregunta =
+                    document
+                        .getElementById(
+                            "pregunta"
+                        )
+                        .value
+                        .trim();
+
+                if (!pregunta) {
+                    mostrarEstado(
+                        "error",
+                        "Escribe una pregunta."
+                    );
+                    return;
+                }
+
+                const boton =
+                    document
+                        .getElementById(
+                            "btnConsultar"
+                        );
+
+                boton.disabled = true;
+                desactivarExportaciones();
+
+                document
+                    .getElementById(
+                        "bloqueResultado"
+                    )
+                    .style.display = "none";
+
+                mostrarEstado(
+                    "cargando",
+                    "Procesando consulta..."
+                );
+
+                try {
+
+                    const datos =
+                        new FormData();
+
+                    datos.append(
+                        "pregunta",
+                        pregunta
+                    );
+
+                    const csrfInput =
+                        document.querySelector(
+                            'input[name="csrfmiddlewaretoken"]'
+                        );
+
+                    if (!csrfInput) {
+                        throw new Error(
+                            "No se encontró el token CSRF de Django."
+                        );
+                    }
+
+                    datos.append(
+                        "csrfmiddlewaretoken",
+                        csrfInput.value
+                    );
+
+                    const respuestaHttp =
+                        await fetch(
+                            "{% url 'ia_local:consultar' %}",
+                            {
+                                method: "POST",
+                                body: datos,
+                                headers: {
+                                    "X-Requested-With":
+                                        "XMLHttpRequest"
+                                }
+                            }
+                        );
+
+                    // Primero se lee como texto para no ocultar
+                    // errores HTML de Django detrás de un fallo
+                    // de response.json().
+                    const contenido =
+                        await respuestaHttp.text();
+
+                    const contentType =
+                        respuestaHttp.headers.get(
+                            "content-type"
+                        ) || "";
+
+                    if (
+                        !contentType.includes(
+                            "application/json"
+                        )
+                    ) {
+                        console.error(
+                            "Respuesta no JSON:",
+                            contenido
+                        );
+
+                        throw new Error(
+                            "El servidor no devolvió JSON " +
+                            "(HTTP " +
+                            respuestaHttp.status +
+                            "). Revisa el log de Django."
+                        );
+                    }
+
+                    let data;
+
+                    try {
+                        data = JSON.parse(
+                            contenido
+                        );
+                    }
+                    catch (errorJSON) {
+                        console.error(
+                            "JSON inválido:",
+                            contenido
+                        );
+
+                        throw new Error(
+                            "El servidor devolvió una respuesta JSON inválida."
+                        );
+                    }
+
+                    if (
+                        !respuestaHttp.ok ||
+                        data.ok === false
+                    ) {
+                        throw new Error(
+                            data.error ||
+                            "No fue posible procesar la consulta."
+                        );
+                    }
+
+                    if (
+                        !data.salida ||
+                        typeof data.salida !== "object"
+                    ) {
+                        throw new Error(
+                            "La consulta fue procesada, pero no se recibió " +
+                            "la salida normalizada esperada."
+                        );
+                    }
+
+                    ultimaSalida = data.salida;
+                    ultimaRespuestaTecnica =
+                        data.json_completo || null;
+
+                    const registros =
+                        Array.isArray(
+                            ultimaSalida.resultados
+                        )
+                        ? ultimaSalida.resultados
+                        : [];
+
+                    document
+                        .getElementById(
+                            "origen"
+                        )
+                        .textContent =
+                        ultimaSalida.origen || "-";
+
+                    document
+                        .getElementById(
+                            "tema"
+                        )
+                        .textContent =
+                        ultimaSalida.destino || "-";
+
+                    document
+                        .getElementById(
+                            "operacion"
+                        )
+                        .textContent =
+                        ultimaSalida.operacion || "-";
+
+                    document
+                        .getElementById(
+                            "total"
+                        )
+                        .textContent =
+                        ultimaSalida.total ?? registros.length;
+
+                    const respuestaTexto =
+                        document.getElementById(
+                            "respuestaTexto"
+                        );
+
+                    if (registros.length > 0) {
+                        const resumenHumano =
+                            ultimaSalida.respuesta ||
+                            "Consulta procesada correctamente.";
+
+                        respuestaTexto.textContent =
+                            resumenHumano +
+                            "\n\n" +
+                            JSON.stringify(
+                                registros,
+                                null,
+                                2
+                            );
+                    } else {
+                        respuestaTexto.textContent =
+                            ultimaSalida.respuesta ||
+                            "Consulta procesada correctamente.";
+                    }
+
+                    document
+                        .getElementById(
+                            "respuestaJson"
+                        )
+                        .textContent =
+                        JSON.stringify(
+                            ultimaSalida,
+                            null,
+                            2
+                        );
+
+                    document
+                        .getElementById(
+                            "jsonTecnico"
+                        )
+                        .textContent =
+                        JSON.stringify(
+                            ultimaRespuestaTecnica,
+                            null,
+                            2
+                        );
+
+                    const bloqueRegistros =
+                        document.getElementById(
+                            "bloqueRegistros"
+                        );
+
+                    const registrosJson =
+                        document.getElementById(
+                            "registrosJson"
+                        );
+
+                    if (registros.length > 0) {
+                        registrosJson.textContent =
+                            JSON.stringify(
+                                registros,
+                                null,
+                                2
+                            );
+
+                        bloqueRegistros.style.display =
+                            "block";
+                    }
+                    else {
+                        registrosJson.textContent = "";
+                        bloqueRegistros.style.display =
+                            "none";
+                    }
+
+                    document
+                        .getElementById(
+                            "bloqueResultado"
+                        )
+                        .style.display = "block";
+
+                    // PDF y Excel reciben exactamente el mismo
+                    // contrato que se muestra en pantalla.
+                    prepararExportaciones(
+                        pregunta,
+                        ultimaSalida
+                    );
+
+                    mostrarEstado(
+                        "ok",
+                        "Consulta procesada correctamente."
+                    );
+                }
+                catch (error) {
+
+                    ultimaSalida = null;
+                    ultimaRespuestaTecnica = null;
+
+                    document
+                        .getElementById(
+                            "bloqueResultado"
+                        )
+                        .style.display = "none";
+
+                    desactivarExportaciones();
+
+                    mostrarEstado(
+                        "error",
+                        error.message
+                    );
+                }
+                finally {
+                    boton.disabled = false;
+                }
+            }
+        );
+
+</script>
+
+</body>
+
+</html>

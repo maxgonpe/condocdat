@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>IA Local - Diagnóstico</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f4f6f8;
+            color: #1f2933;
+            font-family:
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        .contenedor {
+            width: min(1400px, 96%);
+            margin: 0 auto;
+            padding: 28px 0 50px;
+        }
+
+        h1 {
+            margin: 0 0 5px;
+            font-size: 28px;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 19px;
+        }
+
+        .subtitulo {
+            margin: 0;
+            color: #66788a;
+        }
+
+        .panel {
+            background: white;
+            border: 1px solid #d9e0e7;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+
+        .formulario {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .formulario input {
+            flex: 1;
+            min-width: 0;
+            padding: 12px 14px;
+            border: 1px solid #b8c2cc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .formulario input:focus {
+            outline: none;
+            border-color: #486581;
+            box-shadow: 0 0 0 3px rgba(72, 101, 129, 0.12);
+        }
+
+        .formulario button {
+            border: 0;
+            border-radius: 6px;
+            padding: 0 22px;
+            background: #243b53;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .formulario button:hover {
+            background: #102a43;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(310px, 1fr));
+            gap: 16px;
+        }
+
+        dl {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 7px 12px;
+            margin: 0;
+        }
+
+        dt {
+            font-weight: 600;
+            color: #52606d;
+        }
+
+        dd {
+            margin: 0;
+            word-break: break-word;
+        }
+
+        pre {
+            margin: 0;
+            padding: 14px;
+            overflow: auto;
+            max-height: 500px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #f6f8fa;
+            border: 1px solid #e1e6eb;
+            border-radius: 6px;
+            font-family:
+                ui-monospace,
+                SFMono-Regular,
+                Menlo,
+                Consolas,
+                monospace;
+            font-size: 13px;
+        }
+
+        .estado-ok {
+            color: #147d4f;
+            font-weight: 700;
+        }
+
+        .estado-bloqueado {
+            color: #b42318;
+            font-weight: 700;
+        }
+
+        .error {
+            padding: 14px;
+            margin-bottom: 18px;
+            border: 1px solid #f1aeb5;
+            border-radius: 6px;
+            background: #fff1f2;
+            color: #842029;
+        }
+
+        .respuesta {
+            line-height: 1.55;
+            white-space: pre-wrap;
+        }
+
+        .muted {
+            color: #7b8794;
+        }
+
+        .seccion-completa {
+            margin-top: 16px;
+        }
+
+        /* =====================================================
+           CABECERA + COPIA DE DIAGNÓSTICO
+           ===================================================== */
+
+        .cabecera-diagnostico {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .acciones-diagnostico {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-copiar {
+            border: 0;
+            border-radius: 6px;
+            padding: 10px 16px;
+            background: #486581;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .btn-copiar:hover {
+            background: #334e68;
+        }
+
+        .estado-copia {
+            min-width: 90px;
+            color: #147d4f;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        @media (max-width: 700px) {
+            .formulario {
+                flex-direction: column;
+            }
+
+            .formulario button {
+                min-height: 44px;
+            }
+
+            dl {
+                grid-template-columns: 1fr;
+            }
+
+            .cabecera-diagnostico {
+                flex-direction: column;
+            }
+
+            .acciones-diagnostico {
+                width: 100%;
+            }
+
+            .btn-copiar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+    <!-- =====================================================
+         CABECERA
+         ===================================================== -->
+
+    <div class="cabecera-diagnostico">
+
+        <div>
+            <h1>IA Local — Diagnóstico</h1>
+
+            <p class="subtitulo">
+                Inspección del pipeline HOST014 / HOST015 / HOST016.
+            </p>
+        </div>
+
+        {% if diagnostico %}
+
+            <div class="acciones-diagnostico">
+
+                <button
+                    type="button"
+                    id="btn-copiar-diagnostico"
+                    class="btn-copiar"
+                >
+                    Copiar diagnóstico
+                </button>
+
+                <span
+                    id="estado-copia"
+                    class="estado-copia"
+                ></span>
+
+            </div>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- =====================================================
+         FORMULARIO DE PREGUNTA
+         ===================================================== -->
+
+    <div class="panel">
+
+        <form method="post" class="formulario">
+            {% csrf_token %}
+
+            <input
+                type="text"
+                name="pregunta"
+                value="{{ pregunta }}"
+                placeholder="Escribe una pregunta..."
+                autocomplete="off"
+                autofocus
+            >
+
+            <button type="submit">
+                Analizar
+            </button>
+        </form>
+
+    </div>
+
+
+    <!-- =====================================================
+         ERROR
+         ===================================================== -->
+
+    {% if error %}
+
+        <div class="error">
+            {{ error }}
+        </div>
+
+    {% endif %}
+
+
+    <!-- =====================================================
+         DIAGNÓSTICO
+         ===================================================== -->
+
+    {% if diagnostico %}
+
+        <div id="diagnostico-copiable">
+
+
+            <!-- ESTADO / INTENCIÓN / ENTIDAD -->
+
+            <div class="grid">
+
+                <section class="panel">
+                    <h2>Estado</h2>
+
+                    <dl>
+                        <dt>OK</dt>
+
+                        <dd>
+                            {% if diagnostico.estado.ok %}
+
+                                <span class="estado-ok">
+                                    Sí
+                                </span>
+
+                            {% else %}
+
+                                <span class="estado-bloqueado">
+                                    No
+                                </span>
+
+                            {% endif %}
+                        </dd>
+
+                        <dt>Fase</dt>
+                        <dd>
+                            {{ diagnostico.estado.fase }}
+                        </dd>
+
+                        <dt>Bloqueado</dt>
+                        <dd>
+                            {{ diagnostico.estado.bloqueado }}
+                        </dd>
+
+                        <dt>LLM invocado</dt>
+                        <dd>
+                            {{ diagnostico.estado.llm_invocado }}
+                        </dd>
+
+                        <dt>Destino</dt>
+                        <dd>
+                            {{ diagnostico.routing.destino }}
+                        </dd>
+                    </dl>
+                </section>
+
+
+                <section class="panel">
+                    <h2>Intención</h2>
+
+                    <dl>
+                        <dt>Tipo</dt>
+                        <dd>
+                            {{ diagnostico.intencion.tipo|default:"-" }}
+                        </dd>
+
+                        <dt>Subtipo</dt>
+                        <dd>
+                            {{ diagnostico.intencion.subtipo|default:"-" }}
+                        </dd>
+
+                        <dt>Acción</dt>
+                        <dd>
+                            {{ diagnostico.intencion.accion|default:"-" }}
+                        </dd>
+
+                        <dt>Origen</dt>
+                        <dd>
+                            {{ diagnostico.intencion.origen|default:"-" }}
+                        </dd>
+
+                        <dt>Confianza</dt>
+                        <dd>
+                            {{ diagnostico.intencion.confianza|default:"-" }}
+                        </dd>
+
+                        <dt>Validada</dt>
+                        <dd>
+                            {{ diagnostico.intencion.validado }}
+                        </dd>
+                    </dl>
+                </section>
+
+
+                <section class="panel">
+                    <h2>Entidad</h2>
+
+                    <dl>
+                        <dt>Inicial</dt>
+                        <dd>
+                            {{ diagnostico.entidad.inicial|default:"-" }}
+                        </dd>
+
+                        <dt>Final</dt>
+                        <dd>
+                            {{ diagnostico.entidad.final|default:"-" }}
+                        </dd>
+
+                        <dt>Validada</dt>
+                        <dd>
+                            {{ diagnostico.entidad.validada }}
+                        </dd>
+                    </dl>
+                </section>
+
+            </div>
+
+
+            <!-- RAZÓN -->
+
+            <section class="panel">
+
+                <h2>Razón de la intención</h2>
+
+                <div class="respuesta">
+                    {{ diagnostico.intencion.razon|default:"Sin razón registrada." }}
+                </div>
+
+            </section>
+
+
+            <!-- RESOLUCIÓN DE ENTIDAD -->
+
+            <section class="panel">
+
+                <h2>Resolución dinámica de entidad</h2>
+
+                {% if diagnostico.entidad.resolucion_dinamica %}
+
+                    <pre>{{ diagnostico.entidad.resolucion_dinamica|pprint }}</pre>
+
+                {% else %}
+
+                    <span class="muted">
+                        No hubo resolución dinámica o no fue necesaria.
+                    </span>
+
+                {% endif %}
+
+            </section>
+
+
+            <!-- INTERPRETACIÓN -->
+
+            <section class="panel">
+
+                <h2>Interpretación declarativa</h2>
+
+                {% if diagnostico.interpretacion %}
+
+                    <pre>{{ diagnostico.interpretacion|pprint }}</pre>
+
+                {% else %}
+
+                    <span class="muted">
+                        Esta etapa no fue ejecutada.
+                    </span>
+
+                {% endif %}
+
+            </section>
+
+
+            <!-- VALIDACIÓN -->
+
+            <section class="panel">
+
+                <h2>Validación</h2>
+
+                {% if diagnostico.validacion %}
+
+                    <pre>{{ diagnostico.validacion|pprint }}</pre>
+
+                {% else %}
+
+                    <span class="muted">
+                        Esta etapa no fue ejecutada.
+                    </span>
+
+                {% endif %}
+
+            </section>
+
+
+            <!-- ORM -->
+
+            <section class="panel">
+
+                <h2>Ejecución ORM</h2>
+
+                {% if diagnostico.ejecucion %}
+
+                    <pre>{{ diagnostico.ejecucion|pprint }}</pre>
+
+                {% else %}
+
+                    <span class="muted">
+                        No hubo ejecución ORM.
+                    </span>
+
+                {% endif %}
+
+            </section>
+
+
+            <!-- ESTRUCTURA HOST -->
+
+            {% if diagnostico.estructura %}
+
+                <section class="panel">
+
+                    <h2>Resultado estructural HOST</h2>
+
+                    <pre>{{ diagnostico.estructura|pprint }}</pre>
+
+                </section>
+
+            {% endif %}
+
+
+            <!-- RESPUESTA -->
+
+            <section class="panel">
+
+                <h2>Respuesta final</h2>
+
+                <div class="respuesta">
+                    {{ diagnostico.respuesta.texto|default:"Sin respuesta." }}
+                </div>
+
+            </section>
+
+
+            <!-- RESULTADO BRUTO -->
+
+            <details class="panel">
+
+                <summary>
+                    Resultado bruto
+                </summary>
+
+                <div class="seccion-completa">
+
+                    <pre>{{ diagnostico.resultado_bruto|pprint }}</pre>
+
+                </div>
+
+            </details>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+
+<!-- =========================================================
+     COPIAR DIAGNÓSTICO
+     ========================================================= -->
+
+<script>
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const boton = document.getElementById(
+            "btn-copiar-diagnostico"
+        );
+
+        const contenedor = document.getElementById(
+            "diagnostico-copiable"
+        );
+
+        const estado = document.getElementById(
+            "estado-copia"
+        );
+
+        if (
+            !boton
+            || !contenedor
+        ) {
+            return;
+        }
+
+        boton.addEventListener(
+            "click",
+            async function () {
+
+                const pregunta =
+                    "{{ pregunta|escapejs }}";
+
+                const contenido = [
+                    "============================================================",
+                    "IA LOCAL - DIAGNOSTICO HOST016",
+                    "============================================================",
+                    "",
+                    "PREGUNTA:",
+                    pregunta,
+                    "",
+                    contenedor.innerText.trim(),
+                    "",
+                    "============================================================",
+                    "FIN DEL DIAGNOSTICO",
+                    "============================================================",
+                ].join(
+                    "\n"
+                );
+
+                try {
+
+                    await navigator.clipboard.writeText(
+                        contenido
+                    );
+
+                    if (estado) {
+                        estado.textContent =
+                            "Copiado";
+                    }
+
+                    setTimeout(
+                        function () {
+
+                            if (estado) {
+                                estado.textContent =
+                                    "";
+                            }
+
+                        },
+                        2500
+                    );
+
+                } catch (error) {
+
+                    /*
+                     * Fallback para navegadores/contextos
+                     * donde Clipboard API no esté disponible.
+                     */
+
+                    const area =
+                        document.createElement(
+                            "textarea"
+                        );
+
+                    area.value =
+                        contenido;
+
+                    area.style.position =
+                        "fixed";
+
+                    area.style.left =
+                        "-9999px";
+
+                    document.body.appendChild(
+                        area
+                    );
+
+                    area.focus();
+                    area.select();
+
+                    document.execCommand(
+                        "copy"
+                    );
+
+                    document.body.removeChild(
+                        area
+                    );
+
+                    if (estado) {
+                        estado.textContent =
+                            "Copiado";
+                    }
+
+                    setTimeout(
+                        function () {
+
+                            if (estado) {
+                                estado.textContent =
+                                    "";
+                            }
+
+                        },
+                        2500
+                    );
+                }
+            }
+        );
+    }
+);
+</script>
+
+</body>
+</html>

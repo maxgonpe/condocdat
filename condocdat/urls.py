@@ -19,6 +19,7 @@ urlpatterns = [
     path('equipos/', include('equipos.urls')),
     path('gantt/', include('gantt.urls')),
     path('transmital/', include('transmital.urls')),
+    path("ia/", include("ia_local.urls")),
     path('admin/', admin.site.urls),
 ]
 

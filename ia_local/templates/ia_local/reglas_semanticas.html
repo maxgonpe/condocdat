@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Conocimiento semántico</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f4f6f8;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #222;
+        }
+
+        .container {
+            width: 96%;
+            max-width: 1500px;
+            margin: 30px auto;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .toolbar {
+            margin-bottom: 20px;
+        }
+
+        .toolbar a {
+            display: inline-block;
+            padding: 10px 16px;
+            background: #222;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .panel {
+            background: white;
+            border: 1px solid #d9dde2;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e5e8;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #eceff2;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        code {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 12px;
+        }
+
+        .estado {
+            font-weight: bold;
+        }
+
+        .activa {
+            color: green;
+        }
+
+        .inactiva {
+            color: #b00020;
+        }
+
+        button {
+            padding: 7px 12px;
+            border: 0;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            background: #555;
+        }
+
+        button:hover {
+            background: #333;
+        }
+
+        .tipo-exacta {
+            font-weight: bold;
+        }
+
+        .tipo-patron {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .mensaje {
+            margin-bottom: 15px;
+            min-height: 20px;
+        }
+
+        .ok {
+            color: green;
+        }
+
+        .error {
+            color: #b00020;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+    <h1>Conocimiento semántico</h1>
+
+    <div class="subtitle">
+        Reglas aprendidas por TRANSMITT-IA-L
+    </div>
+
+
+    <div class="toolbar">
+
+        <a href="/ia/test/">
+            Volver a consola IA
+        </a>
+
+    </div>
+
+
+    <div
+        id="mensaje"
+        class="mensaje"
+    ></div>
+
+
+    <div class="panel">
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>ID</th>
+                    <th>Tipo</th>
+                    <th>Pregunta / Patrón</th>
+                    <th>Filtros</th>
+                    <th>Usos</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                {% for regla in reglas %}
+
+                <tr id="regla-{{ regla.pk }}">
+
+                    <td>
+                        {{ regla.pk }}
+                    </td>
+
+
+                    <td>
+
+                        {% if regla.tipo == "PATRON" %}
+
+                            <span class="tipo-patron">
+                                PATRON
+                            </span>
+
+                        {% else %}
+
+                            <span class="tipo-exacta">
+                                EXACTA
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                        <strong>
+                            {{ regla.pregunta }}
+                        </strong>
+
+                        {% if regla.observacion %}
+
+                            <br><br>
+
+                            <small>
+                                {{ regla.observacion }}
+                            </small>
+
+                        {% endif %}
+
+                    </td>
+
+
+                    <td>
+
+                        <code>
+                            {{ regla.filtros }}
+                        </code>
+
+                    </td>
+
+
+                    <td>
+                        {{ regla.veces_usada }}
+                    </td>
+
+
+                    <td>
+
+                        <span
+                            id="estado-{{ regla.pk }}"
+                            class="estado {% if regla.activa %}activa{% else %}inactiva{% endif %}"
+                        >
+
+                            {% if regla.activa %}
+                                ACTIVA
+                            {% else %}
+                                INACTIVA
+                            {% endif %}
+
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <button
+                            type="button"
+                            onclick="cambiarEstado({{ regla.pk }})"
+                        >
+
+                            {% if regla.activa %}
+                                Desactivar
+                            {% else %}
+                                Activar
+                            {% endif %}
+
+                        </button>
+
+                    </td>
+
+                </tr>
+
+                {% empty %}
+
+                <tr>
+
+                    <td colspan="7">
+                        No existen reglas semánticas.
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+
+<script>
+
+
+function getCookie(name) {
+
+    let cookieValue = null;
+
+    if (
+        document.cookie &&
+        document.cookie !== ''
+    ) {
+
+        const cookies =
+            document.cookie.split(';');
+
+        for (
+            let i = 0;
+            i < cookies.length;
+            i++
+        ) {
+
+            const cookie =
+                cookies[i].trim();
+
+            if (
+                cookie.substring(
+                    0,
+                    name.length + 1
+                ) ===
+                (name + '=')
+            ) {
+
+                cookieValue =
+                    decodeURIComponent(
+                        cookie.substring(
+                            name.length + 1
+                        )
+                    );
+
+                break;
+
+            }
+
+        }
+
+    }
+
+    return cookieValue;
+
+}
+
+
+async function cambiarEstado(id) {
+
+    const mensaje =
+        document.getElementById(
+            "mensaje"
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                `/ia/reglas/${id}/estado/`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "X-CSRFToken":
+                            getCookie(
+                                "csrftoken"
+                            )
+                    }
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !data.ok
+        ) {
+
+            throw new Error(
+                data.error ||
+                "No fue posible cambiar el estado."
+            );
+
+        }
+
+
+        mensaje.className =
+            "mensaje ok";
+
+        mensaje.textContent =
+            data.mensaje;
+
+
+        /*
+        Para esta primera versión recargamos
+        para mostrar el estado actualizado.
+        */
+
+        window.location.reload();
+
+    }
+
+    catch (error) {
+
+        mensaje.className =
+            "mensaje error";
+
+        mensaje.textContent =
+            error.message;
+
+    }
+
+}
+
+
+</script>
+
+
+</body>
+
+</html>
