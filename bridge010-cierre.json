@@ -1,0 +1,238 @@
+{
+  "ok": true,
+  "version": "IA-BRIDGE010-v1",
+  "estado": "cerrable",
+  "total_pruebas": 19,
+  "total_ok": 19,
+  "total_fallos": 0,
+  "apps_host": [
+    "documents",
+    "equipos",
+    "gantt",
+    "rdi",
+    "transmital"
+  ],
+  "pruebas": [
+    {
+      "nombre": "entrada_oficial",
+      "ok": true,
+      "detalle": "La entrada oficial BRIDGE008 está disponible.",
+      "evidencia": {
+        "version": "IA-BRIDGE008-v1"
+      }
+    },
+    {
+      "nombre": "orquestador_oficial",
+      "ok": true,
+      "detalle": "El orquestador BRIDGE009 está disponible.",
+      "evidencia": {
+        "version": "IA-BRIDGE009-v1"
+      }
+    },
+    {
+      "nombre": "modulo_sem_a_host",
+      "ok": true,
+      "detalle": "ia_local.services.bridge.sem_a_host importable.",
+      "evidencia": {
+        "version": "IA-BRIDGE001-v1"
+      }
+    },
+    {
+      "nombre": "modulo_compositor_sem_host",
+      "ok": true,
+      "detalle": "ia_local.services.bridge.compositor_sem_host importable.",
+      "evidencia": {
+        "version": "IA-BRIDGE002-v1"
+      }
+    },
+    {
+      "nombre": "modulo_campo_operador_valor",
+      "ok": true,
+      "detalle": "ia_local.services.bridge.campo_operador_valor importable.",
+      "evidencia": {
+        "version": "IA-BRIDGE003-v1"
+      }
+    },
+    {
+      "nombre": "modulo_ejecutor_controlado",
+      "ok": true,
+      "detalle": "ia_local.services.bridge.ejecutor_controlado importable.",
+      "evidencia": {
+        "version": "IA-BRIDGE004-v1"
+      }
+    },
+    {
+      "nombre": "modulo_respuesta_compacta",
+      "ok": true,
+      "detalle": "ia_local.services.bridge.respuesta_compacta importable.",
+      "evidencia": {
+        "version": "IA-BRIDGE005-v1"
+      }
+    },
+    {
+      "nombre": "modulo_entrada_principal",
+      "ok": true,
+      "detalle": "ia_local.services.bridge.entrada_principal importable.",
+      "evidencia": {
+        "version": "IA-BRIDGE008-v1"
+      }
+    },
+    {
+      "nombre": "modulo_orquestador_principal",
+      "ok": true,
+      "detalle": "ia_local.services.bridge.orquestador_principal importable.",
+      "evidencia": {
+        "version": "IA-BRIDGE009-v1"
+      }
+    },
+    {
+      "nombre": "modulo_fallback_legado",
+      "ok": true,
+      "detalle": "ia_local.services.bridge.fallback_legado importable.",
+      "evidencia": {
+        "version": "IA-BRIDGE009-FALLBACK-v2"
+      }
+    },
+    {
+      "nombre": "sin_orm_directo_bridge",
+      "ok": true,
+      "detalle": "BRIDGE no contiene accesos directos mediante .objects.",
+      "evidencia": []
+    },
+    {
+      "nombre": "sin_imports_host_bridge",
+      "ok": true,
+      "detalle": "BRIDGE no importa directamente apps del proyecto anfitrión.",
+      "evidencia": []
+    },
+    {
+      "nombre": "delegacion_host",
+      "ok": true,
+      "detalle": "El ejecutor BRIDGE continúa delegando la ejecución final al ejecutor seguro de HOST.",
+      "evidencia": {
+        "archivo": "services/bridge/ejecutor_controlado.py",
+        "simbolo": "ejecutar_plan_datos"
+      }
+    },
+    {
+      "nombre": "fallback_bloqueado_host",
+      "ok": true,
+      "detalle": "Un rechazo HOST no puede activar fallback.",
+      "evidencia": {
+        "fallback_elegible": false,
+        "clasificacion": "rechazo_seguridad",
+        "estado_bridge": "rechazado_por_host",
+        "razon": "El nuevo pipeline rechazó la consulta por una condición de seguridad o validación HOST. El fallback está prohibido."
+      }
+    },
+    {
+      "nombre": "fallback_bloqueado_incompleto",
+      "ok": true,
+      "detalle": "Una consulta incompleta no puede activar fallback.",
+      "evidencia": {
+        "fallback_elegible": false,
+        "clasificacion": "consulta_ambigua_o_incompleta",
+        "estado_bridge": "valor_libre_vacio",
+        "razon": "La consulta es ambigua o incompleta. No se permite intentar otro motor para adivinar la intención."
+      }
+    },
+    {
+      "nombre": "fallback_semantico_elegible",
+      "ok": true,
+      "detalle": "Un fallo puramente semántico puede ser elegible para fallback.",
+      "evidencia": {
+        "fallback_elegible": true,
+        "clasificacion": "capacidad_semantica_insuficiente",
+        "estado_bridge": "campo_no_resuelto",
+        "razon": "El nuevo pipeline no pudo resolver semánticamente la consulta, pero no existió un rechazo HOST."
+      }
+    },
+    {
+      "nombre": "fallback_opcional",
+      "ok": true,
+      "detalle": "El proveedor de fallback se resuelve de forma opcional y declarativa.",
+      "evidencia": {
+        "disponible": false,
+        "configurado": false,
+        "ruta": null,
+        "razon": "Este proyecto no tiene configurado un proveedor de fallback legado."
+      }
+    },
+    {
+      "nombre": "runtime_consulta",
+      "ok": true,
+      "detalle": "La consulta runtime fue resuelta por BRIDGE.",
+      "evidencia": {
+        "ok": true,
+        "version": "IA-BRIDGE005-v1",
+        "pregunta": "listar documentos",
+        "ejecutado": true,
+        "tipo": "lista",
+        "modelo": "documents.Document",
+        "total_devuelto": 1,
+        "limite": 1,
+        "campos": [
+          "id",
+          "number",
+          "code",
+          "title",
+          "revision",
+          "date",
+          "status",
+          "informado",
+          "estado_liberacion",
+          "fecha_liberacion",
+          "liberacion_observada_at",
+          "fuente_liberacion",
+          "sello_liberado_verificado",
+          "sello_verificado_at",
+          "liberacion_transmittal",
+          "liberacion_referencia",
+          "created_at",
+          "updated_at"
+        ],
+        "resultados": [
+          {
+            "id": 996,
+            "number": 698,
+            "code": "ODATA-ST01-F5-TTAL-PPT-00698",
+            "title": "SEISCIENTOSNOVENTAYOCHO",
+            "revision": "CANDIDATO REV 0",
+            "date": "2026-09-28",
+            "status": "ISSUED",
+            "informado": "informados",
+            "estado_liberacion": "NO_APLICA",
+            "fecha_liberacion": null,
+            "liberacion_observada_at": null,
+            "fuente_liberacion": "",
+            "sello_liberado_verificado": false,
+            "sello_verificado_at": null,
+            "liberacion_transmittal": "",
+            "liberacion_referencia": "",
+            "created_at": "2026-09-28T21:41:28.264626+00:00",
+            "updated_at": "2026-09-28T21:44:55.679200+00:00"
+          }
+        ],
+        "filtros": [],
+        "mensaje": "Se devolvieron 1 registro(s).",
+        "entrada_version": "IA-BRIDGE008-v1",
+        "orquestador_version": "IA-BRIDGE009-v1",
+        "motor_usado": "bridge",
+        "fallback_elegible": false,
+        "fallback_habilitado": false,
+        "fallback_usado": false,
+        "motivo_fallback": null
+      }
+    },
+    {
+      "nombre": "runtime_limite",
+      "ok": true,
+      "detalle": "El límite solicitado fue respetado.",
+      "evidencia": {
+        "limite": 1,
+        "total_devuelto": 1
+      }
+    }
+  ],
+  "fallos": []
+}

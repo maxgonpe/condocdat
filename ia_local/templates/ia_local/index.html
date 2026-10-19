@@ -284,6 +284,7 @@
 
         <form
             id="formConsulta"
+            action="{% url 'ia_local:bridge_consultar' %}"
             method="post"
         >
 
@@ -604,6 +605,39 @@
     }
 
 
+    function construirSalidaExportable(
+        data
+    ) {
+
+        /*
+        ======================================================
+        IA-BRIDGE007
+        ======================================================
+
+        BRIDGE005 ya entrega un contrato compacto y estable.
+
+        Para Excel/PDF quitamos solamente "diagnostico",
+        porque esa traza técnica puede ser muy grande y no
+        forma parte del resultado funcional de la consulta.
+        */
+
+        if (
+            !data ||
+            typeof data !== "object"
+        ) {
+            return null;
+        }
+
+        const salida = {
+            ...data
+        };
+
+        delete salida.diagnostico;
+
+        return salida;
+    }
+
+
     function limpiarConsulta() {
 
         document
@@ -715,10 +749,12 @@
                         .trim();
 
                 if (!pregunta) {
+
                     mostrarEstado(
                         "error",
                         "Escribe una pregunta."
                     );
+
                     return;
                 }
 
@@ -729,6 +765,7 @@
                         );
 
                 boton.disabled = true;
+
                 desactivarExportaciones();
 
                 document
@@ -742,7 +779,14 @@
                     "Procesando consulta..."
                 );
 
+
                 try {
+
+                    /*
+                    ==================================================
+                    DATOS PARA IA-BRIDGE006/007
+                    ==================================================
+                    */
 
                     const datos =
                         new FormData();
@@ -752,12 +796,34 @@
                         pregunta
                     );
 
+                    /*
+                    La interfaz mantiene el límite normal de 20.
+                    HOST seguirá siendo quien valide el máximo real.
+                    */
+
+                    datos.append(
+                        "limite",
+                        "20"
+                    );
+
+                    /*
+                    Pedimos diagnóstico para conservar el panel
+                    técnico que ya existe en esta versión de la UI.
+                    */
+
+                    datos.append(
+                        "diagnostico",
+                        "1"
+                    );
+
+
                     const csrfInput =
                         document.querySelector(
                             'input[name="csrfmiddlewaretoken"]'
                         );
 
                     if (!csrfInput) {
+
                         throw new Error(
                             "No se encontró el token CSRF de Django."
                         );
@@ -768,12 +834,23 @@
                         csrfInput.value
                     );
 
+
+                    /*
+                    ==================================================
+                    ENDPOINT NUEVO
+                    ==================================================
+                    */
+
                     const respuestaHttp =
                         await fetch(
-                            "{% url 'ia_local:consultar' %}",
+                            "{% url 'ia_local:bridge_consultar' %}",
                             {
-                                method: "POST",
-                                body: datos,
+                                method:
+                                    "POST",
+
+                                body:
+                                    datos,
+
                                 headers: {
                                     "X-Requested-With":
                                         "XMLHttpRequest"
@@ -781,22 +858,30 @@
                             }
                         );
 
-                    // Primero se lee como texto para no ocultar
-                    // errores HTML de Django detrás de un fallo
-                    // de response.json().
+
+                    /*
+                    Primero leemos como texto.
+
+                    De esta forma un 403, 404, 500 o redirección HTML
+                    no queda oculto detrás de un error de JSON.parse.
+                    */
+
                     const contenido =
                         await respuestaHttp.text();
+
 
                     const contentType =
                         respuestaHttp.headers.get(
                             "content-type"
                         ) || "";
 
+
                     if (
                         !contentType.includes(
                             "application/json"
                         )
                     ) {
+
                         console.error(
                             "Respuesta no JSON:",
                             contenido
@@ -810,14 +895,19 @@
                         );
                     }
 
+
                     let data;
 
                     try {
-                        data = JSON.parse(
-                            contenido
-                        );
+
+                        data =
+                            JSON.parse(
+                                contenido
+                            );
+
                     }
                     catch (errorJSON) {
+
                         console.error(
                             "JSON inválido:",
                             contenido
@@ -828,88 +918,184 @@
                         );
                     }
 
+
+                    /*
+                    ==================================================
+                    ERROR CONTROLADO
+                    ==================================================
+
+                    BRIDGE005 devuelve los errores funcionales en:
+
+                        mensaje
+                        errores[]
+
+                    mientras el endpoint HTTP puede seguir respondiendo
+                    200 porque el servidor sí procesó correctamente
+                    la solicitud.
+                    */
+
                     if (
                         !respuestaHttp.ok ||
                         data.ok === false
                     ) {
-                        throw new Error(
+
+                        let mensajeError =
+                            data.mensaje ||
                             data.error ||
-                            "No fue posible procesar la consulta."
-                        );
-                    }
+                            (
+                                "No fue posible procesar "
+                                + "la consulta."
+                            );
 
-                    if (
-                        !data.salida ||
-                        typeof data.salida !== "object"
-                    ) {
+                        if (
+                            Array.isArray(
+                                data.errores
+                            )
+                            &&
+                            data.errores.length
+                        ) {
+
+                            mensajeError +=
+                                "\n\n"
+                                + data.errores.join(
+                                    "\n"
+                                );
+                        }
+
                         throw new Error(
-                            "La consulta fue procesada, pero no se recibió " +
-                            "la salida normalizada esperada."
+                            mensajeError
                         );
                     }
 
-                    ultimaSalida = data.salida;
+
+                    /*
+                    ==================================================
+                    CONTRATO COMPACTO BRIDGE005
+                    ==================================================
+                    */
+
+                    ultimaSalida =
+                        construirSalidaExportable(
+                            data
+                        );
+
                     ultimaRespuestaTecnica =
-                        data.json_completo || null;
+                        (
+                            data.diagnostico &&
+                            typeof data.diagnostico ===
+                                "object"
+                        )
+                        ? data.diagnostico
+                        : null;
+
 
                     const registros =
                         Array.isArray(
-                            ultimaSalida.resultados
+                            data.resultados
                         )
-                        ? ultimaSalida.resultados
+                        ? data.resultados
                         : [];
+
+
+                    /*
+                    ==================================================
+                    RESUMEN SUPERIOR
+                    ==================================================
+                    */
 
                     document
                         .getElementById(
                             "origen"
                         )
                         .textContent =
-                        ultimaSalida.origen || "-";
+                        "BRIDGE005";
+
 
                     document
                         .getElementById(
                             "tema"
                         )
                         .textContent =
-                        ultimaSalida.destino || "-";
+                        data.modelo || "-";
+
 
                     document
                         .getElementById(
                             "operacion"
                         )
                         .textContent =
-                        ultimaSalida.operacion || "-";
+                        data.tipo || "-";
+
+
+                    const totalVisible =
+                        (
+                            data.tipo ===
+                            "conteo"
+                        )
+                        ? (
+                            data.total ?? 0
+                        )
+                        : (
+                            data.total_devuelto ??
+                            registros.length
+                        );
+
 
                     document
                         .getElementById(
                             "total"
                         )
                         .textContent =
-                        ultimaSalida.total ?? registros.length;
+                        totalVisible;
+
+
+                    /*
+                    ==================================================
+                    RESPUESTA HUMANA
+                    ==================================================
+                    */
 
                     const respuestaTexto =
                         document.getElementById(
                             "respuestaTexto"
                         );
 
-                    if (registros.length > 0) {
-                        const resumenHumano =
-                            ultimaSalida.respuesta ||
-                            "Consulta procesada correctamente.";
 
-                        respuestaTexto.textContent =
-                            resumenHumano +
-                            "\n\n" +
-                            JSON.stringify(
+                    let textoVisible =
+                        (
+                            typeof data.mensaje ===
+                            "string"
+                        )
+                        ? data.mensaje
+                        : (
+                            "Consulta procesada "
+                            + "correctamente."
+                        );
+
+
+                    if (
+                        registros.length > 0
+                    ) {
+
+                        textoVisible +=
+                            "\n\n"
+                            + JSON.stringify(
                                 registros,
                                 null,
                                 2
                             );
-                    } else {
-                        respuestaTexto.textContent =
-                            ultimaSalida.respuesta ||
-                            "Consulta procesada correctamente.";
                     }
+
+
+                    respuestaTexto.textContent =
+                        textoVisible;
+
+
+                    /*
+                    ==================================================
+                    JSON COMPACTO
+                    ==================================================
+                    */
 
                     document
                         .getElementById(
@@ -922,28 +1108,52 @@
                             2
                         );
 
+
+                    /*
+                    ==================================================
+                    DETALLE TÉCNICO
+                    ==================================================
+                    */
+
                     document
                         .getElementById(
                             "jsonTecnico"
                         )
                         .textContent =
-                        JSON.stringify(
+                        ultimaRespuestaTecnica
+                        ? JSON.stringify(
                             ultimaRespuestaTecnica,
                             null,
                             2
+                        )
+                        : (
+                            "No se solicitó o no se recibió "
+                            + "diagnóstico técnico."
                         );
+
+
+                    /*
+                    ==================================================
+                    REGISTROS
+                    ==================================================
+                    */
 
                     const bloqueRegistros =
                         document.getElementById(
                             "bloqueRegistros"
                         );
 
+
                     const registrosJson =
                         document.getElementById(
                             "registrosJson"
                         );
 
-                    if (registros.length > 0) {
+
+                    if (
+                        registros.length > 0
+                    ) {
+
                         registrosJson.textContent =
                             JSON.stringify(
                                 registros,
@@ -953,30 +1163,52 @@
 
                         bloqueRegistros.style.display =
                             "block";
+
                     }
                     else {
-                        registrosJson.textContent = "";
+
+                        registrosJson.textContent =
+                            "";
+
                         bloqueRegistros.style.display =
                             "none";
                     }
+
+
+                    /*
+                    ==================================================
+                    MOSTRAR RESULTADO
+                    ==================================================
+                    */
 
                     document
                         .getElementById(
                             "bloqueResultado"
                         )
-                        .style.display = "block";
+                        .style.display =
+                        "block";
 
-                    // PDF y Excel reciben exactamente el mismo
-                    // contrato que se muestra en pantalla.
+
+                    /*
+                    ==================================================
+                    EXPORTACIONES
+                    ==================================================
+
+                    Excel y PDF reciben el contrato compacto BRIDGE005,
+                    sin el diagnóstico técnico.
+                    */
+
                     prepararExportaciones(
                         pregunta,
                         ultimaSalida
                     );
 
+
                     mostrarEstado(
                         "ok",
                         "Consulta procesada correctamente."
                     );
+
                 }
                 catch (error) {
 
@@ -987,17 +1219,25 @@
                         .getElementById(
                             "bloqueResultado"
                         )
-                        .style.display = "none";
+                        .style.display =
+                        "none";
 
                     desactivarExportaciones();
 
                     mostrarEstado(
                         "error",
-                        error.message
+                        error.message ||
+                        (
+                            "No fue posible completar "
+                            + "la consulta."
+                        )
                     );
+
                 }
                 finally {
-                    boton.disabled = false;
+
+                    boton.disabled =
+                        false;
                 }
             }
         );
