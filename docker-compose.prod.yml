@@ -3,8 +3,15 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
+
     container_name: condocdat_app
     restart: unless-stopped
+
+    # Permite que ia_local alcance Ollama instalado en el host VPS.
+    # host.docker.internal resolverá hacia el host Docker.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     # Las variables ${...} se resuelven en el HOST al ejecutar docker compose.
     # update_condocdat.sh carga el .env en el shell antes de compose para que no queden vacías.
     environment:
@@ -12,15 +19,23 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-condocdat.netgogo.cl}
       - DJANGO_SETTINGS_MODULE=condocdat.settings
-      # PostgreSQL en producción (mismo servidor que Talleres). Definir en .env: DB_ENGINE, DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
+
+      # PostgreSQL en producción.
       - DB_ENGINE=${DB_ENGINE:-django.db.backends.postgresql}
       - DB_NAME=${DB_NAME:-condocdat_db}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT:-5432}
+
+      # IA local / Ollama compartido en el host VPS.
+      - IA_LOCAL_OLLAMA_URL=${IA_LOCAL_OLLAMA_URL:-http://host.docker.internal:11434}
+      - IA_LOCAL_OLLAMA_MODEL=${IA_LOCAL_OLLAMA_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+      - IA_LOCAL_OLLAMA_TIMEOUT=${IA_LOCAL_OLLAMA_TIMEOUT:-180}
+
       - TZ=America/Santiago
-      # Correo (Outlook/Office 365): deben existir en el .env del HOST; el contenedor no ve /app/.env
+
+      # Correo Outlook / Office 365.
       - EMAIL_HOST=${EMAIL_HOST:-smtp.office365.com}
       - EMAIL_PORT=${EMAIL_PORT:-587}
       - EMAIL_USE_TLS=${EMAIL_USE_TLS:-True}
@@ -28,14 +43,19 @@ services:
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-max.gonzalez@propamat.cl}
       - EMAIL_TIMEOUT=${EMAIL_TIMEOUT:-90}
-    # data: SQLite si aplica · media: documentos, RDI, planos, equipos/ (libros Excel control de equipos) · staticfiles
+
+    # data: SQLite si aplica
+    # media: documentos, RDI, planos, equipos
+    # staticfiles: archivos estáticos recopilados
     volumes:
       - ./data:/app/data
       - ./media:/app/media
       - ./staticfiles:/app/staticfiles
+
     networks:
       - traefik_default
       - myproject_netgogo_default
+
     labels:
       traefik.enable: "true"
       traefik.http.routers.condocdat.entrypoints: "websecure"
@@ -45,8 +65,10 @@ services:
       traefik.http.middlewares.condocdat-headers.headers.customrequestheaders.X-Forwarded-Proto: "https"
       traefik.http.routers.condocdat.middlewares: "condocdat-headers"
 
+
 networks:
   traefik_default:
     external: true
+
   myproject_netgogo_default:
     external: true
