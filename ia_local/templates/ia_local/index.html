@@ -921,46 +921,38 @@
 
                     /*
                     ==================================================
-                    ERROR CONTROLADO
+                    IA-FINAL006
+                    RESPUESTA DEL PIPELINE FINAL
                     ==================================================
-
-                    BRIDGE005 devuelve los errores funcionales en:
-
-                        mensaje
-                        errores[]
-
-                    mientras el endpoint HTTP puede seguir respondiendo
-                    200 porque el servidor sí procesó correctamente
-                    la solicitud.
                     */
 
-                    if (
-                        !respuestaHttp.ok ||
-                        data.ok === false
-                    ) {
+                    /*
+                    --------------------------------------------------
+                    ERROR DE TRANSPORTE / SERVIDOR
+                    --------------------------------------------------
 
-                        let mensajeError =
+                    Un HTTP distinto de 2xx sí es un error real
+                    del endpoint.
+
+                    En cambio FINAL004 puede devolver ok=false para
+                    estados funcionales controlados, por ejemplo:
+
+                        respuesta_no_ejecutable
+
+                    Ese caso debe mostrarse al usuario y NO tratarse
+                    como un fallo HTTP.
+                    */
+
+                    if (!respuestaHttp.ok) {
+
+                        const mensajeError =
+                            data.respuesta ||
                             data.mensaje ||
                             data.error ||
                             (
                                 "No fue posible procesar "
                                 + "la consulta."
                             );
-
-                        if (
-                            Array.isArray(
-                                data.errores
-                            )
-                            &&
-                            data.errores.length
-                        ) {
-
-                            mensajeError +=
-                                "\n\n"
-                                + data.errores.join(
-                                    "\n"
-                                );
-                        }
 
                         throw new Error(
                             mensajeError
@@ -969,9 +961,9 @@
 
 
                     /*
-                    ==================================================
-                    CONTRATO COMPACTO BRIDGE005
-                    ==================================================
+                    --------------------------------------------------
+                    SALIDA FINAL004
+                    --------------------------------------------------
                     */
 
                     ultimaSalida =
@@ -989,11 +981,29 @@
                         : null;
 
 
+                    /*
+                    FINAL004 expone oficialmente:
+
+                        respuesta
+                        registros
+                        total
+                        tipo
+                        campos
+                    */
+
                     const registros =
                         Array.isArray(
-                            data.resultados
+                            data.registros
                         )
-                        ? data.resultados
+                        ? data.registros
+                        : [];
+
+
+                    const campos =
+                        Array.isArray(
+                            data.campos
+                        )
+                        ? data.campos
                         : [];
 
 
@@ -1008,7 +1018,7 @@
                             "origen"
                         )
                         .textContent =
-                        "BRIDGE005";
+                        "FINAL004";
 
 
                     document
@@ -1029,16 +1039,11 @@
 
                     const totalVisible =
                         (
-                            data.tipo ===
-                            "conteo"
+                            data.total !== null &&
+                            data.total !== undefined
                         )
-                        ? (
-                            data.total ?? 0
-                        )
-                        : (
-                            data.total_devuelto ??
-                            registros.length
-                        );
+                        ? data.total
+                        : registros.length;
 
 
                     document
@@ -1061,30 +1066,17 @@
                         );
 
 
-                    let textoVisible =
+                    const textoVisible =
                         (
-                            typeof data.mensaje ===
-                            "string"
+                            typeof data.respuesta ===
+                                "string" &&
+                            data.respuesta.trim()
                         )
-                        ? data.mensaje
+                        ? data.respuesta
                         : (
                             "Consulta procesada "
                             + "correctamente."
                         );
-
-
-                    if (
-                        registros.length > 0
-                    ) {
-
-                        textoVisible +=
-                            "\n\n"
-                            + JSON.stringify(
-                                registros,
-                                null,
-                                2
-                            );
-                    }
 
 
                     respuestaTexto.textContent =
@@ -1093,7 +1085,7 @@
 
                     /*
                     ==================================================
-                    JSON COMPACTO
+                    JSON NORMALIZADO
                     ==================================================
                     */
 
@@ -1190,24 +1182,28 @@
 
 
                     /*
-                    ==================================================
-                    EXPORTACIONES
-                    ==================================================
-
-                    Excel y PDF reciben el contrato compacto BRIDGE005,
-                    sin el diagnóstico técnico.
+                    --------------------------------------------------
+                    ESTADO VISUAL
+                    --------------------------------------------------
                     */
 
-                    prepararExportaciones(
-                        pregunta,
-                        ultimaSalida
-                    );
+                    if (data.ok === false) {
 
+                        mostrarEstado(
+                            "error",
+                            data.respuesta ||
+                            "La consulta no pudo ejecutarse."
+                        );
 
-                    mostrarEstado(
-                        "ok",
-                        "Consulta procesada correctamente."
-                    );
+                    }
+                                        else {
+
+                        mostrarEstado(
+                            "ok",
+                            data.respuesta ||
+                            "Consulta procesada correctamente."
+                        );
+                    }
 
                 }
                 catch (error) {

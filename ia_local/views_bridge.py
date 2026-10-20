@@ -8,16 +8,15 @@ from django.views.decorators.http import (
     require_http_methods,
 )
 
-
-
-
-from .services.bridge.orquestador_principal import (
-    consultar_orquestado,
+from .services.final.formateador_respuesta import (
+    responder_consulta,
 )
-
-
-
-
+from .services.final.trazabilidad import (
+    registrar_traza_consulta,
+)
+from .services.final.politica_respuesta import (
+    aplicar_politica_respuesta,
+)
 
 
 def _hacer_json_serializable(
@@ -40,12 +39,10 @@ def _hacer_json_serializable(
     ):
 
         return {
-            clave:
-                _hacer_json_serializable(
-                    contenido
-                )
-            for clave, contenido
-            in valor.items()
+            clave: _hacer_json_serializable(
+                contenido
+            )
+            for clave, contenido in valor.items()
         }
 
     if isinstance(
@@ -60,8 +57,7 @@ def _hacer_json_serializable(
             _hacer_json_serializable(
                 contenido
             )
-            for contenido
-            in valor
+            for contenido in valor
         ]
 
     if isinstance(
@@ -76,18 +72,15 @@ def _hacer_json_serializable(
             _hacer_json_serializable(
                 contenido
             )
-            for contenido
-            in valor
+            for contenido in valor
         ]
 
     return valor
 
 
-
-
 # ============================================================
-# IA-BRIDGE006
-# ENDPOINT WEB DEL NUEVO PIPELINE
+# IA-FINAL005
+# ENDPOINT WEB DEL PIPELINE FINAL
 # ============================================================
 
 
@@ -101,15 +94,18 @@ def consulta_bridge_json(
     request,
 ):
     """
-    Endpoint web controlado para el pipeline:
+    Endpoint web controlado para el pipeline FINAL:
 
-        SEM
-        → BRIDGE
-        → HOST
-        → ORM
-        → respuesta compacta
+        pregunta
+            → FINAL001
+            → FINAL002
+            → FINAL003
+            → HOST
+            → FINAL004
+            → respuesta pública
 
-    No reemplaza todavía el endpoint histórico /ia/consultar/.
+    IA-FINAL007 agrega trazabilidad compacta después de
+    obtener la respuesta, sin modificar la lógica de negocio.
     """
 
     pregunta = (
@@ -127,7 +123,7 @@ def consulta_bridge_json(
                     False,
 
                 "version":
-                    "IA-BRIDGE006-v1",
+                    "IA-FINAL005-v1",
 
                 "ejecutado":
                     False,
@@ -173,7 +169,7 @@ def consulta_bridge_json(
                     False,
 
                 "version":
-                    "IA-BRIDGE006-v1",
+                    "IA-FINAL005-v1",
 
                 "pregunta":
                     pregunta,
@@ -221,22 +217,22 @@ def consulta_bridge_json(
     )
 
     # --------------------------------------------------------
-    # PIPELINE BRIDGE005
+    # IA-FINAL005
+    # PIPELINE FINAL
+    # --------------------------------------------------------
+    #
+    # La vista NO ejecuta ORM de negocio directamente.
     # --------------------------------------------------------
 
     try:
 
-        resultado = consultar_orquestado(
-            pregunta,
-            limite=limite,
-            diagnostico=(
-                incluir_diagnostico
-            ),
+        resultado = responder_consulta(
+            pregunta
+        )
 
-            # IA-BRIDGE009:
-            # fallback histórico deliberadamente desactivado
-            # en la interfaz principal.
-            permitir_fallback_legado=False,
+        resultado = aplicar_politica_respuesta(
+            pregunta=pregunta,
+            respuesta=resultado,
         )
 
     except Exception as exc:
@@ -247,7 +243,7 @@ def consulta_bridge_json(
                     False,
 
                 "version":
-                    "IA-BRIDGE006-v1",
+                    "IA-FINAL005-v1",
 
                 "pregunta":
                     pregunta,
@@ -271,20 +267,133 @@ def consulta_bridge_json(
         )
 
     # --------------------------------------------------------
+    # IA-FINAL007
+    # TRAZABILIDAD COMPACTA
+    # --------------------------------------------------------
+    #
+    # Un fallo de trazabilidad NO debe romper una consulta
+    # que ya fue procesada correctamente.
+    # --------------------------------------------------------
+
+    try:
+
+        usuario_traza = (
+            request.user.get_username()
+            if request.user.is_authenticated
+            else ""
+        )
+
+        traza = registrar_traza_consulta(
+            pregunta=pregunta,
+            resultado=resultado,
+            usuario=usuario_traza,
+        )
+
+    except Exception:
+
+        traza = {
+            "ok":
+                False,
+
+            "version":
+                "IA-FINAL007-v1",
+
+            "estado":
+                "error_registro_traza",
+
+            "registrado":
+                False,
+        }
+
+    # --------------------------------------------------------
+    # COMPATIBILIDAD TEMPORAL CON LA UI
+    # --------------------------------------------------------
+    #
+    # FINAL004 usa:
+    #
+    #   respuesta
+    #   registros
+    #
+    # La interfaz puede mantener temporalmente:
+    #
+    #   mensaje
+    #   resultados
+    #
+    # hasta completar la transición definitiva.
+    # --------------------------------------------------------
+
+    if isinstance(
+        resultado,
+        dict,
+    ):
+
+        resultado = dict(
+            resultado
+        )
+
+        if incluir_diagnostico:
+
+            resultado[
+                "trazabilidad"
+            ] = traza
+
+        if (
+            "mensaje"
+            not in resultado
+        ):
+
+            resultado[
+                "mensaje"
+            ] = (
+                resultado.get(
+                    "respuesta"
+                )
+                or ""
+            )
+
+        if (
+            "resultados"
+            not in resultado
+        ):
+
+            registros = resultado.get(
+                "registros",
+                [],
+            )
+
+            resultado[
+                "resultados"
+            ] = (
+                registros
+                if isinstance(
+                    registros,
+                    list,
+                )
+                else []
+            )
+
+        resultado[
+            "limite_solicitado"
+        ] = limite
+
+        if not incluir_diagnostico:
+
+            resultado.pop(
+                "diagnostico",
+                None,
+            )
+
+    # --------------------------------------------------------
     # RESPUESTA HTTP
     # --------------------------------------------------------
     #
-    # Una consulta semánticamente inválida sigue siendo una
-    # respuesta válida del endpoint. Por eso dejamos HTTP 200:
+    # Una consulta funcionalmente no ejecutable puede seguir
+    # respondiendo HTTP 200.
     #
-    #   ok=false
-    #   estado=no_ejecutado
+    # Esto permite distinguir:
     #
-    # permite al frontend distinguir correctamente entre:
-    #
-    #   error de transporte / servidor
-    #   consulta rechazada por seguridad semántica
-    #
+    #   - error HTTP / servidor
+    #   - consulta rechazada o no ejecutable
     # --------------------------------------------------------
 
     resultado_json = (

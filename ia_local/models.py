@@ -793,4 +793,131 @@ class IAPropuestaAprendizaje(models.Model):
             f"{self.get_tipo_display()}: "
             f"{self.expresion} "
             f"[{self.estado}]"
+        )  
+
+
+
+class IAHistorialConsulta(models.Model):
+    """
+    IA-FINAL007
+
+    Traza compacta de consultas procesadas por el pipeline FINAL.
+
+    No almacena el diagnóstico técnico completo.
+    No representa reglas semánticas.
+    No ejecuta lógica de negocio.
+    """
+
+    pregunta = models.TextField()
+
+    usuario = models.CharField(
+        max_length=150,
+        blank=True,
+        default="",
+    )
+
+    ok = models.BooleanField(
+        default=False,
+    )
+
+    estado = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
+    intencion = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
+    modelo = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+    )
+
+    tipo = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
+    componente = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
+    tipo_contrato = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
+    ejecutor = models.CharField(
+        max_length=150,
+        blank=True,
+        default="",
+    )
+
+    ejecutado = models.BooleanField(
+        default=False,
+    )
+
+    total = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+
+    llm_invocado = models.BooleanField(
+        default=False,
+    )
+
+    version_final = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+    )
+
+    creado_en = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    class Meta:
+        ordering = [
+            "-creado_en",
+            "-id",
+        ]
+
+        verbose_name = (
+            "Historial de consulta IA"
+        )
+
+        verbose_name_plural = (
+            "Historial de consultas IA"
+        )
+
+        indexes = [
+            models.Index(
+                fields=[
+                    "estado",
+                ],
+                name="ia_hist_estado_idx",
+            ),
+            models.Index(
+                fields=[
+                    "modelo",
+                ],
+                name="ia_hist_modelo_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.id} - "
+            f"{self.estado} - "
+            f"{self.pregunta[:80]}"
         )
