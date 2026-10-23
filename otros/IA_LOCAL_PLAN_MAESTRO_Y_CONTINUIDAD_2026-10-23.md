@@ -603,3 +603,41 @@ Fecha: 23 de octubre de 2026.
   textuales e identificadores de requisitos.
 - ARC002-C: estructura universal AND/OR/NOT.
 - Mantener SEM-NEG-001 como regresión obligatoria.
+
+## ARC002-B03-C — ASOCIACIONES TEXTUALES VALIDADAS
+
+Fecha: 23 de octubre de 2026.
+
+### Validación
+- Suite general ia_local: 90/90 pruebas aprobadas.
+- Pruebas específicas de asociación, integridad y Unicode: 14/14.
+- Django system check: sin errores.
+- git diff --check: sin observaciones.
+
+### ARC002-B03-C01
+- Asociación entre evidencias negativas y restricciones existentes.
+- Estados: asociacion_textual, asociacion_ambigua y sin_asociacion.
+- No se certifica alcance lógico ni correspondencia con HOST.
+
+### ARC002-B03-C02
+- Reconstrucción de la colección desde datos_originales.
+- Verificación de huella e identificadores deterministas.
+- Rechazo de contenido alterado, evidencias duplicadas
+  y certificaciones prematuras.
+- SHA-256 representa consistencia, no autenticación de procedencia.
+
+### ARC002-B03-C03
+- Localización textual mediante re.finditer sobre el texto original.
+- Se evita calcular offsets sobre cadenas transformadas por casefold.
+- Regresiones Unicode verificadas en dos casos específicos.
+
+### Restricciones arquitectónicas
+- Ninguna asociación textual concede certificación semántica.
+- Ninguna evidencia textual se traduce automáticamente en filtro ORM.
+- Permanecen pendientes la autenticidad de procedencia,
+  la cobertura semántica integral y el alcance lógico de NOT.
+- HOST, FINAL y C05 conservan sus responsabilidades.
+
+### Próxima etapa
+ARC002-C: contrato universal de composición AND/OR/NOT,
+reutilizando los componentes QUERY y trazabilidad existentes.
