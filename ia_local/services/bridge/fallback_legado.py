@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
 from importlib import import_module
 from typing import Any
 
@@ -145,7 +147,7 @@ def obtener_estado_fallback_legado(
 def ejecutar_fallback_legado(
     pregunta: str,
     *,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     Ejecuta un fallback sólo cuando el proyecto anfitrión

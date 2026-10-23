@@ -249,7 +249,7 @@
             <h1>IA Local — Diagnóstico</h1>
 
             <p class="subtitulo">
-                Inspección del pipeline HOST014 / HOST015 / HOST016.
+                Inspección integral del pipeline FINAL / HOST / LLM / ORM.
             </p>
         </div>
 
@@ -325,112 +325,208 @@
         <div id="diagnostico-copiable">
 
 
-            <!-- ESTADO / INTENCIÓN / ENTIDAD -->
+            <!-- =================================================
+                 IA-LLM004-D4-C01
+                 RESUMEN OPERATIVO FINAL
+                 ================================================= -->
 
             <div class="grid">
 
+
+                <!-- FINAL004 -->
+
                 <section class="panel">
-                    <h2>Estado</h2>
+
+                    <h2>FINAL004</h2>
 
                     <dl>
-                        <dt>OK</dt>
 
+                        <dt>Estado</dt>
+                        <dd>
+                            {{ diagnostico.estado.fase|default:"-" }}
+                        </dd>
+
+                        <dt>OK</dt>
                         <dd>
                             {% if diagnostico.estado.ok %}
-
                                 <span class="estado-ok">
                                     Sí
                                 </span>
-
                             {% else %}
-
                                 <span class="estado-bloqueado">
                                     No
                                 </span>
-
                             {% endif %}
                         </dd>
 
-                        <dt>Fase</dt>
+                        <dt>Versión</dt>
                         <dd>
-                            {{ diagnostico.estado.fase }}
+                            {{ diagnostico.final.version|default:"-" }}
                         </dd>
 
-                        <dt>Bloqueado</dt>
+                        <dt>Tipo</dt>
                         <dd>
-                            {{ diagnostico.estado.bloqueado }}
+                            {{ diagnostico.final.tipo|default:"-" }}
+                        </dd>
+
+                        <dt>Modelo</dt>
+                        <dd>
+                            {{ diagnostico.final.modelo|default:"-" }}
+                        </dd>
+
+                        <dt>Ejecutado</dt>
+                        <dd>
+                            {{ diagnostico.final.ejecutado }}
                         </dd>
 
                         <dt>LLM invocado</dt>
                         <dd>
-                            {{ diagnostico.estado.llm_invocado }}
+                            {{ diagnostico.final.llm_invocado }}
                         </dd>
 
-                        <dt>Destino</dt>
-                        <dd>
-                            {{ diagnostico.routing.destino }}
-                        </dd>
                     </dl>
+
                 </section>
 
 
+                <!-- INTENCIÓN OPERACIONAL -->
+
                 <section class="panel">
-                    <h2>Intención</h2>
+
+                    <h2>Intención operacional</h2>
 
                     <dl>
-                        <dt>Tipo</dt>
+
+                        <dt>Intención</dt>
                         <dd>
-                            {{ diagnostico.intencion.tipo|default:"-" }}
+                            {{ diagnostico.operacional.intencion|default:"-" }}
                         </dd>
 
-                        <dt>Subtipo</dt>
+                        <dt>Acción HOST</dt>
                         <dd>
-                            {{ diagnostico.intencion.subtipo|default:"-" }}
+                            {{ diagnostico.operacional.accion_host|default:"-" }}
                         </dd>
 
-                        <dt>Acción</dt>
+                        <dt>Detectada</dt>
                         <dd>
-                            {{ diagnostico.intencion.accion|default:"-" }}
+                            {{ diagnostico.operacional.detectada }}
                         </dd>
 
-                        <dt>Origen</dt>
+                        <dt>LLM usado para intención</dt>
+                        <dd>
+                            {{ diagnostico.operacional.llm_invocado }}
+                        </dd>
+
+                        <dt>Componente</dt>
                         <dd>
                             {{ diagnostico.intencion.origen|default:"-" }}
                         </dd>
 
-                        <dt>Confianza</dt>
-                        <dd>
-                            {{ diagnostico.intencion.confianza|default:"-" }}
-                        </dd>
-
-                        <dt>Validada</dt>
-                        <dd>
-                            {{ diagnostico.intencion.validado }}
-                        </dd>
-                    </dl>
-                </section>
-
-
-                <section class="panel">
-                    <h2>Entidad</h2>
-
-                    <dl>
-                        <dt>Inicial</dt>
-                        <dd>
-                            {{ diagnostico.entidad.inicial|default:"-" }}
-                        </dd>
-
-                        <dt>Final</dt>
+                        <dt>Entidad</dt>
                         <dd>
                             {{ diagnostico.entidad.final|default:"-" }}
                         </dd>
 
-                        <dt>Validada</dt>
-                        <dd>
-                            {{ diagnostico.entidad.validada }}
-                        </dd>
                     </dl>
+
                 </section>
+
+
+                <!-- CARDINALIDAD -->
+
+                <section class="panel">
+
+                    <h2>Cardinalidad</h2>
+
+                    <dl>
+
+                        <dt>Cantidad solicitada</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.cantidad_solicitada|default_if_none:"-" }}
+                        </dd>
+
+                        <dt>Totalidad solicitada</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.totalidad_solicitada|default_if_none:"-" }}
+                        </dd>
+
+                        <dt>Origen</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.origen|default:"-" }}
+                        </dd>
+
+                        <dt>Limitada por política</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.limitada_por_politica|default_if_none:"-" }}
+                        </dd>
+
+                        <dt>Límite solicitado</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.limite_solicitado|default_if_none:"-" }}
+                        </dd>
+
+                        <dt>Límite aplicado</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.limite_aplicado|default_if_none:"-" }}
+                        </dd>
+
+                        <dt>Total disponible</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.total_disponible|default_if_none:"-" }}
+                        </dd>
+
+                        <dt>Total devuelto</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.total_devuelto|default_if_none:"-" }}
+                        </dd>
+
+                        <dt>Truncado</dt>
+                        <dd>
+                            {{ diagnostico.cardinalidad.truncado|default_if_none:"-" }}
+                        </dd>
+
+                    </dl>
+
+                </section>
+
+
+                <!-- EJECUCIÓN HOST -->
+
+                <section class="panel">
+
+                    <h2>Ejecución HOST</h2>
+
+                    <dl>
+
+                        <dt>Operación</dt>
+                        <dd>
+                            {{ diagnostico.ejecucion.operacion|default:"-" }}
+                        </dd>
+
+                        <dt>Modelo</dt>
+                        <dd>
+                            {{ diagnostico.ejecucion.modelo|default:"-" }}
+                        </dd>
+
+                        <dt>Ejecutado</dt>
+                        <dd>
+                            {{ diagnostico.ejecucion.ejecutado }}
+                        </dd>
+
+                        <dt>Total</dt>
+                        <dd>
+                            {{ diagnostico.ejecucion.total|default_if_none:"-" }}
+                        </dd>
+
+                        <dt>Límite</dt>
+                        <dd>
+                            {{ diagnostico.ejecucion.limite|default_if_none:"-" }}
+                        </dd>
+
+                    </dl>
+
+                </section>
+
 
             </div>
 
@@ -620,7 +716,7 @@ document.addEventListener(
 
                 const contenido = [
                     "============================================================",
-                    "IA LOCAL - DIAGNOSTICO HOST016",
+                    "IA LOCAL - DIAGNOSTICO FINAL / HOST",
                     "============================================================",
                     "",
                     "PREGUNTA:",

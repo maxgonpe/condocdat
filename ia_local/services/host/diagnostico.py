@@ -6,6 +6,10 @@ from .router import (
     procesar_pregunta,
 )
 
+from ia_local.services.final.orquestador_consultas import (
+    resolver_consulta,
+)
+
 
 # ============================================================
 # UTILIDADES
@@ -96,6 +100,19 @@ def diagnosticar_pregunta(
     No llama directamente a Qwen.
     No altera decisiones del router.
     """
+
+    # --------------------------------------------------------
+    # IA-LLM000
+    # PREFLIGHT FINAL DETERMINISTA
+    #
+    # Sólo observa si FINAL001 puede interpretar la pregunta.
+    # NO ejecuta ORM.
+    # NO llama LLM.
+    # --------------------------------------------------------
+
+    final_previo = resolver_consulta(
+        pregunta
+    )
 
     resultado = procesar_pregunta(
         pregunta,
@@ -218,9 +235,258 @@ def diagnosticar_pregunta(
             ),
     }
 
+    # --------------------------------------------------------
+    # IA-LLM000
+    # RESUMEN DE CANALIZACIÓN
+    # --------------------------------------------------------
+
+    intentos_final = final_previo.get(
+        "intentos"
+    )
+
+    if not isinstance(
+        intentos_final,
+        list,
+    ):
+        intentos_final = []
+
+    final_resuelto = bool(
+        final_previo.get(
+            "resuelto"
+        )
+    )
+
+    llm_invocado = bool(
+        estado.get(
+            "llm_invocado"
+        )
+    )
+
+    host_ok = bool(
+        resultado.get(
+            "ok"
+        )
+    )
+
+    if final_resuelto:
+
+        ruta_observada = (
+            "final_determinista_resuelve"
+        )
+
+    elif (
+        llm_invocado
+        and host_ok
+    ):
+
+        ruta_observada = (
+            "final_no_resuelve_host_llm_resuelve"
+        )
+
+    elif llm_invocado:
+
+        ruta_observada = (
+            "final_no_resuelve_host_llm_bloqueado"
+        )
+
+    elif host_ok:
+
+        ruta_observada = (
+            "final_no_resuelve_host_resuelve_sin_llm"
+        )
+
+    else:
+
+        ruta_observada = (
+            "final_no_resuelve_host_bloqueado"
+        )
+
     diagnostico = {
         "pregunta":
             pregunta,
+
+        "canalizacion": {
+            "ruta_observada":
+                ruta_observada,
+
+            "final_resuelto":
+                final_resuelto,
+
+            "fallback_necesario":
+                not final_resuelto,
+
+            "llm_invocado":
+                llm_invocado,
+
+            "host_ok":
+                host_ok,
+
+            "fase_host":
+                estado.get(
+                    "fase"
+                ),
+
+            "ejecucion_realizada":
+                bool(
+                    ejecucion.get(
+                        "ejecutado"
+                    )
+                ),
+        },
+
+        "final_determinista": {
+            "ok":
+                final_previo.get(
+                    "ok"
+                ),
+
+            "version":
+                final_previo.get(
+                    "version"
+                ),
+
+            "estado":
+                final_previo.get(
+                    "estado"
+                ),
+
+            "resuelto":
+                final_previo.get(
+                    "resuelto"
+                ),
+
+            "intencion":
+                final_previo.get(
+                    "intencion"
+                ),
+
+            "componente":
+                final_previo.get(
+                    "componente"
+                ),
+
+            "componente_version":
+                final_previo.get(
+                    "componente_version"
+                ),
+
+            "ejecutable":
+                final_previo.get(
+                    "ejecutable"
+                ),
+
+            "tipo_plan":
+                final_previo.get(
+                    "tipo_plan"
+                ),
+
+            "razon":
+                final_previo.get(
+                    "razon"
+                ),
+
+            "intentos":
+                intentos_final,
+
+            "llm_invocado":
+                bool(
+                    final_previo.get(
+                        "llm_invocado"
+                    )
+                ),
+        },
+
+        "llm": {
+            "invocado":
+                llm_invocado,
+
+            "modelo":
+                (
+                    interpretacion.get(
+                        "modelo_llm"
+                    )
+                    or intencion.get(
+                        "modelo_llm"
+                    )
+                ),
+
+            "metricas":
+                (
+                    interpretacion.get(
+                        "metricas_llm"
+                    )
+                    or intencion.get(
+                        "metricas_llm"
+                    )
+                ),
+
+            "propuesta_cruda":
+                interpretacion.get(
+                    "propuesta_cruda"
+                ),
+
+            "propuesta":
+                interpretacion.get(
+                    "propuesta"
+                ),
+        },
+
+        "host_resumen": {
+            "destino":
+                resultado.get(
+                    "destino"
+                ),
+
+            "ok":
+                host_ok,
+
+            "fase":
+                estado.get(
+                    "fase"
+                ),
+
+            "entidad":
+                entidad_final,
+
+            "plan_validado":
+                bool(
+                    validacion.get(
+                        "plan_validado"
+                    )
+                    or validacion.get(
+                        "ok"
+                    )
+                ),
+
+            "errores_validacion":
+                validacion.get(
+                    "errores",
+                    [],
+                ),
+
+            "advertencias":
+                validacion.get(
+                    "advertencias",
+                    [],
+                ),
+
+            "ejecutado":
+                bool(
+                    ejecucion.get(
+                        "ejecutado"
+                    )
+                ),
+
+            "total_devuelto":
+                ejecucion.get(
+                    "total_devuelto"
+                ),
+
+            "modelo_ejecutado":
+                ejecucion.get(
+                    "modelo"
+                ),
+        },
 
         "estado":
             estado,

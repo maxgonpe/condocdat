@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+    LIMITE_MAXIMO_SOLICITABLE,
+)
+
+
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any
@@ -28,6 +34,11 @@ OPERADORES_TEXTO = {
     "iexact",
     "contains",
     "icontains",
+
+    # IA-LLM005
+    # Desigualdad declarativa segura.
+    # NO corresponde a un lookup Django "__ne".
+    "ne",
 }
 
 
@@ -62,8 +73,6 @@ OPERADOR_NULO = {
 }
 
 
-LIMITE_PREDETERMINADO = 20
-LIMITE_MAXIMO = 100
 
 
 # ============================================================
@@ -624,13 +633,35 @@ def validar_plan_datos(
 
             continue
 
+        # ----------------------------------------------------
+        # IA-LLM005
+        # NEGACIÓN / EXCLUSIÓN SEGURA
+        #
+        # "ne" es una operación declarativa del contrato IA.
+        # NO se convierte en "__ne", porque Django no posee
+        # ese lookup.
+        #
+        # HOST conserva lookup exacto y marca explícitamente
+        # que la condición debe ejecutarse como exclusión.
+        # ----------------------------------------------------
+
+        negado = (
+            operador == "ne"
+        )
+
+        operador_lookup = (
+            "exact"
+            if negado
+            else operador
+        )
+
         lookup = nombre_campo
 
-        if operador != "exact":
+        if operador_lookup != "exact":
 
             lookup = (
                 f"{nombre_campo}"
-                f"__{operador}"
+                f"__{operador_lookup}"
             )
 
         filtros_validados.append(
@@ -649,6 +680,9 @@ def validar_plan_datos(
 
                 "tipo":
                     campo_django.__class__.__name__,
+
+                "negado":
+                    negado,
             }
         )
 
@@ -778,7 +812,7 @@ def validar_plan_datos(
 
     limite_crudo = propuesta.get(
         "limite",
-        LIMITE_PREDETERMINADO,
+        LIMITE_MUESTRA_PREDETERMINADO,
     )
 
     if limite_crudo is None:
@@ -790,18 +824,18 @@ def validar_plan_datos(
             errores.append(
                 "El límite no es un entero válido."
             )
-            limite = LIMITE_PREDETERMINADO
+            limite = LIMITE_MUESTRA_PREDETERMINADO
 
         if limite < 1:
             errores.append(
                 "El límite debe ser mayor que cero."
             )
 
-        if limite > LIMITE_MAXIMO:
+        if limite > LIMITE_MAXIMO_SOLICITABLE:
             errores.append(
                 (
                     f"El límite máximo permitido "
-                    f"es {LIMITE_MAXIMO}."
+                    f"es {LIMITE_MAXIMO_SOLICITABLE}."
                 )
             )
 

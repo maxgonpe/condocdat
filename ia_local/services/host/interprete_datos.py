@@ -1,8 +1,26 @@
 from __future__ import annotations
 
+import difflib
 import json
 import re
 from typing import Any
+
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+    LIMITE_MAXIMO_SOLICITABLE,
+)
+
+from ia_local.services.llm.intencion_operacional import (
+    detectar_intencion_operacional,
+)
+
+from ia_local.services.llm.cardinalidad_natural import (
+    detectar_cardinalidad_natural,
+)
+
+from ia_local.services.semantica.aliases_valor import (
+    buscar_alias_valor_en_texto,
+)
 
 from .catalogo_datos import (
     buscar_modelo_datos,
@@ -31,6 +49,7 @@ OPERADORES_PROPUESTOS = {
     "iexact",
     "contains",
     "icontains",
+    "ne",
     "gt",
     "gte",
     "lt",
@@ -40,10 +59,6 @@ OPERADORES_PROPUESTOS = {
     "month",
     "day",
 }
-
-
-LIMITE_PREDETERMINADO = 20
-LIMITE_MAXIMO_PROPUESTO = 100
 
 
 EXPRESIONES_SIN_LIMITE = (
@@ -76,6 +91,128 @@ def _solicita_sin_limite(
         expresion in texto
         for expresion in EXPRESIONES_SIN_LIMITE
     )
+
+
+# ============================================================
+# IA-LLM001-C01
+# ORDENAMIENTO EXPLÍCITO
+# ============================================================
+
+
+_EXPRESIONES_ORDEN = (
+    "ultimo",
+    "último",
+    "ultimos",
+    "últimos",
+    "ultmo",
+    "ultmos",
+    "ultima",
+    "última",
+    "ultimas",
+    "últimas",
+    "reciente",
+    "recientes",
+    "nuevo",
+    "nueva",
+    "nuevos",
+    "nuevas",
+    "antiguo",
+    "antigua",
+    "antiguos",
+    "antiguas",
+    "primero",
+    "primera",
+    "primeros",
+    "primeras",
+    "ordenado",
+    "ordenada",
+    "ordenados",
+    "ordenadas",
+    "ascendente",
+    "descendente",
+    "de mayor a menor",
+    "de menor a mayor",
+)
+
+
+def _solicita_orden(
+    pregunta: str,
+) -> bool:
+    """
+    Determina si existe una petición explícita de ordenamiento.
+
+    Tolera pequeñas faltas ortográficas en señales inequívocas
+    como "últimos" -> "ultmos" / "ulitmos".
+
+    No decide qué campo ordenar.
+    Sólo autoriza conservar un orden propuesto posteriormente
+    por el intérprete y validado por HOST.
+    """
+
+    texto = re.sub(
+        r"\s+",
+        " ",
+        str(
+            pregunta or ""
+        ).strip().lower(),
+    )
+
+    if not texto:
+        return False
+
+    # Coincidencia exacta, siempre preferida.
+    if any(
+        expresion in texto
+        for expresion
+        in _EXPRESIONES_ORDEN
+    ):
+        return True
+
+    # --------------------------------------------------------
+    # IA-LLM001-C02
+    # TOLERANCIA LÉXICA CONTROLADA
+    # --------------------------------------------------------
+
+    objetivos = {
+        "ultimo",
+        "ultimos",
+        "ultima",
+        "ultimas",
+        "reciente",
+        "recientes",
+        "primero",
+        "primera",
+        "primeros",
+        "primeras",
+        "antiguo",
+        "antigua",
+        "antiguos",
+        "antiguas",
+    }
+
+    tokens = re.findall(
+        r"[a-záéíóúñ]+",
+        texto,
+    )
+
+    for token in tokens:
+
+        # Evitamos similitudes accidentales con palabras pequeñas.
+        if len(token) < 5:
+            continue
+
+        for objetivo in objetivos:
+
+            similitud = difflib.SequenceMatcher(
+                None,
+                token,
+                objetivo,
+            ).ratio()
+
+            if similitud >= 0.84:
+                return True
+
+    return False
 
 
 # ============================================================
@@ -432,7 +569,7 @@ def _prompt_sistema() -> str:
         "8. Los filtros deben ser declarativos.\n"
         "9. El campo de orden debe existir entre los campos "
         "consultables reales.\n"
-        "10. Si el usuario no especifica un límite, usa 20.\n"
+        f"10. Si el usuario no especifica un límite, "  f"usa {LIMITE_MUESTRA_PREDETERMINADO}.\n"
         "11. Nunca excedas un límite de 100.\n"
         "12. No asumas que un valor propuesto existe realmente "
         "en la base de datos. Solo interpreta el lenguaje.\n"
@@ -481,12 +618,12 @@ def _prompt_sistema() -> str:
         '      "direccion": "asc|desc"\n'
         "    }\n"
         "  ],\n"
-        '  "limite": 20,\n'
+        f'  "limite": {LIMITE_MUESTRA_PREDETERMINADO},\\n'
         "\n"
         "REGLA DE LÍMITE:\n"
         "- Si el usuario pide explícitamente todos/todas, la totalidad "
         "o sin límite, devuelve null en limite.\n"
-        "- Si no pide totalidad y tampoco indica una cantidad, usa 20.\n"
+        f"- Si no pide totalidad y tampoco indica una cantidad, usa {LIMITE_MUESTRA_PREDETERMINADO}.\\n"
         "- Si indica una cantidad concreta, úsala respetando el máximo permitido.\n"
         '  "condiciones_no_resueltas": []\n'
         "}\n\n"
@@ -639,7 +776,7 @@ def _normalizar_propuesta(
 
     limite_crudo = propuesta.get(
         "limite",
-        LIMITE_PREDETERMINADO,
+        LIMITE_MUESTRA_PREDETERMINADO,
     )
 
     if limite_crudo is None:
@@ -648,13 +785,13 @@ def _normalizar_propuesta(
         try:
             limite = int(limite_crudo)
         except (TypeError, ValueError):
-            limite = LIMITE_PREDETERMINADO
+            limite = LIMITE_MUESTRA_PREDETERMINADO
 
         limite = max(
             1,
             min(
                 limite,
-                LIMITE_MAXIMO_PROPUESTO,
+                LIMITE_MAXIMO_SOLICITABLE,
             ),
         )
 
@@ -720,6 +857,196 @@ def _normalizar_propuesta(
 # ============================================================
 # INTERPRETACIÓN
 # ============================================================
+
+
+
+# ============================================================
+# IA-LLM005-C01
+# NORMALIZACIÓN DE ESTADOS / VALORES DE NEGOCIO
+# ============================================================
+
+
+def _normalizar_valores_negados_de_negocio(
+    *,
+    pregunta: str,
+    modelo: str,
+    propuesta: dict[str, Any],
+) -> tuple[
+    dict[str, Any],
+    list[dict[str, Any]],
+]:
+    """
+    Convierte una negación literal propuesta por el LLM en un
+    valor empresarial canónico únicamente cuando SEM004 posee
+    evidencia explícita en la pregunta original.
+
+    Ejemplo:
+
+        pregunta:
+            "RDI que no esté cerrada"
+
+        LLM:
+            status ne CERRADA
+
+        SEM004:
+            "no este cerrada" -> ABIERTA
+
+        resultado:
+            status exact ABIERTA
+
+    Una desigualdad explícita sin alias empresarial permanece
+    como operador ne.
+    """
+
+    filtros = propuesta.get(
+        "filtros"
+    )
+
+    if not isinstance(
+        filtros,
+        list,
+    ):
+
+        return (
+            propuesta,
+            [],
+        )
+
+    nuevos_filtros = []
+
+    normalizaciones = []
+
+    for filtro in filtros:
+
+        if not isinstance(
+            filtro,
+            dict,
+        ):
+
+            nuevos_filtros.append(
+                filtro
+            )
+            continue
+
+        operador = str(
+            filtro.get(
+                "operador"
+            )
+            or ""
+        ).strip().lower()
+
+        campo = str(
+            filtro.get(
+                "campo"
+            )
+            or ""
+        ).strip()
+
+        # C01 actúa únicamente sobre negaciones.
+        # No modifica filtros positivos ya entendidos.
+        if (
+            operador != "ne"
+            or not campo
+        ):
+
+            nuevos_filtros.append(
+                filtro
+            )
+            continue
+
+        resolucion = (
+            buscar_alias_valor_en_texto(
+                modelo=modelo,
+                campo=campo,
+                texto=pregunta,
+            )
+        )
+
+        if not (
+            isinstance(
+                resolucion,
+                dict,
+            )
+            and resolucion.get(
+                "ok"
+            )
+            is True
+            and resolucion.get(
+                "resuelto"
+            )
+            is True
+        ):
+
+            # Sin evidencia SEM004:
+            # preservamos la desigualdad literal.
+            nuevos_filtros.append(
+                filtro
+            )
+            continue
+
+        nuevo_filtro = {
+            **filtro,
+
+            "operador":
+                "exact",
+
+            "valor":
+                resolucion.get(
+                    "valor_destino"
+                ),
+        }
+
+        nuevos_filtros.append(
+            nuevo_filtro
+        )
+
+        normalizaciones.append(
+            {
+                "campo":
+                    campo,
+
+                "operador_original":
+                    operador,
+
+                "valor_original":
+                    filtro.get(
+                        "valor"
+                    ),
+
+                "operador_final":
+                    "exact",
+
+                "valor_final":
+                    resolucion.get(
+                        "valor_destino"
+                    ),
+
+                "expresion_semantica":
+                    resolucion.get(
+                        "expresion"
+                    ),
+
+                "alias_id":
+                    resolucion.get(
+                        "alias_id"
+                    ),
+
+                "origen":
+                    "SEM004",
+            }
+        )
+
+    propuesta = {
+        **propuesta,
+        "filtros":
+            nuevos_filtros,
+    }
+
+    return (
+        propuesta,
+        normalizaciones,
+    )
+
 
 
 def interpretar_consulta_datos(
@@ -845,6 +1172,131 @@ def interpretar_consulta_datos(
         modelo=descripcion,
     )
 
+    # --------------------------------------------------------
+    # IA-LLM005-C01
+    # NORMALIZACION SEMANTICA DE NEGACIONES DE NEGOCIO
+    #
+    # Ejemplo:
+    #
+    #     "no este cerrada"
+    #
+    # puede representar, según SEM004:
+    #
+    #     status exact ABIERTA
+    #
+    # en lugar de la desigualdad literal:
+    #
+    #     status ne CERRADA
+    #
+    # Sin alias semántico inequívoco, el operador ne se
+    # conserva sin modificación.
+    # --------------------------------------------------------
+
+    (
+        propuesta,
+        normalizaciones_semanticas,
+    ) = _normalizar_valores_negados_de_negocio(
+        pregunta=pregunta,
+        modelo=descripcion["label"],
+        propuesta=propuesta,
+    )
+
+    # --------------------------------------------------------
+    # IA-LLM004-A/B
+    # INTENCION OPERACIONAL NATURAL
+    #
+    # La intención humana puede ser más rica que la acción
+    # ejecutable HOST.
+    #
+    #     existencia -> contar
+    #     conteo     -> contar
+    #     listado    -> listar
+    #
+    # En esta etapa únicamente corregimos de forma obligatoria
+    # existencia, porque Qwen puede interpretarla como listado.
+    # --------------------------------------------------------
+
+    intencion_operacional = (
+        detectar_intencion_operacional(
+            pregunta
+        )
+    )
+
+    # --------------------------------------------------------
+    # IA-LLM004-D1
+    # CARDINALIDAD NATURAL EXPLÍCITA
+    # --------------------------------------------------------
+
+    cardinalidad_natural = (
+        detectar_cardinalidad_natural(
+            pregunta
+        )
+    )
+
+    if (
+        propuesta.get(
+            "operacion"
+        )
+        == "listar"
+        and cardinalidad_natural.get(
+            "detectada"
+        )
+        is True
+        and cardinalidad_natural.get(
+            "totalidad_solicitada"
+        )
+        is False
+        and isinstance(
+            cardinalidad_natural.get(
+                "cantidad_solicitada"
+            ),
+            int,
+        )
+    ):
+
+        propuesta[
+            "limite"
+        ] = cardinalidad_natural[
+            "cantidad_solicitada"
+        ]
+
+    if (
+        intencion_operacional.get(
+            "detectada"
+        )
+        is True
+        and intencion_operacional.get(
+            "intencion"
+        )
+        == "existencia"
+    ):
+
+        propuesta["operacion"] = (
+            "contar"
+        )
+
+        # El conteo no requiere límite ni orden.
+        propuesta["limite"] = None
+        propuesta["orden"] = []
+
+    # --------------------------------------------------------
+    # IA-LLM001-C01
+    #
+    # Qwen puede sugerir un orden técnicamente válido aunque
+    # el usuario no lo haya pedido.
+    #
+    # HOST sólo conserva ordenamiento cuando existe una señal
+    # explícita en la pregunta.
+    # --------------------------------------------------------
+
+    if (
+        propuesta.get("orden")
+        and not _solicita_orden(
+            pregunta
+        )
+    ):
+        propuesta["orden"] = []
+
     if (
         propuesta.get("operacion") == "listar"
         and _solicita_sin_limite(pregunta)
@@ -871,6 +1323,15 @@ def interpretar_consulta_datos(
 
         "propuesta_cruda":
             propuesta_cruda,
+
+        "normalizaciones_semanticas":
+            normalizaciones_semanticas,
+
+        "intencion_operacional":
+            intencion_operacional,
+
+        "cardinalidad_natural":
+            cardinalidad_natural,
 
         "modelo_llm":
             resultado_llm.get(

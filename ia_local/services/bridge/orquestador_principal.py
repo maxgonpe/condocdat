@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
 from typing import Any
 
 from .entrada_principal import (
@@ -250,7 +252,7 @@ def clasificar_fallo_bridge(
 def consultar_orquestado(
     pregunta: str,
     *,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
     diagnostico: bool = False,
     permitir_fallback_legado: bool = False,
 ) -> dict[str, Any]:
@@ -405,7 +407,7 @@ def consultar_orquestado(
                 ),
         }
 
-   
+
 
     # ========================================================
     # FALLBACK EXPLÍCITAMENTE HABILITADO

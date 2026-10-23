@@ -1,5 +1,7 @@
 from django.urls import path
 
+from . import views_desambiguacion
+
 from . import (
     views,
     views_bridge,
@@ -11,6 +13,12 @@ app_name = "ia_local"
 
 
 urlpatterns = [
+    # IA-LLM007-F4-07: endpoint contextual; el endpoint legado sigue igual.
+    path(
+        "consultar-contextual/",
+        views_desambiguacion.consultar_con_aclaracion,
+        name="consultar_contextual",
+    ),
 
     # ========================================================
     # INTERFAZ PRINCIPAL

@@ -70,7 +70,15 @@ def _error(
         "estado": estado,
         "pregunta": pregunta,
         "ejecutado": False,
-        "llm_invocado": False,
+        "llm_invocado": bool(
+            isinstance(
+                contrato_final,
+                dict,
+            )
+            and contrato_final.get(
+                "llm_invocado"
+            )
+        ),
         "mensaje": mensaje,
         "contrato_final": contrato_final,
         "resultado": None,
@@ -156,6 +164,8 @@ def _ejecutar_contrato(
 
 def ejecutar_consulta(
     pregunta: str,
+    *,
+    entidad_aclarada: str | None = None,
 ) -> dict[str, Any]:
 
     pregunta = _texto(
@@ -172,7 +182,8 @@ def ejecutar_consulta(
 
     contrato_final = (
         construir_contrato_respuesta(
-            pregunta
+            pregunta,
+            entidad_aclarada=entidad_aclarada,
         )
     )
 
@@ -233,7 +244,11 @@ def ejecutar_consulta(
                 False,
 
             "llm_invocado":
-                False,
+                bool(
+                    contrato_final.get(
+                        "llm_invocado"
+                    )
+                ),
 
             "resultado":
                 None,
@@ -323,6 +338,11 @@ def ejecutar_consulta(
                 "intencion"
             ),
 
+        "intencion_operacional":
+            contrato_final.get(
+                "intencion_operacional"
+            ),
+
         "componente":
             contrato_final.get(
                 "componente"
@@ -350,7 +370,11 @@ def ejecutar_consulta(
             ejecutado_host,
 
         "llm_invocado":
-            False,
+            bool(
+                contrato_final.get(
+                    "llm_invocado"
+                )
+            ),
 
         "resultado":
             resultado,

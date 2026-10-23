@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+)
+
+
 import re
 from typing import Any
 
@@ -22,7 +27,6 @@ from .compositor_sem_host import (
 
 VERSION = "IA-BRIDGE003-v1"
 
-LIMITE_PREDETERMINADO = 20
 MAX_FRAGMENTO = 6
 
 
@@ -1343,7 +1347,7 @@ def _extraer_valor(
 def componer_campo_operador_valor(
     expresion: str,
     *,
-    limite: int | None = LIMITE_PREDETERMINADO,
+    limite: int | None = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     IA-BRIDGE003.

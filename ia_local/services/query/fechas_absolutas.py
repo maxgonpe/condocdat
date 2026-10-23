@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
 import re
 import unicodedata
 from datetime import date
@@ -778,7 +780,7 @@ def _tipos_filtros_host(
 def componer_fechas_absolutas(
     pregunta: str,
     *,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     IA-QUERY005.

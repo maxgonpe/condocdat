@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+)
+
+
 from typing import Any
 
 from ia_local.services.host.ejecutor_datos import (
@@ -13,7 +18,6 @@ from .campo_operador_valor import (
 
 VERSION = "IA-BRIDGE004-v1"
 
-LIMITE_PREDETERMINADO = 20
 
 
 # ============================================================
@@ -248,7 +252,7 @@ def _verificar_plan_certificado(
 def ejecutar_consulta_bridge(
     expresion: str,
     *,
-    limite: int | None = LIMITE_PREDETERMINADO,
+    limite: int | None = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     IA-BRIDGE004.

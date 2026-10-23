@@ -1,3 +1,5 @@
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
 import re
 import unicodedata
 from typing import Any
@@ -505,7 +507,7 @@ def _extraer_campo_sem(
 def componer_ordenamiento_natural(
     pregunta: str,
     *,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     IA-QUERY004.

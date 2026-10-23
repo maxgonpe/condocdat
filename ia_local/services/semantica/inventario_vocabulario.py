@@ -726,3 +726,205 @@ def buscar_vocabulario_modelo(
             )
 
     return resultado
+
+# ============================================================
+# IA-LLM006-E2
+# VOCABULARIO AUTOMÁTICO DE ENTIDAD DENTRO DE TEXTO
+# ============================================================
+
+def buscar_vocabulario_entidad_en_texto(
+    texto: str,
+) -> dict[str, Any]:
+    """
+    Busca términos automáticos de entidad SEM001 dentro de
+    una pregunta natural.
+
+    Política:
+
+    - sólo usa vocabulario derivado de Django;
+    - no consulta aliases locales;
+    - no consulta valores de BD;
+    - no invoca LLM;
+    - prioriza la coincidencia más específica;
+    - si la mejor expresión corresponde a varios modelos,
+      devuelve ambigüedad;
+    - nunca inventa singular/plural ni sinónimos.
+    """
+
+    texto_normalizado = normalizar_texto(
+        texto
+    )
+
+    if not texto_normalizado:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "ambiguo": False,
+            "estado": "texto_vacio",
+            "llm_invocado": False,
+            "coincidencias": [],
+        }
+
+    inventario = construir_inventario_vocabulario()
+
+    texto_delimitado = (
+        f" {texto_normalizado} "
+    )
+
+    coincidencias = []
+
+    for modelo in inventario.get(
+        "modelos",
+        [],
+    ):
+
+        label = modelo.get(
+            "label"
+        )
+
+        if not label:
+            continue
+
+        for termino in modelo.get(
+            "vocabulario_entidad",
+            [],
+        ):
+
+            normalizado = normalizar_texto(
+                termino.get(
+                    "normalizado"
+                )
+                or termino.get(
+                    "texto"
+                )
+            )
+
+            if not normalizado:
+                continue
+
+            termino_delimitado = (
+                f" {normalizado} "
+            )
+
+            if (
+                termino_delimitado
+                not in texto_delimitado
+            ):
+                continue
+
+            coincidencias.append(
+                {
+                    "modelo":
+                        label,
+
+                    "texto":
+                        termino.get(
+                            "texto"
+                        ),
+
+                    "normalizado":
+                        normalizado,
+
+                    "origenes":
+                        termino.get(
+                            "origenes",
+                            [],
+                        ),
+
+                    "longitud":
+                        len(
+                            normalizado
+                        ),
+                }
+            )
+
+    if not coincidencias:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "ambiguo": False,
+            "estado":
+                "sin_vocabulario_entidad_en_texto",
+            "llm_invocado": False,
+            "coincidencias": [],
+        }
+
+    coincidencias.sort(
+        key=lambda item: (
+            -item[
+                "longitud"
+            ],
+            str(
+                item[
+                    "modelo"
+                ]
+            ),
+        )
+    )
+
+    longitud_maxima = (
+        coincidencias[0][
+            "longitud"
+        ]
+    )
+
+    mejores = [
+        item
+        for item
+        in coincidencias
+        if item[
+            "longitud"
+        ] == longitud_maxima
+    ]
+
+    modelos = {
+        item[
+            "modelo"
+        ]
+        for item
+        in mejores
+    }
+
+    if len(modelos) != 1:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "ambiguo": True,
+            "estado":
+                "vocabulario_entidad_ambiguo_en_texto",
+            "llm_invocado": False,
+            "coincidencias":
+                mejores,
+        }
+
+    elegido = mejores[0]
+
+    return {
+        "ok": True,
+        "resuelto": True,
+        "ambiguo": False,
+        "estado":
+            "vocabulario_entidad_en_texto_resuelto",
+        "modelo":
+            elegido[
+                "modelo"
+            ],
+        "texto":
+            elegido[
+                "texto"
+            ],
+        "normalizado":
+            elegido[
+                "normalizado"
+            ],
+        "origenes":
+            elegido[
+                "origenes"
+            ],
+        "llm_invocado": False,
+        "coincidencias":
+            coincidencias,
+    }

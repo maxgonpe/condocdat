@@ -590,3 +590,213 @@ def listar_aliases_entidad(
         for alias
         in queryset
     ]
+
+# ============================================================
+# IA-LLM006-D1
+# RESOLUCIÓN DE ALIAS DE ENTIDAD DENTRO DE TEXTO NATURAL
+# ============================================================
+
+def buscar_alias_entidad_en_texto(
+    texto: str,
+) -> dict[str, Any]:
+    """
+    Busca aliases de entidad activos dentro de una pregunta.
+
+    Política:
+
+    - sólo conocimiento SEM persistente y activo;
+    - no usa LLM;
+    - no inventa modelos;
+    - prioriza la expresión coincidente más específica;
+    - si dos coincidencias igualmente específicas apuntan
+      a modelos distintos, devuelve ambigüedad;
+    - no ejecuta ORM del proyecto anfitrión.
+    """
+
+    texto_normalizado = normalizar_texto(
+        texto
+    )
+
+    if not texto_normalizado:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "ambiguo": False,
+            "estado": "texto_vacio",
+            "llm_invocado": False,
+            "coincidencias": [],
+        }
+
+    aliases = list(
+        IAAliasEntidad.objects
+        .filter(
+            activa=True,
+        )
+        .order_by(
+            "prioridad",
+            "pk",
+        )
+    )
+
+    texto_delimitado = (
+        f" {texto_normalizado} "
+    )
+
+    coincidencias = []
+
+    for alias in aliases:
+
+        expresion_normalizada = (
+            normalizar_texto(
+                alias.expresion_normalizada
+                or alias.expresion
+            )
+        )
+
+        if not expresion_normalizada:
+            continue
+
+        expresion_delimitada = (
+            f" {expresion_normalizada} "
+        )
+
+        if (
+            expresion_delimitada
+            not in texto_delimitado
+        ):
+            continue
+
+        coincidencias.append(
+            {
+                "alias_id":
+                    alias.pk,
+
+                "expresion":
+                    alias.expresion,
+
+                "expresion_normalizada":
+                    expresion_normalizada,
+
+                "modelo_destino":
+                    alias.modelo_destino,
+
+                "origen":
+                    alias.origen,
+
+                "prioridad":
+                    alias.prioridad,
+
+                "longitud":
+                    len(
+                        expresion_normalizada
+                    ),
+            }
+        )
+
+    if not coincidencias:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "ambiguo": False,
+            "estado": "sin_alias_en_texto",
+            "llm_invocado": False,
+            "coincidencias": [],
+        }
+
+    coincidencias.sort(
+        key=lambda item: (
+            -item[
+                "longitud"
+            ],
+            item[
+                "prioridad"
+            ],
+            item[
+                "alias_id"
+            ],
+        )
+    )
+
+    longitud_maxima = (
+        coincidencias[0][
+            "longitud"
+        ]
+    )
+
+    mejores = [
+        item
+        for item
+        in coincidencias
+        if item[
+            "longitud"
+        ] == longitud_maxima
+    ]
+
+    modelos = {
+        item[
+            "modelo_destino"
+        ]
+        for item
+        in mejores
+    }
+
+    if len(modelos) != 1:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "ambiguo": True,
+            "estado": "alias_entidad_ambiguo_en_texto",
+            "llm_invocado": False,
+            "coincidencias":
+                mejores,
+        }
+
+    elegido = mejores[0]
+
+    IAAliasEntidad.objects.filter(
+        pk=elegido[
+            "alias_id"
+        ]
+    ).update(
+        veces_usada=F(
+            "veces_usada"
+        )
+        + 1
+    )
+
+    return {
+        "ok": True,
+        "resuelto": True,
+        "ambiguo": False,
+        "estado": "alias_entidad_en_texto_resuelto",
+        "modelo_destino":
+            elegido[
+                "modelo_destino"
+            ],
+        "expresion":
+            elegido[
+                "expresion"
+            ],
+        "expresion_normalizada":
+            elegido[
+                "expresion_normalizada"
+            ],
+        "alias_id":
+            elegido[
+                "alias_id"
+            ],
+        "origen":
+            elegido[
+                "origen"
+            ],
+        "prioridad":
+            elegido[
+                "prioridad"
+            ],
+        "llm_invocado": False,
+        "coincidencias":
+            coincidencias,
+    }

@@ -1113,3 +1113,226 @@ def buscar_alias_valor(
         "llm_invocado":
             False,
     }
+
+# ============================================================
+# IA-LLM005-C01
+# RESOLUCIÓN DE ALIAS DE VALOR DENTRO DE TEXTO NATURAL
+# ============================================================
+
+
+def buscar_alias_valor_en_texto(
+    *,
+    modelo: str,
+    campo: str,
+    texto: str,
+) -> dict[str, Any]:
+    """
+    Busca una equivalencia SEM004 activa cuyo texto aparezca
+    dentro de una pregunta natural.
+
+    Reglas:
+    - siempre acotada a modelo + campo;
+    - sólo aliases activos;
+    - gana la expresión más específica/larga;
+    - no usa LLM;
+    - no ejecuta consultas de negocio;
+    - devuelve únicamente conocimiento semántico.
+    """
+
+    modelo_django = _resolver_modelo(
+        modelo
+    )
+
+    if modelo_django is None:
+
+        return {
+            "ok": False,
+            "resuelto": False,
+            "estado": "modelo_invalido",
+            "llm_invocado": False,
+        }
+
+    campo_django = _resolver_campo(
+        modelo_django,
+        campo,
+    )
+
+    if campo_django is None:
+
+        return {
+            "ok": False,
+            "resuelto": False,
+            "estado": "campo_invalido",
+            "llm_invocado": False,
+        }
+
+    if bool(
+        getattr(
+            campo_django,
+            "is_relation",
+            False,
+        )
+    ):
+
+        return {
+            "ok": False,
+            "resuelto": False,
+            "estado": "campo_relacional",
+            "llm_invocado": False,
+        }
+
+    texto_normalizado = normalizar_texto(
+        texto
+    )
+
+    if not texto_normalizado:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "estado": "texto_vacio",
+            "modelo": modelo_django._meta.label,
+            "campo": campo_django.name,
+            "llm_invocado": False,
+        }
+
+    aliases = list(
+        IAAliasValor.objects
+        .filter(
+            modelo=modelo_django._meta.label,
+            campo=campo_django.name,
+            activa=True,
+        )
+        .order_by(
+            "prioridad",
+            "pk",
+        )
+    )
+
+    coincidencias = []
+
+    for alias in aliases:
+
+        expresion_n = (
+            alias.expresion_normalizada
+            or ""
+        ).strip()
+
+        if not expresion_n:
+            continue
+
+        if expresion_n in texto_normalizado:
+
+            coincidencias.append(
+                alias
+            )
+
+    if not coincidencias:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "estado": "sin_alias_en_texto",
+            "modelo": modelo_django._meta.label,
+            "campo": campo_django.name,
+            "llm_invocado": False,
+        }
+
+    # La expresión más larga representa el concepto
+    # más específico disponible.
+    coincidencias.sort(
+        key=lambda alias: (
+            -len(
+                alias.expresion_normalizada
+                or ""
+            ),
+            alias.prioridad,
+            alias.pk,
+        )
+    )
+
+    alias = coincidencias[0]
+
+    # Si dos expresiones igualmente específicas apuntaran
+    # a valores distintos, no decidimos silenciosamente.
+    longitud_ganadora = len(
+        alias.expresion_normalizada
+        or ""
+    )
+
+    igualmente_especificas = [
+        item
+        for item in coincidencias
+        if len(
+            item.expresion_normalizada
+            or ""
+        )
+        == longitud_ganadora
+    ]
+
+    valores = {
+        item.valor_destino
+        for item in igualmente_especificas
+    }
+
+    if len(
+        valores
+    ) != 1:
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "estado": "alias_ambiguo_en_texto",
+            "modelo": modelo_django._meta.label,
+            "campo": campo_django.name,
+            "candidatos": [
+                {
+                    "expresion":
+                        item.expresion,
+
+                    "valor_destino":
+                        item.valor_destino,
+
+                    "alias_id":
+                        item.pk,
+                }
+                for item
+                in igualmente_especificas
+            ],
+            "llm_invocado": False,
+        }
+
+    valor_python = convertir_valor_campo(
+        campo_django,
+        alias.valor_destino,
+    )
+
+    IAAliasValor.objects.filter(
+        pk=alias.pk
+    ).update(
+        veces_usada=F(
+            "veces_usada"
+        )
+        + 1
+    )
+
+    return {
+        "ok": True,
+        "resuelto": True,
+        "estado": "alias_valor_en_texto_resuelto",
+        "modelo": alias.modelo,
+        "campo": alias.campo,
+        "expresion": alias.expresion,
+        "expresion_normalizada":
+            alias.expresion_normalizada,
+        "valor_destino":
+            alias.valor_destino,
+        "valor_python":
+            valor_python,
+        "alias_id":
+            alias.pk,
+        "origen": "SEM004",
+        "prioridad":
+            alias.prioridad,
+        "llm_invocado": False,
+    }

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
 import re
 from typing import Any
 
@@ -801,7 +803,7 @@ def _resolver_ast(
 
 def componer_grupos_logicos(
     pregunta: str,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     Punto público IA-QUERY003.

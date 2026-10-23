@@ -11,6 +11,14 @@ from django.db import (
 )
 from django.db.models import Q
 
+from ia_local.services.semantica.aliases_entidad import (
+    buscar_alias_entidad_en_texto,
+)
+
+from ia_local.services.semantica.inventario_vocabulario import (
+    buscar_vocabulario_entidad_en_texto,
+)
+
 from .catalogo_datos import (
     construir_catalogo_datos,
 )
@@ -150,7 +158,6 @@ def _puntaje_lexico(
     terminos_modelo = set()
 
     for valor in (
-        app,
         nombre,
         verbose,
         verbose_plural,
@@ -705,7 +712,7 @@ def _buscar_evidencia_textual(
 # ============================================================
 
 
-def resolver_entidad_datos(
+def _resolver_entidad_datos_base(
     pregunta: str,
 ) -> dict[str, Any]:
     """
@@ -720,6 +727,264 @@ def resolver_entidad_datos(
 
     Si no existe un ganador inequívoco, devuelve resuelto=False.
     """
+
+    # --------------------------------------------------------
+    # IA-LLM006-D2
+    # ALIAS SEMÁNTICO DE ENTIDAD
+    # --------------------------------------------------------
+    #
+    # SEM puede aportar conocimiento previamente validado,
+    # pero HOST vuelve a comprobar que el destino corresponde
+    # a un modelo Django real.
+    #
+    # Un alias ambiguo nunca cae al scoring para que otro
+    # mecanismo elija arbitrariamente.
+    # --------------------------------------------------------
+
+    resolucion_alias = (
+        buscar_alias_entidad_en_texto(
+            pregunta
+        )
+    )
+
+    if resolucion_alias.get(
+        "ambiguo"
+    ):
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "entidad": None,
+            "razon": (
+                "La pregunta coincide con aliases "
+                "semánticos de entidad incompatibles."
+            ),
+            "tipo_evidencia":
+                "alias_semantico_ambiguo",
+            "evidencia":
+                resolucion_alias,
+            "candidatos":
+                resolucion_alias.get(
+                    "coincidencias",
+                    [],
+                ),
+        }
+
+    if resolucion_alias.get(
+        "resuelto"
+    ):
+
+        modelo_destino = str(
+            resolucion_alias.get(
+                "modelo_destino"
+            )
+            or ""
+        ).strip()
+
+        modelo_django = None
+
+        if "." in modelo_destino:
+
+            app_label, nombre_modelo = (
+                modelo_destino.split(
+                    ".",
+                    1,
+                )
+            )
+
+            try:
+                modelo_django = (
+                    apps.get_model(
+                        app_label,
+                        nombre_modelo,
+                    )
+                )
+            except LookupError:
+                modelo_django = None
+
+        if modelo_django is not None:
+
+            etiqueta_real = (
+                f"{modelo_django._meta.app_label}."
+                f"{modelo_django.__name__}"
+            )
+
+            return {
+                "ok": True,
+                "resuelto": True,
+                "entidad":
+                    etiqueta_real,
+                "razon": (
+                    "La entidad fue resuelta mediante "
+                    "un alias semántico validado y "
+                    "certificada nuevamente por HOST."
+                ),
+                "tipo_evidencia":
+                    "alias_semantico",
+                "evidencia":
+                    resolucion_alias,
+                "candidatos": [
+                    {
+                        "modelo":
+                            etiqueta_real,
+                        "alias_id":
+                            resolucion_alias.get(
+                                "alias_id"
+                            ),
+                        "expresion":
+                            resolucion_alias.get(
+                                "expresion"
+                            ),
+                        "origen":
+                            resolucion_alias.get(
+                                "origen"
+                            ),
+                    }
+                ],
+            }
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "entidad": None,
+            "razon": (
+                "El alias semántico existe, pero "
+                "su modelo destino ya no puede "
+                "certificarse en Django."
+            ),
+            "tipo_evidencia":
+                "alias_semantico_destino_invalido",
+            "evidencia":
+                resolucion_alias,
+            "candidatos": [],
+        }
+
+    # --------------------------------------------------------
+    # IA-LLM006-E3
+    # VOCABULARIO AUTOMÁTICO DJANGO / SEM001
+    # --------------------------------------------------------
+    #
+    # Si no hubo alias local, intentamos resolver con vocabulario
+    # estructural derivado directamente de Django.
+    #
+    # Una ambigüedad automática tampoco cae al scoring.
+    # --------------------------------------------------------
+
+    resolucion_vocabulario = (
+        buscar_vocabulario_entidad_en_texto(
+            pregunta
+        )
+    )
+
+    if resolucion_vocabulario.get(
+        "ambiguo"
+    ):
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "entidad": None,
+            "razon": (
+                "La pregunta coincide con varias "
+                "entidades del vocabulario automático "
+                "de Django."
+            ),
+            "tipo_evidencia":
+                "vocabulario_django_ambiguo",
+            "evidencia":
+                resolucion_vocabulario,
+            "candidatos":
+                resolucion_vocabulario.get(
+                    "coincidencias",
+                    [],
+                ),
+        }
+
+    if resolucion_vocabulario.get(
+        "resuelto"
+    ):
+
+        modelo_destino = str(
+            resolucion_vocabulario.get(
+                "modelo"
+            )
+            or ""
+        ).strip()
+
+        modelo_django = None
+
+        if "." in modelo_destino:
+
+            app_label, nombre_modelo = (
+                modelo_destino.split(
+                    ".",
+                    1,
+                )
+            )
+
+            try:
+                modelo_django = (
+                    apps.get_model(
+                        app_label,
+                        nombre_modelo,
+                    )
+                )
+            except LookupError:
+                modelo_django = None
+
+        if modelo_django is not None:
+
+            etiqueta_real = (
+                f"{modelo_django._meta.app_label}."
+                f"{modelo_django.__name__}"
+            )
+
+            return {
+                "ok": True,
+                "resuelto": True,
+                "entidad":
+                    etiqueta_real,
+                "razon": (
+                    "La entidad fue resuelta mediante "
+                    "vocabulario automático derivado de "
+                    "Django y certificada por HOST."
+                ),
+                "tipo_evidencia":
+                    "vocabulario_django",
+                "evidencia":
+                    resolucion_vocabulario,
+                "candidatos": [
+                    {
+                        "modelo":
+                            etiqueta_real,
+                        "texto":
+                            resolucion_vocabulario.get(
+                                "texto"
+                            ),
+                        "origenes":
+                            resolucion_vocabulario.get(
+                                "origenes",
+                                [],
+                            ),
+                    }
+                ],
+            }
+
+        return {
+            "ok": True,
+            "resuelto": False,
+            "entidad": None,
+            "razon": (
+                "El vocabulario automático identificó "
+                "una entidad cuyo modelo ya no puede "
+                "certificarse en Django."
+            ),
+            "tipo_evidencia":
+                "vocabulario_django_destino_invalido",
+            "evidencia":
+                resolucion_vocabulario,
+            "candidatos": [],
+        }
 
     catalogo = construir_catalogo_datos(
         incluir_ia_local=False,
@@ -1095,3 +1360,443 @@ def resolver_entidad_datos(
                 :10
             ],
     }
+
+
+# ============================================================
+# IA-LLM006-F2 - CONTRATO UNIFORME
+# ============================================================
+
+
+def _numero_seguro(
+    valor: Any,
+) -> int | float | None:
+    """
+    Convierte un valor numérico sin inventar información.
+
+    Devuelve None cuando el valor no puede interpretarse
+    de forma segura como número.
+    """
+
+    if isinstance(
+        valor,
+        bool,
+    ):
+        return None
+
+    if isinstance(
+        valor,
+        (
+            int,
+            float,
+        ),
+    ):
+        return valor
+
+    return None
+
+
+def _puntaje_candidato(
+    candidato: dict[str, Any] | None,
+) -> int | float | None:
+
+    if not isinstance(
+        candidato,
+        dict,
+    ):
+        return None
+
+    for clave in (
+        "puntaje_total",
+        "puntaje",
+        "puntaje_textual",
+    ):
+
+        valor = _numero_seguro(
+            candidato.get(
+                clave
+            )
+        )
+
+        if valor is not None:
+            return valor
+
+    return None
+
+
+def _clasificar_resultado_resolucion(
+    resultado: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Añade un contrato uniforme al resultado histórico
+    del resolvedor.
+
+    No modifica la decisión tomada por el motor base.
+
+    Estados públicos:
+
+        resuelto
+        ambiguo
+        no_resuelto
+
+    La confianza expresa fuerza operacional de la
+    resolución, no probabilidad estadística.
+    """
+
+    salida = dict(
+        resultado
+        or {}
+    )
+
+    candidatos = salida.get(
+        "candidatos"
+    )
+
+    if not isinstance(
+        candidatos,
+        list,
+    ):
+        candidatos = []
+
+    resuelto = bool(
+        salida.get(
+            "resuelto"
+        )
+    )
+
+    tipo_original = str(
+        salida.get(
+            "tipo_evidencia"
+        )
+        or ""
+    ).strip()
+
+    primero = (
+        candidatos[0]
+        if candidatos
+        and isinstance(
+            candidatos[0],
+            dict,
+        )
+        else None
+    )
+
+    segundo = (
+        candidatos[1]
+        if len(
+            candidatos
+        ) > 1
+        and isinstance(
+            candidatos[1],
+            dict,
+        )
+        else None
+    )
+
+    puntaje_primero = (
+        _puntaje_candidato(
+            primero
+        )
+    )
+
+    puntaje_segundo = (
+        _puntaje_candidato(
+            segundo
+        )
+    )
+
+    margen = None
+
+    if (
+        puntaje_primero is not None
+        and puntaje_segundo is not None
+    ):
+        margen = (
+            puntaje_primero
+            - puntaje_segundo
+        )
+
+    # --------------------------------------------------------
+    # MÉTODO / TIPO NORMALIZADO
+    # --------------------------------------------------------
+
+    if tipo_original in {
+        "alias_semantico",
+        "alias_semantico_ambiguo",
+        "alias_semantico_destino_invalido",
+    }:
+
+        metodo = (
+            "alias_semantico"
+        )
+
+    elif tipo_original in {
+        "vocabulario_django",
+        "vocabulario_django_ambiguo",
+        "vocabulario_django_destino_invalido",
+    }:
+
+        metodo = (
+            "vocabulario_django"
+        )
+
+    elif tipo_original in {
+        "texto_real_inequivoco",
+        "texto_real_ambiguo",
+    }:
+
+        metodo = (
+            "texto_real"
+        )
+
+    elif tipo_original == "ninguna":
+
+        metodo = "ninguna"
+
+    elif primero:
+
+        if (
+            _numero_seguro(
+                primero.get(
+                    "puntaje_valores"
+                )
+            )
+            or 0
+        ) > 0:
+
+            metodo = (
+                "catalogo_valores"
+            )
+
+        else:
+
+            metodo = (
+                "catalogo_lexico"
+            )
+
+    else:
+
+        metodo = "ninguna"
+
+    # --------------------------------------------------------
+    # ESTADO UNIFORME
+    # --------------------------------------------------------
+
+    if resuelto:
+
+        estado = "resuelto"
+
+    elif tipo_original in {
+        "alias_semantico_ambiguo",
+        "vocabulario_django_ambiguo",
+    }:
+
+        estado = "ambiguo"
+
+    elif (
+        tipo_original
+        == "texto_real_ambiguo"
+    ):
+
+        # El nombre histórico decía "ambiguo" incluso
+        # cuando existía un único candidato débil.
+        #
+        # F2 distingue ambos conceptos.
+        if len(
+            candidatos
+        ) >= 2:
+
+            estado = "ambiguo"
+
+        else:
+
+            estado = "no_resuelto"
+
+    elif (
+        primero is not None
+        and segundo is not None
+        and puntaje_primero is not None
+        and puntaje_segundo is not None
+        and puntaje_primero
+        == puntaje_segundo
+    ):
+
+        estado = "ambiguo"
+
+    else:
+
+        estado = "no_resuelto"
+
+    # --------------------------------------------------------
+    # TIPO DE EVIDENCIA NORMALIZADO
+    # --------------------------------------------------------
+
+    if resuelto:
+
+        if metodo == "texto_real":
+
+            tipo_normalizado = (
+                "texto_real"
+            )
+
+        else:
+
+            tipo_normalizado = metodo
+
+    elif estado == "ambiguo":
+
+        if metodo == "alias_semantico":
+
+            tipo_normalizado = (
+                "alias_semantico_ambiguo"
+            )
+
+        elif metodo == "vocabulario_django":
+
+            tipo_normalizado = (
+                "vocabulario_django_ambiguo"
+            )
+
+        elif metodo == "texto_real":
+
+            tipo_normalizado = (
+                "texto_real_ambiguo"
+            )
+
+        else:
+
+            tipo_normalizado = (
+                "catalogo_ambiguo"
+            )
+
+    else:
+
+        if metodo == "texto_real":
+
+            tipo_normalizado = (
+                "texto_real_insuficiente"
+            )
+
+        elif metodo in {
+            "catalogo_valores",
+            "catalogo_lexico",
+        }:
+
+            tipo_normalizado = (
+                "catalogo_insuficiente"
+            )
+
+        elif metodo in {
+            "alias_semantico",
+            "vocabulario_django",
+        }:
+
+            tipo_normalizado = (
+                f"{metodo}_invalido"
+            )
+
+        else:
+
+            tipo_normalizado = (
+                "ninguna"
+            )
+
+    # --------------------------------------------------------
+    # NIVEL DE CONFIANZA
+    # --------------------------------------------------------
+    #
+    # No representa una probabilidad.
+    #
+    # alta:
+    #   resolución estructural/determinística certificada.
+    #
+    # media:
+    #   resolución inequívoca obtenida desde texto real.
+    #
+    # baja:
+    #   hay evidencia, pero no alcanza para resolver.
+    #
+    # ninguna:
+    #   no existe ganador utilizable.
+    # --------------------------------------------------------
+
+    if estado == "resuelto":
+
+        if metodo == "texto_real":
+
+            nivel = "media"
+
+        else:
+
+            nivel = "alta"
+
+    elif (
+        estado == "no_resuelto"
+        and candidatos
+    ):
+
+        nivel = "baja"
+
+    else:
+
+        nivel = "ninguna"
+
+    salida[
+        "estado_resolucion"
+    ] = estado
+
+    salida[
+        "tipo_evidencia_normalizada"
+    ] = tipo_normalizado
+
+    salida[
+        "confianza"
+    ] = {
+        "nivel":
+            nivel,
+
+        "metodo":
+            metodo,
+
+        "puntaje":
+            puntaje_primero,
+
+        "margen":
+            margen,
+    }
+
+    # Conservamos absoluta compatibilidad:
+    #
+    # si el resolvedor histórico no generaba
+    # tipo_evidencia, añadimos el normalizado.
+    #
+    # Si ya existía, NO lo sustituimos.
+    if not tipo_original:
+
+        salida[
+            "tipo_evidencia"
+        ] = tipo_normalizado
+
+    return salida
+
+
+def resolver_entidad_datos(
+    pregunta: str,
+) -> dict[str, Any]:
+    """
+    Contrato público IA-LLM006-F2.
+
+    Ejecuta el resolvedor histórico y añade una
+    clasificación uniforme sin alterar su decisión.
+    """
+
+    resultado = (
+        _resolver_entidad_datos_base(
+            pregunta
+        )
+    )
+
+    return (
+        _clasificar_resultado_resolucion(
+            resultado
+        )
+    )

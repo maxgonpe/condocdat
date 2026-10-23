@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid
 
 from django.db import models
 
@@ -500,7 +501,7 @@ class IAAliasValor(models.Model):
             f"{self.modelo}.{self.campo}: "
             f"{self.expresion} "
             f"→ {self.valor_destino}"
-        ) 
+        )
 
 
 # ============================================================
@@ -654,7 +655,7 @@ class IAReglaDeclarativa(models.Model):
             f"{self.expresion} "
             f"→ {self.modelo} "
             f"[{self.operacion}]"
-        )  
+        )
 
 
 
@@ -793,7 +794,7 @@ class IAPropuestaAprendizaje(models.Model):
             f"{self.get_tipo_display()}: "
             f"{self.expresion} "
             f"[{self.estado}]"
-        )  
+        )
 
 
 
@@ -920,4 +921,84 @@ class IAHistorialConsulta(models.Model):
             f"{self.id} - "
             f"{self.estado} - "
             f"{self.pregunta[:80]}"
+        )
+
+
+# IA-LLM008-F5-07-13-B01
+class IAExpedienteConsulta(models.Model):
+    """Expediente persistente para aclaraciones de IA."""
+
+    ESTADOS = [
+        ("ABIERTO", "Abierto"),
+        ("PENDIENTE", "Pendiente de aclaración"),
+        ("COMPLETADO", "Completado"),
+        ("CANCELADO", "Cancelado"),
+        ("EXPIRADO", "Expirado"),
+    ]
+
+    identificador = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    session_key = models.CharField(
+        max_length=255,
+        db_index=True,
+    )
+
+    usuario_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    pregunta_original = models.TextField()
+
+    modelo_contexto = models.CharField(
+        max_length=255,
+    )
+
+    coleccion = models.JSONField(
+        default=dict,
+    )
+
+    arbol_logico = models.JSONField(
+        default=dict,
+    )
+
+    asociaciones = models.JSONField(
+        default=dict,
+    )
+
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS,
+        default="ABIERTO",
+        db_index=True,
+    )
+
+    version = models.PositiveIntegerField(
+        default=1,
+    )
+
+    creado = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    actualizado = models.DateTimeField(
+        auto_now=True,
+    )
+
+    fecha_expiracion = models.DateTimeField()
+
+    class Meta:
+        ordering = ["-creado"]
+        verbose_name = "Expediente de consulta IA"
+        verbose_name_plural = "Expedientes de consulta IA"
+
+    def __str__(self):
+        return (
+            f"{self.identificador} "
+            f"[{self.estado}]"
         )

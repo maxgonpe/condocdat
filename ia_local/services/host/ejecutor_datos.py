@@ -10,6 +10,10 @@ from django.db import (
     models,
 )
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MAXIMO_INTERACTIVO,
+)
+
 from .catalogo_datos import (
     obtener_modelo_django,
 )
@@ -23,7 +27,6 @@ from .validador_plan_datos import (
 # ============================================================
 
 
-LIMITE_MAXIMO = 100
 MAX_CAMPOS_SALIDA = 30
 
 
@@ -260,18 +263,52 @@ def ejecutar_plan_datos(
             ],
         }
 
-    filtros_orm = {
-        filtro[
+    # --------------------------------------------------------
+    # IA-LLM005
+    # FILTROS POSITIVOS Y EXCLUSIONES
+    #
+    # Sólo llegan aquí filtros que YA fueron nuevamente
+    # certificados por validar_plan_datos().
+    #
+    # Una exclusión nunca contiene ORM arbitrario:
+    #
+    #     lookup + valor
+    #
+    # ambos fueron construidos previamente por HOST.
+    # --------------------------------------------------------
+
+    filtros_orm = {}
+
+    exclusiones_orm = []
+
+    for filtro in plan_seguro[
+        "filtros"
+    ]:
+
+        lookup = filtro[
             "lookup"
-        ]:
-            filtro[
-                "valor"
-            ]
-        for filtro
-        in plan_seguro[
-            "filtros"
         ]
-    }
+
+        valor = filtro[
+            "valor"
+        ]
+
+        if filtro.get(
+            "negado"
+        ) is True:
+
+            exclusiones_orm.append(
+                {
+                    lookup:
+                        valor,
+                }
+            )
+
+            continue
+
+        filtros_orm[
+            lookup
+        ] = valor
 
     orden_orm = [
         item[
@@ -293,6 +330,20 @@ def ejecutar_plan_datos(
 
             queryset = queryset.filter(
                 **filtros_orm
+            )
+
+        # ----------------------------------------------------
+        # IA-LLM005
+        #
+        # Cada exclusión fue certificada previamente por HOST.
+        # No aceptamos Q(), expresiones, kwargs arbitrarios ni
+        # SQL procedente del LLM.
+        # ----------------------------------------------------
+
+        for exclusion in exclusiones_orm:
+
+            queryset = queryset.exclude(
+                **exclusion
             )
 
         operacion = plan_seguro[
@@ -355,16 +406,36 @@ def ejecutar_plan_datos(
                 *orden_orm
             )
 
+        # ----------------------------------------------------
+        # IA-LLM004-D2
+        # UNIVERSO REAL Y MUESTRA INTERACTIVA
+        # ----------------------------------------------------
+        #
+        # El conteo se realiza sobre el QuerySet ya filtrado.
+        #
+        # Un limite=None ya NO significa materializar todo el
+        # universo. Significa que el usuario no desea una muestra
+        # conceptual, pero la salida interactiva sigue protegida
+        # por LIMITE_MAXIMO_INTERACTIVO.
+        # ----------------------------------------------------
+
+        total_disponible = queryset.count()
+
         limite_plan = plan_seguro.get(
             "limite"
         )
 
         if limite_plan is None:
-            limite = None
+
+            limite = (
+                LIMITE_MAXIMO_INTERACTIVO
+            )
+
         else:
+
             limite = min(
                 limite_plan,
-                LIMITE_MAXIMO,
+                LIMITE_MAXIMO_INTERACTIVO,
             )
 
         campos = _campos_salida(
@@ -375,12 +446,9 @@ def ejecutar_plan_datos(
             *campos
         )
 
-        if limite is None:
-            filas = list(queryset_valores)
-        else:
-            filas = list(
-                queryset_valores[:limite]
-            )
+        filas = list(
+            queryset_valores[:limite]
+        )
 
         resultados = [
             _serializar_fila(
@@ -389,6 +457,15 @@ def ejecutar_plan_datos(
             for fila
             in filas
         ]
+
+        total_devuelto = len(
+            resultados
+        )
+
+        truncado = (
+            total_disponible
+            > total_devuelto
+        )
 
         return {
             "ok":
@@ -420,13 +497,20 @@ def ejecutar_plan_datos(
                     "orden"
                 ],
 
+            "limite_solicitado":
+                limite_plan,
+
             "limite":
                 limite,
 
+            "total_disponible":
+                total_disponible,
+
             "total_devuelto":
-                len(
-                    resultados
-                ),
+                total_devuelto,
+
+            "truncado":
+                truncado,
 
             "campos":
                 campos,

@@ -3,6 +3,10 @@ import json
 from datetime import datetime
 from html import escape
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+)
+
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import (
     HttpResponse,
@@ -35,8 +39,8 @@ from .services.host.router import (
 from .services.host.salida import (
     normalizar_salida,
 )
-from .services.host.diagnostico import (
-    diagnosticar_pregunta,
+from .services.final.formateador_respuesta import (
+    responder_consulta,
 )
 from .services.reglas_semanticas import (
     guardar_regla_exacta,
@@ -50,7 +54,7 @@ from .services.reglas_semanticas import (
 
 def _ejecutar_consulta_ia(
     pregunta,
-    limite=20,
+    limite=LIMITE_MUESTRA_PREDETERMINADO,
 ):
     """
     Punto único de entrada para web/API.
@@ -139,6 +143,21 @@ def _ejecutar_consulta_ia(
         "total":
             salida_publica.get(
                 "total"
+            ),
+
+        "total_disponible":
+            salida_publica.get(
+                "total_disponible"
+            ),
+
+        "total_devuelto":
+            salida_publica.get(
+                "total_devuelto"
+            ),
+
+        "truncado":
+            salida_publica.get(
+                "truncado"
             ),
 
         "limite":
@@ -302,7 +321,24 @@ def consulta_ia(request):
         "POST",
     ]
 )
-def consulta_ia_json(request):
+def consulta_ia_json(
+    request,
+):
+    """
+    IA-LLM004-D4-C01
+
+    Adaptador HTTP mínimo del pipeline FINAL.
+
+    La vista:
+
+        - recibe la pregunta;
+        - delega toda interpretación y ejecución a FINAL;
+        - no reconstruye resultados;
+        - no decide límites;
+        - no ejecuta ORM;
+        - no modifica cardinalidad;
+        - devuelve el mismo contrato público que FINAL004.
+    """
 
     pregunta = (
         request.POST.get(
@@ -315,127 +351,180 @@ def consulta_ia_json(request):
 
         return JsonResponse(
             {
-                "ok": False,
-                "error":
+                "ok":
+                    False,
+
+                "estado":
+                    "pregunta_vacia",
+
+                "pregunta":
+                    "",
+
+                "respuesta":
                     "La pregunta está vacía.",
+
+                "total":
+                    None,
+
+                "total_disponible":
+                    None,
+
+                "total_devuelto":
+                    None,
+
+                "truncado":
+                    None,
+
+                "registros":
+                    [],
+
+                "campos":
+                    [],
             },
             status=400,
             json_dumps_params={
-                "ensure_ascii": False
+                "ensure_ascii":
+                    False,
             },
         )
 
     try:
 
-        salida = (
-            _ejecutar_consulta_ia(
-                pregunta
-            )
-        )
-
-        diagnostico = salida[
-            "diagnostico"
-        ]
-
-        return JsonResponse(
-            {
-                "ok":
-                    True,
-
-                "pregunta":
-                    pregunta,
-
-                "origen":
-                    diagnostico[
-                        "origen"
-                    ],
-
-                "tema":
-                    diagnostico[
-                        "tema"
-                    ],
-
-                "modelo":
-                    diagnostico[
-                        "modelo"
-                    ],
-
-                "operacion":
-                    diagnostico[
-                        "operacion"
-                    ],
-
-                "intencion":
-                    salida[
-                        "motor"
-                    ].get(
-                        "intencion"
-                    ),
-
-                "filtros_orm":
-                    diagnostico[
-                        "filtros_orm"
-                    ],
-
-                "total":
-                    diagnostico[
-                        "total"
-                    ],
-
-                "respuesta":
-                    salida[
-                        "respuesta_texto"
-                    ],
-
-                "salida":
-                    salida[
-                        "salida"
-                    ],
-
-                "respuesta_estructurada":
-                    salida[
-                        "respuesta_estructurada"
-                    ],
-
-                "registros":
-                    salida[
-                        "registros"
-                    ],
-
-                "json_completo":
-                    salida[
-                        "router"
-                    ],
-            },
-            json_dumps_params={
-                "ensure_ascii": False
-            },
+        resultado = responder_consulta(
+            pregunta
         )
 
     except Exception as exc:
 
         return JsonResponse(
             {
-                "ok": False,
-                "error": str(exc),
+                "ok":
+                    False,
+
+                "estado":
+                    "error_interno",
+
+                "pregunta":
+                    pregunta,
+
+                "respuesta":
+                    str(
+                        exc
+                    ),
+
+                "total":
+                    None,
+
+                "total_disponible":
+                    None,
+
+                "total_devuelto":
+                    None,
+
+                "truncado":
+                    None,
+
+                "registros":
+                    [],
+
+                "campos":
+                    [],
             },
-            status=400,
+            status=500,
             json_dumps_params={
-                "ensure_ascii": False
+                "ensure_ascii":
+                    False,
             },
         )
 
+    if not isinstance(
+        resultado,
+        dict,
+    ):
 
-# ============================================================
-# REGLA EXACTA
-# ============================================================
+        return JsonResponse(
+            {
+                "ok":
+                    False,
 
-@staff_member_required
-@require_http_methods(
-    [
-        "POST",
-    ]
-)
+                "estado":
+                    "contrato_final_invalido",
+
+                "pregunta":
+                    pregunta,
+
+                "respuesta":
+                    (
+                        "FINAL no devolvió "
+                        "un contrato válido."
+                    ),
+
+                "total":
+                    None,
+
+                "total_disponible":
+                    None,
+
+                "total_devuelto":
+                    None,
+
+                "truncado":
+                    None,
+
+                "registros":
+                    [],
+
+                "campos":
+                    [],
+            },
+            status=500,
+            json_dumps_params={
+                "ensure_ascii":
+                    False,
+            },
+        )
+
+    # --------------------------------------------------------
+    # Serialización defensiva
+    # --------------------------------------------------------
+    #
+    # FINAL debe producir datos JSON-safe, pero esta barrera
+    # evita que un valor Django residual rompa la interfaz.
+    # No altera la semántica del contrato.
+    # --------------------------------------------------------
+
+    resultado_json = json.loads(
+        json.dumps(
+            resultado,
+            ensure_ascii=False,
+            default=str,
+        )
+    )
+
+    # --------------------------------------------------------
+    # ESTADOS FUNCIONALES
+    # --------------------------------------------------------
+    #
+    # Un ok=False de FINAL puede representar una consulta
+    # entendida pero no ejecutable o no resuelta.
+    #
+    # Eso NO es necesariamente un error HTTP.
+    #
+    # Por tanto, cuando FINAL respondió correctamente,
+    # devolvemos HTTP 200 y dejamos que la UI muestre
+    # su contrato funcional.
+    # --------------------------------------------------------
+
+    return JsonResponse(
+        resultado_json,
+        status=200,
+        json_dumps_params={
+            "ensure_ascii":
+                False,
+        },
+    )
+
+
 def guardar_regla_test_json(
     request,
 ):
@@ -941,10 +1030,20 @@ def _extraer_resultados(
     respuesta,
 ):
     """
-    Extrae filas del contrato público normalizado.
+    Extrae los registros visibles del contrato público.
 
-    Mantiene una compatibilidad mínima con respuestas previas,
-    pero la interfaz nueva debe enviar siempre ``salida``.
+    Prioridad actual:
+
+        registros
+
+    Se conserva compatibilidad con:
+
+        resultados
+        ejecucion
+        ejecucion_datos
+        respuesta_estructurada
+
+    La exportación nunca vuelve a ejecutar la consulta.
     """
 
     if not isinstance(
@@ -953,21 +1052,20 @@ def _extraer_resultados(
     ):
         return []
 
-    resultados = respuesta.get(
-        "resultados"
-    )
+    candidatos = [
+        respuesta.get(
+            "registros"
+        ),
+        respuesta.get(
+            "resultados"
+        ),
+    ]
 
-    if isinstance(
-        resultados,
-        list,
-    ):
-        return resultados
-
-    # Compatibilidad con el contrato HOST previo.
     for clave in (
         "ejecucion",
         "ejecucion_datos",
     ):
+
         bloque = respuesta.get(
             clave
         )
@@ -976,15 +1074,84 @@ def _extraer_resultados(
             bloque,
             dict,
         ):
-            resultados = bloque.get(
-                "resultados"
+
+            candidatos.append(
+                bloque.get(
+                    "resultados"
+                )
             )
 
-            if isinstance(
-                resultados,
-                list,
-            ):
-                return resultados
+            candidatos.append(
+                bloque.get(
+                    "registros"
+                )
+            )
+
+    estructurada = respuesta.get(
+        "respuesta_estructurada"
+    )
+
+    if isinstance(
+        estructurada,
+        dict,
+    ):
+
+        candidatos.append(
+            estructurada.get(
+                "registros"
+            )
+        )
+
+        candidatos.append(
+            estructurada.get(
+                "resultados"
+            )
+        )
+
+        ejecucion = estructurada.get(
+            "ejecucion"
+        )
+
+        if isinstance(
+            ejecucion,
+            dict,
+        ):
+
+            candidatos.append(
+                ejecucion.get(
+                    "resultados"
+                )
+            )
+
+            candidatos.append(
+                ejecucion.get(
+                    "registros"
+                )
+            )
+
+    for resultados in candidatos:
+
+        if isinstance(
+            resultados,
+            list,
+        ):
+            return resultados
+
+    json_completo = respuesta.get(
+        "json_completo"
+    )
+
+    if (
+        isinstance(
+            json_completo,
+            dict,
+        )
+        and json_completo is not respuesta
+    ):
+
+        return _extraer_resultados(
+            json_completo
+        )
 
     return []
 
@@ -993,30 +1160,61 @@ def _resumen_exportacion(
     respuesta,
 ):
     """
-    Construye el resumen desde el contrato público normalizado.
+    Construye el resumen público portable para Excel/PDF.
+
+    Prioriza el contrato FINAL actual y conserva una
+    compatibilidad mínima con ejecuciones anteriores.
     """
+
+    resumen = []
 
     if not isinstance(
         respuesta,
         dict,
     ):
-        return []
-
-    resumen = []
+        return resumen
 
     etiquetas = (
-        ("tipo", "Tipo"),
-        ("destino", "Destino"),
-        ("modelo", "Modelo"),
-        ("operacion", "Operación"),
-        ("tabla", "Tabla"),
-        ("total", "Total"),
-        ("limite", "Límite"),
-        ("llm_invocado", "LLM invocado"),
-        ("respuesta", "Respuesta"),
+        (
+            "respuesta",
+            "Respuesta",
+        ),
+        (
+            "modelo",
+            "Modelo",
+        ),
+        (
+            "tipo",
+            "Tipo",
+        ),
+        (
+            "total",
+            "Total",
+        ),
+        (
+            "total_disponible",
+            "Total disponible",
+        ),
+        (
+            "total_devuelto",
+            "Total mostrado",
+        ),
+        (
+            "truncado",
+            "Truncado",
+        ),
+        (
+            "ejecutado",
+            "Ejecutado",
+        ),
+        (
+            "llm_invocado",
+            "LLM invocado",
+        ),
     )
 
     for clave, etiqueta in etiquetas:
+
         valor = respuesta.get(
             clave
         )
@@ -1024,9 +1222,87 @@ def _resumen_exportacion(
         if valor not in (
             None,
             "",
-            [],
-            {},
         ):
+
+            resumen.append(
+                (
+                    etiqueta,
+                    valor,
+                )
+            )
+
+    # --------------------------------------------------------
+    # Compatibilidad / información HOST adicional
+    # --------------------------------------------------------
+
+    ejecucion = (
+        respuesta.get(
+            "ejecucion_datos"
+        )
+        or respuesta.get(
+            "ejecucion"
+        )
+        or {}
+    )
+
+    if not isinstance(
+        ejecucion,
+        dict,
+    ):
+        ejecucion = {}
+
+    if not ejecucion:
+
+        estructurada = respuesta.get(
+            "respuesta_estructurada"
+        )
+
+        if isinstance(
+            estructurada,
+            dict,
+        ):
+
+            ejecucion = (
+                estructurada.get(
+                    "ejecucion"
+                )
+                or {}
+            )
+
+    adicionales = (
+        (
+            "tabla",
+            "Tabla",
+        ),
+        (
+            "limite_solicitado",
+            "Límite solicitado",
+        ),
+        (
+            "limite",
+            "Límite aplicado",
+        ),
+    )
+
+    for clave, etiqueta in adicionales:
+
+        valor = respuesta.get(
+            clave
+        )
+
+        if valor in (
+            None,
+            "",
+        ):
+            valor = ejecucion.get(
+                clave
+            )
+
+        if valor not in (
+            None,
+            "",
+        ):
+
             resumen.append(
                 (
                     etiqueta,
@@ -1984,8 +2260,65 @@ def vocabulario_test_json(request):
         )
 
 # ============================================================
-# HOST016 - CONSOLA DE DIAGNÓSTICO
+# IA-LLM004-D4-DIAGNOSTICO
+# CONSOLA TECNICA DEL PIPELINE FINAL
 # ============================================================
+
+
+def _buscar_clave_diagnostico(
+    objeto,
+    clave,
+):
+    """
+    Busca recursivamente una clave dentro de una traza
+    ya producida por FINAL.
+
+    No ejecuta consultas.
+    No invoca LLM.
+    No modifica el contrato.
+    """
+
+    if isinstance(
+        objeto,
+        dict,
+    ):
+
+        if clave in objeto:
+            return objeto.get(
+                clave
+            )
+
+        for valor in objeto.values():
+
+            encontrado = (
+                _buscar_clave_diagnostico(
+                    valor,
+                    clave,
+                )
+            )
+
+            if encontrado is not None:
+                return encontrado
+
+    elif isinstance(
+        objeto,
+        list,
+    ):
+
+        for valor in objeto:
+
+            encontrado = (
+                _buscar_clave_diagnostico(
+                    valor,
+                    clave,
+                )
+            )
+
+            if encontrado is not None:
+                return encontrado
+
+    return None
+
 
 @staff_member_required
 @require_http_methods(
@@ -1994,18 +2327,32 @@ def vocabulario_test_json(request):
         "POST",
     ]
 )
-def diagnostico_ia(request):
+def diagnostico_ia(
+    request,
+):
     """
-    Consola técnica de HOST016.
+    Consola técnica del pipeline FINAL.
 
-    Permite observar el pipeline completo de ia_local sin
-    introducir decisiones nuevas ni ejecutar etapas adicionales.
+    Ejecuta responder_consulta() una sola vez.
+
+    Después inspecciona exclusivamente el contrato y la
+    trazabilidad ya producidos por FINAL004 / FINAL003 / HOST.
+
+    No ejecuta una segunda consulta ORM.
     """
 
     contexto = {
-        "pregunta": "",
-        "diagnostico": None,
-        "error": None,
+        "pregunta":
+            "",
+
+        "diagnostico":
+            None,
+
+        "resultado_final":
+            None,
+
+        "error":
+            None,
     }
 
     if request.method == "POST":
@@ -2031,12 +2378,369 @@ def diagnostico_ia(request):
 
             try:
 
+                # --------------------------------------------
+                # ÚNICA EJECUCIÓN FUNCIONAL
+                # --------------------------------------------
+
+                resultado_final = (
+                    responder_consulta(
+                        pregunta
+                    )
+                )
+
+                contexto[
+                    "resultado_final"
+                ] = resultado_final
+
+                # --------------------------------------------
+                # TRAZABILIDAD FINAL
+                # --------------------------------------------
+
+                traza = (
+                    resultado_final.get(
+                        "diagnostico"
+                    )
+                    or {}
+                )
+
+                final003 = (
+                    traza.get(
+                        "final003"
+                    )
+                    or {}
+                )
+
+                ejecucion = (
+                    final003.get(
+                        "resultado"
+                    )
+                    or {}
+                )
+
+                contrato_final = (
+                    final003.get(
+                        "contrato_final"
+                    )
+                    or {}
+                )
+
+                # --------------------------------------------
+                # INTENCIÓN OPERACIONAL
+                # --------------------------------------------
+
+                intencion_operacional = (
+                    resultado_final.get(
+                        "intencion_operacional"
+                    )
+                    or final003.get(
+                        "intencion_operacional"
+                    )
+                    or {}
+                )
+
+                # --------------------------------------------
+                # CARDINALIDAD NATURAL
+                # --------------------------------------------
+
+                cardinalidad_natural = (
+                    _buscar_clave_diagnostico(
+                        traza,
+                        "cardinalidad_natural",
+                    )
+                    or {}
+                )
+
+                # --------------------------------------------
+                # CARDINALIDAD REAL DE EJECUCIÓN
+                # --------------------------------------------
+
+                limite_solicitado = (
+                    ejecucion.get(
+                        "limite_solicitado"
+                    )
+                )
+
+                limite_aplicado = (
+                    ejecucion.get(
+                        "limite"
+                    )
+                )
+
+                total_disponible = (
+                    resultado_final.get(
+                        "total_disponible"
+                    )
+                )
+
+                if total_disponible is None:
+
+                    total_disponible = (
+                        ejecucion.get(
+                            "total_disponible"
+                        )
+                    )
+
+                total_devuelto = (
+                    resultado_final.get(
+                        "total_devuelto"
+                    )
+                )
+
+                if total_devuelto is None:
+
+                    total_devuelto = (
+                        ejecucion.get(
+                            "total_devuelto"
+                        )
+                    )
+
+                truncado = (
+                    resultado_final.get(
+                        "truncado"
+                    )
+                )
+
+                if truncado is None:
+
+                    truncado = (
+                        ejecucion.get(
+                            "truncado"
+                        )
+                    )
+
+                # --------------------------------------------
+                # CONTRATO PARA diagnostico.html
+                # --------------------------------------------
+
+                diagnostico = {
+
+                    "estado": {
+                        "ok":
+                            resultado_final.get(
+                                "ok",
+                                False,
+                            ),
+
+                        "fase":
+                            resultado_final.get(
+                                "estado"
+                            ),
+
+                        "bloqueado":
+                            not bool(
+                                resultado_final.get(
+                                    "ok",
+                                    False,
+                                )
+                            ),
+
+                        "llm_invocado":
+                            bool(
+                                resultado_final.get(
+                                    "llm_invocado",
+                                    False,
+                                )
+                            ),
+                    },
+
+                    "routing": {
+                        "destino":
+                            "FINAL004",
+                    },
+
+                    "intencion": {
+                        "tipo":
+                            resultado_final.get(
+                                "intencion"
+                            ),
+
+                        "subtipo":
+                            resultado_final.get(
+                                "tipo"
+                            ),
+
+                        "accion":
+                            intencion_operacional.get(
+                                "accion_host"
+                            ),
+
+                        "origen":
+                            resultado_final.get(
+                                "componente"
+                            ),
+
+                        "confianza":
+                            None,
+
+                        "validado":
+                            bool(
+                                resultado_final.get(
+                                    "ejecutado",
+                                    False,
+                                )
+                            ),
+
+                        "razon":
+                            (
+                                "Intención operacional resuelta "
+                                "por el pipeline FINAL."
+                            ),
+                    },
+
+                    "entidad": {
+                        "inicial":
+                            resultado_final.get(
+                                "modelo"
+                            ),
+
+                        "final":
+                            resultado_final.get(
+                                "modelo"
+                            ),
+
+                        "validada":
+                            bool(
+                                resultado_final.get(
+                                    "modelo"
+                                )
+                            ),
+
+                        "resolucion_dinamica":
+                            _buscar_clave_diagnostico(
+                                traza,
+                                "resolucion_entidad",
+                            ),
+                    },
+
+                    "interpretacion":
+                        intencion_operacional,
+
+                    "validacion":
+                        contrato_final,
+
+                    "ejecucion":
+                        ejecucion,
+
+                    "estructura":
+                        contrato_final,
+
+                    "respuesta": {
+                        "texto":
+                            resultado_final.get(
+                                "respuesta"
+                            ),
+                    },
+
+                    "resultado_bruto":
+                        resultado_final,
+
+                    # ----------------------------------------
+                    # RESUMEN FINAL004
+                    # ----------------------------------------
+
+                    "final": {
+                        "version":
+                            resultado_final.get(
+                                "version"
+                            ),
+
+                        "tipo":
+                            resultado_final.get(
+                                "tipo"
+                            ),
+
+                        "modelo":
+                            resultado_final.get(
+                                "modelo"
+                            ),
+
+                        "respuesta":
+                            resultado_final.get(
+                                "respuesta"
+                            ),
+
+                        "ejecutado":
+                            resultado_final.get(
+                                "ejecutado"
+                            ),
+
+                        "llm_invocado":
+                            resultado_final.get(
+                                "llm_invocado"
+                            ),
+                    },
+
+                    # ----------------------------------------
+                    # INTENCIÓN OPERACIONAL
+                    # ----------------------------------------
+
+                    "operacional": {
+                        "intencion":
+                            intencion_operacional.get(
+                                "intencion"
+                            ),
+
+                        "accion_host":
+                            intencion_operacional.get(
+                                "accion_host"
+                            ),
+
+                        "detectada":
+                            intencion_operacional.get(
+                                "detectada"
+                            ),
+
+                        "llm_invocado":
+                            intencion_operacional.get(
+                                "llm_invocado"
+                            ),
+                    },
+
+                    # ----------------------------------------
+                    # CARDINALIDAD
+                    # ----------------------------------------
+
+                    "cardinalidad": {
+                        "cantidad_solicitada":
+                            cardinalidad_natural.get(
+                                "cantidad_solicitada"
+                            ),
+
+                        "totalidad_solicitada":
+                            cardinalidad_natural.get(
+                                "totalidad_solicitada"
+                            ),
+
+                        "origen":
+                            cardinalidad_natural.get(
+                                "origen"
+                            ),
+
+                        "limitada_por_politica":
+                            cardinalidad_natural.get(
+                                "limitada_por_politica"
+                            ),
+
+                        "limite_solicitado":
+                            limite_solicitado,
+
+                        "limite_aplicado":
+                            limite_aplicado,
+
+                        "total_disponible":
+                            total_disponible,
+
+                        "total_devuelto":
+                            total_devuelto,
+
+                        "truncado":
+                            truncado,
+                    },
+                }
+
                 contexto[
                     "diagnostico"
-                ] = diagnosticar_pregunta(
-                    pregunta,
-                    profundidad=3,
-                )
+                ] = diagnostico
 
             except Exception as exc:
 

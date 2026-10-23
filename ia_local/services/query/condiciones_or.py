@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
 import re
 from typing import Any
 
@@ -366,7 +368,7 @@ def _normalizar_condicion_relativa(
 
 def componer_condiciones_or(
     pregunta: str,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     IA-QUERY002.

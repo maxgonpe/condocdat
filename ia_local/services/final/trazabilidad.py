@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+)
+
 from typing import Any
 
 from ia_local.models import (
@@ -178,7 +184,7 @@ def registrar_traza_consulta(
 
 def listar_trazas_recientes(
     *,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> list[dict[str, Any]]:
 
     try:
@@ -189,7 +195,7 @@ def listar_trazas_recientes(
         TypeError,
         ValueError,
     ):
-        limite = 20
+        limite = LIMITE_MUESTRA_PREDETERMINADO
 
     limite = max(
         1,

@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+)
+
+
 from typing import Any
 
 from .respuesta_compacta import (
@@ -9,13 +14,12 @@ from .respuesta_compacta import (
 
 VERSION = "IA-BRIDGE008-v1"
 
-LIMITE_PREDETERMINADO = 20
 
 
 def consultar(
     pregunta: str,
     *,
-    limite: int | None = LIMITE_PREDETERMINADO,
+    limite: int | None = LIMITE_MUESTRA_PREDETERMINADO,
     diagnostico: bool = False,
 ) -> dict[str, Any]:
     """

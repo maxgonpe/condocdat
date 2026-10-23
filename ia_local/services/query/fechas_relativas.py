@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
 import calendar
 import re
 import unicodedata
@@ -657,7 +659,7 @@ def _extraer_componentes(
 def componer_fechas_relativas(
     pregunta: str,
     *,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
     fecha_referencia: date | None = None,
 ) -> dict[str, Any]:
     """

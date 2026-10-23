@@ -72,9 +72,20 @@ def _respuesta_lista(
     modelo: str | None,
 ) -> dict[str, Any]:
 
-    total = resultado_host.get(
+    total_disponible = resultado_host.get(
+        "total_disponible"
+    )
+
+    total_devuelto = resultado_host.get(
         "total_devuelto",
         0,
+    )
+
+    truncado = bool(
+        resultado_host.get(
+            "truncado",
+            False,
+        )
     )
 
     registros = resultado_host.get(
@@ -88,29 +99,166 @@ def _respuesta_lista(
     )
 
     if not isinstance(
-        total,
+        total_disponible,
         int,
     ):
+        total_disponible = total_devuelto
 
-        total = 0
+    if not isinstance(
+        total_devuelto,
+        int,
+    ):
+        total_devuelto = 0
 
     if not isinstance(
         registros,
         list,
     ):
-
         registros = []
 
     if not isinstance(
         campos,
         list,
     ):
-
         campos = []
 
     nombre = _nombre_modelo(
         modelo
     )
+
+    if total_disponible == 0:
+
+        mensaje = (
+            f"No se encontraron registros "
+            f"de {nombre} para la consulta."
+        )
+
+    elif total_disponible == 1:
+
+        mensaje = (
+            f"Se encontró 1 registro "
+            f"de {nombre}."
+        )
+
+    else:
+
+        mensaje = (
+            f"Se encontraron "
+            f"{total_disponible} registros "
+            f"de {nombre}."
+        )
+
+    if (
+        truncado
+        and total_devuelto > 0
+    ):
+
+        mensaje += (
+            f" Mostrando "
+            f"{total_devuelto}."
+        )
+
+    return {
+        "tipo":
+            "lista",
+
+        "respuesta":
+            mensaje,
+
+        "total":
+            total_disponible,
+
+        "total_disponible":
+            total_disponible,
+
+        "total_devuelto":
+            total_devuelto,
+
+        "truncado":
+            truncado,
+
+        "registros":
+            registros,
+
+        "campos":
+            campos,
+    }
+
+
+def _respuesta_conteo_host(
+    resultado_host: dict[str, Any],
+    *,
+    modelo: str | None,
+    intencion_operacional: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+
+    total = resultado_host.get(
+        "total"
+    )
+
+    nombre = _nombre_modelo(
+        modelo
+    )
+
+    intencion_natural = ""
+
+    if isinstance(
+        intencion_operacional,
+        dict,
+    ):
+
+        intencion_natural = _texto(
+            intencion_operacional.get(
+                "intencion"
+            )
+        )
+
+    if not isinstance(
+        total,
+        int,
+    ):
+
+        return {
+            "tipo": "conteo",
+            "respuesta": (
+                "El conteo fue ejecutado, "
+                "pero no devolvió un total válido."
+            ),
+            "total": None,
+            "registros": [],
+            "campos": [],
+        }
+
+    if intencion_natural == "existencia":
+
+        if total == 0:
+
+            mensaje = (
+                f"No. No existe ningún registro "
+                f"de {nombre} que cumpla la consulta."
+            )
+
+        elif total == 1:
+
+            mensaje = (
+                f"Sí. Existe 1 registro "
+                f"de {nombre} que cumple la consulta."
+            )
+
+        else:
+
+            mensaje = (
+                f"Sí. Existen {total} registros "
+                f"de {nombre} que cumplen la consulta."
+            )
+
+        return {
+            "tipo": "existencia",
+            "respuesta": mensaje,
+            "total": total,
+            "registros": [],
+            "campos": [],
+        }
 
     if total == 0:
 
@@ -134,21 +282,13 @@ def _respuesta_lista(
         )
 
     return {
-        "tipo":
-            "lista",
-
-        "respuesta":
-            mensaje,
-
-        "total":
-            total,
-
-        "registros":
-            registros,
-
-        "campos":
-            campos,
+        "tipo": "conteo",
+        "respuesta": mensaje,
+        "total": total,
+        "registros": [],
+        "campos": [],
     }
+
 
 
 def _respuesta_conteo_relacional(
@@ -321,6 +461,8 @@ def _respuesta_error(
 
 def responder_consulta(
     pregunta: str,
+    *,
+    entidad_aclarada: str | None = None,
 ) -> dict[str, Any]:
 
     pregunta = _texto(
@@ -328,7 +470,8 @@ def responder_consulta(
     )
 
     ejecucion = ejecutar_consulta(
-        pregunta
+        pregunta,
+        entidad_aclarada=entidad_aclarada,
     )
 
     # --------------------------------------------------------
@@ -395,7 +538,11 @@ def responder_consulta(
                 False,
 
             "llm_invocado":
-                False,
+                bool(
+                    ejecucion.get(
+                        "llm_invocado"
+                    )
+                ),
 
             "diagnostico": {
                 "final003":
@@ -467,7 +614,11 @@ def responder_consulta(
                 ),
 
             "llm_invocado":
-                False,
+                bool(
+                    ejecucion.get(
+                        "llm_invocado"
+                    )
+                ),
 
             "diagnostico": {
                 "final003":
@@ -503,12 +654,34 @@ def responder_consulta(
         == "plan_host"
     ):
 
-        publico = _respuesta_lista(
-            resultado_host,
-            modelo=ejecucion.get(
-                "modelo"
-            ),
+        operacion_host = _texto(
+            resultado_host.get(
+                "operacion"
+            )
         )
+
+        if operacion_host == "contar":
+
+            publico = _respuesta_conteo_host(
+                resultado_host,
+                modelo=ejecucion.get(
+                    "modelo"
+                ),
+                intencion_operacional=(
+                    ejecucion.get(
+                        "intencion_operacional"
+                    )
+                ),
+            )
+
+        else:
+
+            publico = _respuesta_lista(
+                resultado_host,
+                modelo=ejecucion.get(
+                    "modelo"
+                ),
+            )
 
     # --------------------------------------------------------
     # PLAN UNIFICADO / RELACIÓN
@@ -575,6 +748,21 @@ def responder_consulta(
                 "total"
             ),
 
+        "total_disponible":
+            publico.get(
+                "total_disponible"
+            ),
+
+        "total_devuelto":
+            publico.get(
+                "total_devuelto"
+            ),
+
+        "truncado":
+            publico.get(
+                "truncado"
+            ),
+
         "registros":
             publico.get(
                 "registros",
@@ -595,6 +783,11 @@ def responder_consulta(
         "intencion":
             ejecucion.get(
                 "intencion"
+            ),
+
+        "intencion_operacional":
+            ejecucion.get(
+                "intencion_operacional"
             ),
 
         "modelo":
@@ -624,7 +817,11 @@ def responder_consulta(
             ),
 
         "llm_invocado":
-            False,
+            bool(
+                ejecucion.get(
+                    "llm_invocado"
+                )
+            ),
 
         # ----------------------------------------------------
         # El frontend normal no necesita leer diagnóstico.

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import LIMITE_MUESTRA_PREDETERMINADO
+
 import re
 import unicodedata
 from typing import Any
@@ -288,7 +290,7 @@ def _extraer_plan_bridge(
 def componer_consulta_relacional(
     pregunta: str,
     *,
-    limite: int = 20,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
 
     pregunta = _texto(

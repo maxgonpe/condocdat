@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+)
+
+
 from typing import Any
 
 from ia_local.services.host.validador_plan_datos import (
@@ -17,7 +22,6 @@ from ia_local.services.semantica.politica_prioridad import (
 
 VERSION = "IA-BRIDGE002-v1"
 
-LIMITE_PREDETERMINADO = 20
 MAX_PALABRAS_COMPONENTE = 6
 
 
@@ -840,7 +844,7 @@ def _validar_campos_aislados(
 def componer_sem_a_host(
     expresion: str,
     *,
-    limite: int | None = LIMITE_PREDETERMINADO,
+    limite: int | None = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     IA-BRIDGE002.

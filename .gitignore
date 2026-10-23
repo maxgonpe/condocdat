@@ -20,3 +20,17 @@ condocdat/settings*.py
 scripts/condocdat_db_sync.env
 scripts/*.pgdump
 backups_ia/
+
+# Respaldos y residuos de desarrollo
+*.bak
+*.bak-*
+*:Zone.Identifier
+__pycache__/
+*.py[cod]
+
+# Instaladores históricos de IA
+/instalar_IA*.py
+/corregir_IA*.py
+
+# Artefactos generados
+/dist_ia_local/

@@ -6,6 +6,10 @@ from ia_local.services.final.orquestador_consultas import (
     resolver_consulta,
 )
 
+from ia_local.services.llm.planificador_controlado import (
+    construir_plan_llm,
+)
+
 
 # ============================================================
 # IA-FINAL002
@@ -469,23 +473,149 @@ def _ejecutor_sugerido(
 
 def construir_contrato_respuesta(
     pregunta: str,
+    *,
+    entidad_aclarada: str | None = None,
 ) -> dict[str, Any]:
 
     pregunta = _texto(
         pregunta
     )
 
-    final001 = resolver_consulta(
-        pregunta
+    final001 = (
+        resolver_consulta(pregunta)
+        if entidad_aclarada is None
+        else {
+            "ok": False,
+            "estado": "entidad_aclarada_certificada",
+            "pregunta": pregunta,
+            "intencion": None,
+        }
     )
 
     if not final001.get(
         "ok"
     ):
 
+        # ----------------------------------------------------
+        # IA-LLM002
+        # FALLBACK CONTROLADO
+        #
+        # FINAL001 permanece completamente determinista.
+        #
+        # Sólo cuando FINAL001 no puede resolver la consulta
+        # intentamos IA-LLM001.
+        #
+        # IA-LLM001 puede usar Qwen, pero devuelve únicamente
+        # un plan ya certificado por HOST y NO ejecutado.
+        # ----------------------------------------------------
+
+        try:
+
+            fallback_llm = construir_plan_llm(
+                pregunta,
+                entidad_aclarada=entidad_aclarada,
+            )
+
+        except Exception as exc:
+
+            fallback_llm = {
+                "ok":
+                    False,
+
+                "version":
+                    "IA-LLM001-v1",
+
+                "estado":
+                    "fallback_excepcion_controlada",
+
+                "pregunta":
+                    pregunta,
+
+                "plan_validado":
+                    False,
+
+                "ejecutable":
+                    False,
+
+                "ejecutado":
+                    False,
+
+                "llm_invocado":
+                    True,
+
+                "plan":
+                    None,
+
+                "razon":
+                    str(
+                        exc
+                    ),
+            }
+
+        if (
+            isinstance(
+                fallback_llm,
+                dict,
+            )
+            and fallback_llm.get(
+                "ok"
+            )
+            is True
+            and fallback_llm.get(
+                "plan_validado"
+            )
+            is True
+        ):
+
+            plan_llm = fallback_llm.get(
+                "plan"
+            )
+
+            modelo_llm = fallback_llm.get(
+                "modelo"
+            )
+
+            if isinstance(
+                plan_llm,
+                dict,
+            ):
+
+                return {
+                    "ok": False,
+                    "version": VERSION,
+                    "estado": "consulta_llm_pendiente_cobertura",
+                    "pregunta": pregunta,
+                    "resuelto": False,
+                    "componente": "IA-LLM001",
+                    "modelo": modelo_llm,
+                    "tipo_contrato": None,
+                    "contrato": None,
+                    "ejecutable": False,
+                    "ejecutor_sugerido": None,
+                    "ejecutado": False,
+                    "llm_invocado": bool(fallback_llm.get("llm_invocado")),
+                    "diagnostico": {
+                        "final001": final001,
+                        "fallback_llm": fallback_llm,
+                    },
+                    "razon": (
+                        "HOST validó la estructura, pero LLM008 todavía "
+                        "no certificó la cobertura semántica integral."
+                    ),
+                }
+
+        # ----------------------------------------------------
+        # Si tampoco el fallback puede producir un plan HOST
+        # certificado, mantenemos el comportamiento fail-closed
+        # anterior.
+        # ----------------------------------------------------
+
         return {
-            "ok": False,
-            "version": VERSION,
+            "ok":
+                False,
+
+            "version":
+                VERSION,
 
             "estado":
                 "consulta_no_normalizada",
@@ -530,13 +660,24 @@ def construir_contrato_respuesta(
             "diagnostico": {
                 "final001":
                     final001,
+
+                "fallback_llm":
+                    fallback_llm,
             },
 
             "ejecutado":
                 False,
 
             "llm_invocado":
-                False,
+                bool(
+                    isinstance(
+                        fallback_llm,
+                        dict,
+                    )
+                    and fallback_llm.get(
+                        "llm_invocado"
+                    )
+                ),
         }
 
     resultado = final001.get(

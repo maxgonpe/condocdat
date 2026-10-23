@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+)
+
+
 from typing import Any
 
 from ia_local.services.host.validador_plan_datos import (
@@ -13,7 +18,6 @@ from ia_local.services.semantica.politica_prioridad import (
 
 VERSION = "IA-BRIDGE001-v1"
 
-LIMITE_PREDETERMINADO = 20
 
 
 # ============================================================
@@ -68,7 +72,7 @@ def _construir_filtros_desde_condiciones(
 def _construir_propuesta_host(
     resultado_sem: dict[str, Any],
     *,
-    limite: int | None = LIMITE_PREDETERMINADO,
+    limite: int | None = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     Convierte una regla declarativa SEM005 en
@@ -124,7 +128,7 @@ def adaptar_sem_a_host(
     *,
     modelo_contexto: str | None = None,
     campo_contexto: str | None = None,
-    limite: int | None = LIMITE_PREDETERMINADO,
+    limite: int | None = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     IA-BRIDGE001.

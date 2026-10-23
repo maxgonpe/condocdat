@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from ia_local.config.cardinalidad import (
+    LIMITE_MUESTRA_PREDETERMINADO,
+)
+
+
 import re
 from typing import Any, Callable
 
@@ -14,7 +19,6 @@ from ia_local.services.bridge import (
 
 VERSION = "IA-QUERY001-v1"
 
-LIMITE_PREDETERMINADO = 20
 
 
 # ============================================================
@@ -665,7 +669,7 @@ def _pregunta_para_condicion(
 def construir_plan_and(
     pregunta: str,
     *,
-    limite: int = LIMITE_PREDETERMINADO,
+    limite: int = LIMITE_MUESTRA_PREDETERMINADO,
 ) -> dict[str, Any]:
     """
     Construye un único plan AND a partir de varias
