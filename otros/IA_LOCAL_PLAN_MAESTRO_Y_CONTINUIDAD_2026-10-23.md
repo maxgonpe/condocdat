@@ -641,3 +641,49 @@ Fecha: 23 de octubre de 2026.
 ### Próxima etapa
 ARC002-C: contrato universal de composición AND/OR/NOT,
 reutilizando los componentes QUERY y trazabilidad existentes.
+
+## ARC002-C02 A C04-B — NOT SINTACTICO Y PREVALIDACION
+
+Fecha de referencia: 23 de octubre de 2026.
+
+### Validación
+- Suite general ia_local: 108/108 pruebas aprobadas.
+- Django system check: sin errores.
+- git diff --check: sin observaciones.
+
+### ARC002-C02
+- El AST existente de QUERY003 reconoce NOT explícito unario.
+- Conserva grupos AND/OR y anidamiento.
+- No traduce NOT automáticamente a ORM.
+
+### ARC002-C03
+- Se rechazan sintaxis NOT incompletas o mal formadas
+  en los casos cubiertos por las pruebas.
+- Se impide que NOT no reconocido avance como una
+  condición ordinaria hacia BRIDGE003.
+
+### ARC002-C04-A
+- Prevalidación de la estructura completa antes de
+  resolver las hojas.
+- El rechazo de NOT no depende del orden de las ramas.
+
+### ARC002-C04-B
+- Pruebas de grupos anidados, operadores desconocidos,
+  aridad inválida, ciclos y profundidad excesiva.
+- Rechazo estructural antes de llamadas a BRIDGE003.
+
+### Limitaciones
+- El soporte de NOT es sintáctico, no funcional.
+- No existe certificación del alcance semántico de NOT.
+- No se certifica equivalencia entre lenguaje natural
+  y árbol lógico.
+- No se habilita ejecución ORM ni se modifica C05.
+- Las 108 pruebas no constituyen certificación integral
+  de todos los posibles árboles y expresiones.
+
+### Próximo trabajo
+- ARC002-C05: salida diagnóstica del AST sin resolver
+  filtros ni invocar BRIDGE003.
+- Vincular posteriormente nodos negativos con evidencias
+  textuales originales y sus identificadores.
+- Mantener SEM-NEG-001 como regresión obligatoria.

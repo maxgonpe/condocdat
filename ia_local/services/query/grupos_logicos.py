@@ -604,6 +604,51 @@ def _construir_ast_sintactico(
     )
 
     if not operadores:
+        # ARC002-C02: NOT unario explicito.
+        # Solo se acepta NOT seguido de una expresion
+        # entre parentesis. No se infiere negacion natural.
+        import re
+
+        coincidencia = re.fullmatch(
+            r"NOT\s*\((.*)\)",
+            expresion,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+
+        # ARC002-C03: fail-closed para NOT explicito.
+        # Una sintaxis negativa incompleta nunca debe
+        # convertirse en una condicion ordinaria HOST.
+        if re.match(
+            r"NOT\b",
+            expresion,
+            flags=re.IGNORECASE,
+        ):
+            _validar_balance_general(expresion)
+
+            if coincidencia is None:
+                raise ErrorSintaxisLogica(
+                    "not_sintaxis_invalida",
+                    "NOT requiere una expresion entre parentesis.",
+                )
+
+        if coincidencia:
+            interior = coincidencia.group(1).strip()
+            if not interior:
+                raise ErrorSintaxisLogica(
+                    "not_sin_condicion",
+                    "NOT requiere una condicion.",
+                )
+
+            _validar_balance_general(interior)
+
+            return {
+                "tipo": "GRUPO",
+                "operador": "NOT",
+                "hijos": [
+                    _construir_ast_sintactico(interior)
+                ],
+            }
+
         return {
             "tipo": "CONDICION",
             "texto": expresion.strip(),
@@ -649,10 +694,84 @@ def _resolver_ast(
     certificadas por BRIDGE003/HOST.
     """
 
+    # ARC002-C04: prevalidar todo el AST antes de
+    # cualquier llamada a BRIDGE003/HOST.
+    #
+    # NOT sigue siendo sintacticamente representable,
+    # pero no puede entrar al resolvedor funcional.
+    def validar_estructura(actual, profundidad=0, vistos=None):
+        if vistos is None:
+            vistos = set()
+
+        if (
+            profundidad > 64
+            or not isinstance(actual, dict)
+            or id(actual) in vistos
+        ):
+            raise ErrorSintaxisLogica(
+                "arbol_logico_invalido",
+                "Estructura logica invalida.",
+            )
+
+        vistos.add(id(actual))
+
+        tipo_actual = actual.get("tipo")
+
+        if tipo_actual == "CONDICION":
+            texto = actual.get("texto")
+            if not isinstance(texto, str) or not texto.strip():
+                raise ErrorSintaxisLogica(
+                    "condicion_vacia",
+                    "La condicion no contiene texto valido.",
+                )
+            return
+
+        if tipo_actual != "GRUPO":
+            raise ErrorSintaxisLogica(
+                "nodo_logico_invalido",
+                "Nodo logico desconocido.",
+            )
+
+        operador_actual = actual.get("operador")
+        hijos_actuales = actual.get("hijos")
+
+        if operador_actual == "NOT":
+            raise ErrorSintaxisLogica(
+                "operador_no_resuelto",
+                "NOT requiere certificacion semantica.",
+            )
+
+        if (
+            operador_actual not in ("AND", "OR")
+            or not isinstance(hijos_actuales, list)
+            or len(hijos_actuales) < 2
+        ):
+            raise ErrorSintaxisLogica(
+                "grupo_logico_invalido",
+                "Grupo logico no valido.",
+            )
+
+        for hijo_actual in hijos_actuales:
+            validar_estructura(
+                hijo_actual,
+                profundidad + 1,
+                vistos,
+            )
+
+    validar_estructura(nodo)
+
     tipo = nodo.get("tipo")
 
     if tipo == "GRUPO":
         operador = nodo.get("operador")
+
+        # ARC002-C02: proteger BRIDGE/HOST.
+        # NOT esta representado, pero no certificado.
+        if operador not in ("AND", "OR"):
+            raise ErrorSintaxisLogica(
+                "operador_no_resuelto",
+                "El operador logico requiere certificacion.",
+            )
 
         hijos_resueltos = []
 
