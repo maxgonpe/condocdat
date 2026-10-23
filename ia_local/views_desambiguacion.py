@@ -2,6 +2,8 @@
 
 Las consultas ordinarias conservan su vista y contrato FINAL004.
 """
+
+from django.contrib.admin.views.decorators import staff_member_required
 import hmac
 import secrets
 import time
@@ -43,6 +45,7 @@ def _rechazo(estado, mensaje):
     })
 
 
+@staff_member_required
 @require_POST
 def consultar_con_aclaracion(request):
     """Un solo endpoint para pregunta y continuación de aclaración."""

@@ -268,10 +268,10 @@ def consulta_ia(request):
 
             try:
 
-                salida = (
-                    _ejecutar_consulta_ia(
-                        pregunta
-                    )
+                from ia_local.services.final.adaptador_html_arc001 import adaptar_final_html
+
+                salida = adaptar_final_html(
+                    responder_consulta(pregunta)
                 )
 
                 contexto[
