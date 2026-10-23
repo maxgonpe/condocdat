@@ -555,3 +555,51 @@ Comenzar ARC002-A: inventario y formalización del
 contrato semántico universal, reutilizando los componentes
 de extracción, consolidación, cobertura y trazabilidad
 ya existentes.
+
+## ARC002 — AVANCE B01 A B03-B02
+
+Fecha: 23 de octubre de 2026.
+
+### Validación
+- Suite general ia_local: 76/76 pruebas aprobadas.
+- Django check: sin errores.
+- git diff --check: sin observaciones.
+
+### ARC002-B01
+- Las restricciones vacías no demuestran integridad semántica.
+- Se introduce revisión pendiente en la consolidación.
+- No se modifica la ejecución funcional.
+
+### ARC002-B02
+- Se reutilizan los identificadores de trazabilidad existentes.
+- Se introduce diagnóstico estructural de integridad.
+- La colección no queda certificada automáticamente.
+
+### ARC002-B03-A
+- Se detectan señales de negación textual.
+- La presencia de filtros no certifica su representación.
+
+### ARC002-B03-B01
+- Se conservan marcadores negativos, posiciones originales
+  y fragmentos contextuales.
+- El contexto próximo no equivale al alcance lógico.
+
+### ARC002-B03-B02
+- Las evidencias negativas se incorporan al diagnóstico
+  de cobertura semántica.
+- Se conservan los códigos y claves históricos.
+- Ante fallos de localización se registra un pendiente.
+
+### Limitaciones y seguridad
+- No existe todavía certificación del alcance de NOT.
+- No hay prueba de integridad semántica completa.
+- Los identificadores estructurales no demuestran fidelidad.
+- No se ha implementado autorización nueva de ejecución.
+- HOST, FINAL y C05 permanecen sin intervención directa
+  durante ARC002-B01 a B03-B02.
+
+### Próximos pasos
+- ARC002-B03-C: asociación verificable entre evidencias
+  textuales e identificadores de requisitos.
+- ARC002-C: estructura universal AND/OR/NOT.
+- Mantener SEM-NEG-001 como regresión obligatoria.

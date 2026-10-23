@@ -157,8 +157,19 @@ def consolidar_interpretacion_semantica(
         "cantidad_restricciones": len(consolidadas),
         "restricciones_pendientes_host": sorted(tipos),
         "omisiones_conocidas": no_representadas,
+        # ARC002-B01:
+        # Una lista vacia de restricciones no demuestra
+        # que la pregunta original carezca de filtros.
+        #
+        # Este indicador es diagnostico. No certifica
+        # extracciones no vacias ni autoriza ejecucion.
+        "restricciones_vacias_pendientes": not bool(
+            consolidadas
+        ),
         "requiere_revision": bool(
-            consolidadas or no_representadas
+            consolidadas
+            or no_representadas
+            or not consolidadas
         ),
         "llm_invocado": True,
     }

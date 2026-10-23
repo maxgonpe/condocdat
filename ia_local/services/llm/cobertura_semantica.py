@@ -87,6 +87,13 @@ def evaluar_cobertura_semantica(
 
     # Señales lingüísticas: útiles para rechazar,
     # nunca suficientes para certificar.
+    # ARC002-B03: detectar negaciones textuales como riesgo.
+    # No se infiere el campo, valor ni operador Django.
+    hay_negacion = _contiene(
+        texto,
+        r"\b(?:no|sin|ningun\w*|nunca|jamas)\b"
+    )
+
     hay_or = _contiene(texto, r"\bo\b|\bu\b")
     hay_and = _contiene(texto, r"\by\b|\be\b")
 
@@ -112,6 +119,11 @@ def evaluar_cobertura_semantica(
         r for r in restricciones
         if _normalizar(r.get("tipo")) == "filtro"
     ]
+
+    if hay_negacion:
+        señales.append("posible_negacion")
+        registrar("negacion_no_certificada")
+        registrar("alcance_negacion_no_certificado")
 
     if hay_or:
         señales.append("posible_operador_or")
@@ -150,6 +162,41 @@ def evaluar_cobertura_semantica(
 
         registrar("valor_limite_no_certificado")
 
+    # ARC002-B03-B02: evidencias textuales originales.
+    # No son filtros ni prueban alcance semantico.
+    evidencias_negacion = []
+    try:
+        from ia_local.services.llm.evidencia_negacion import (
+            localizar_evidencias_negacion,
+        )
+        diagnostico_negacion = localizar_evidencias_negacion(
+            pregunta
+        )
+        if (
+            not isinstance(diagnostico_negacion, dict)
+            or diagnostico_negacion.get("ok") is not True
+            or not isinstance(
+                diagnostico_negacion.get("evidencias"), list
+            )
+        ):
+            registrar("evidencia_negacion_no_disponible")
+        else:
+            evidencias_negacion = diagnostico_negacion["evidencias"]
+
+            # Mantener la cobertura conservadora si los
+            # localizadores discrepan sobre una negacion.
+            if evidencias_negacion:
+                if "posible_negacion" not in señales:
+                    señales.append("posible_negacion")
+                registrar("negacion_no_certificada")
+                registrar("alcance_negacion_no_certificado")
+
+            if hay_negacion and not evidencias_negacion:
+                registrar("evidencia_negacion_no_disponible")
+
+    except Exception:
+        registrar("evidencia_negacion_no_disponible")
+
     # Cobertura de todos los fragmentos y equivalencia
     # con el plan ejecutable: trabajo del certificador integral.
     registrar("certificacion_integral_no_disponible")
@@ -163,6 +210,7 @@ def evaluar_cobertura_semantica(
         "total_restricciones": len(restricciones),
         "tipos_extraidos": sorted(tipos),
         "senales_detectadas": señales,
+        "evidencias_negacion": evidencias_negacion,
         "componentes_pendientes": pendientes,
         "cobertura_verificada": False,
         "ejecutable": False,
