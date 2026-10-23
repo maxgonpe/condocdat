@@ -423,3 +423,135 @@ Una pregunta natural, con sus condiciones completas, debe:
 > Estoy continuando `ia_local`, una app Django portable con HOST, BRIDGE, QUERY, FINAL y Qwen/Ollama. Adjunto el dosier maestro fechado 2026-10-23 y, si están disponibles, los ZIP `ia_local-anterior.zip` y `ia_local-actual.zip`. Lee el dosier completo; se aprobaron las especificaciones ARC001–ARC006 pero todavía **no se implementaron**. Se comprobaron 15/15 QUERY, 11/11 FINAL, 8/8 cobertura y D06-C4 10/10 de conteo simple. La barrera C05 bloquea fallback LLM sin certificación; no la elimines globalmente. Hay divergencia de entradas visuales y la ruta certificada está desconectada de FINAL. Quiero comenzar **ARC001-A** con un inventario verificable de URLs/vistas y el recorrido común de `/ia/index/` y `/ia/diagnostico/`, preservando código existente y evitando lógica específica de Condocdat. Las preguntas H01–H13 constituyen nuestra batería histórica. Confirma Git antes de modificar y dame un plan de intervención pequeño, comprobable y sin rutas paralelas.
 
 *Fin del documento. Este archivo es un registro de decisiones y evidencia, no una afirmación de que todas las specs estén ya implementadas.*
+
+---
+
+## ACTUALIZACION ARC001 — IMPLEMENTACION VALIDADA
+
+Fecha de referencia: 23 de octubre de 2026.
+
+### Objetivo alcanzado
+
+Se estableció una infraestructura de entrada canónica,
+preparación HOST y auditoría semántica preventiva.
+
+Las principales entradas HTTP fueron orientadas hacia
+el procesamiento FINAL existente, eliminando la llamada
+HOST directa desde la vista principal `/ia/`.
+
+### Componentes incorporados
+
+- ARC001-B01: contrato de entrada canónica.
+- ARC001-B02: preparador de consultas HOST.
+- ARC001-B03: integración del preparador.
+- ARC001-B04: prueba real de interpretación mediante Qwen.
+- ARC001-C01: detección de pérdida semántica.
+- ARC001-C02: auditoría preventiva reutilizable.
+- ARC001-C03: integración de auditoría en entrada canónica.
+- ARC001-C04-A: protección staff en aclaraciones.
+- ARC001-C04-B: adaptación HTML del resultado FINAL.
+- ARC001-C04-C: regresiones de vistas y aclaraciones.
+- ARC001-D: suite general de ia_local validada.
+
+### Archivos principales
+
+- ia_local/services/entrada_canonica.py
+- ia_local/services/host/preparador_consulta_datos.py
+- ia_local/services/llm/auditor_preparacion.py
+- ia_local/services/final/adaptador_html_arc001.py
+- ia_local/views.py
+- ia_local/views_desambiguacion.py
+- ia_local/tests/test_arc001_*.py
+
+### Validaciones realizadas
+
+- 44 pruebas específicas ARC001 aprobadas.
+- 52 pruebas generales de ia_local aprobadas.
+- Django system check sin errores.
+- git diff --check sin observaciones.
+- Prueba real del preparador con Qwen y catálogo HOST.
+
+### Caso SEM-NEG-001
+
+Pregunta A:
+¿Cuántas RDI de civil están abiertas?
+
+Plan observado:
+- Modelo: rdi.RDIRecord
+- Operación: contar
+- status = ABIERTA
+- discipline contiene civil
+
+Pregunta B:
+¿Hay alguna RDI de civil que no esté cerrada?
+
+Plan incorrecto observado:
+- Modelo: rdi.RDIRecord
+- Operación: contar
+- status = ABIERTA
+- discipline contiene civil
+
+Problema:
+La pregunta B expresa negación de estado cerrado,
+pero Qwen produjo una condición afirmativa de abierto.
+
+No debe asumirse que no cerrado equivale a abierto
+sin evidencia válida del dominio.
+
+El auditor preventivo detectó la ausencia de negación
+y mantuvo bloqueada la ejecución.
+
+### Decisiones arquitectónicas
+
+1. Conservar HOST, BRIDGE, QUERY, LLM y FINAL.
+2. Evitar crear intérpretes paralelos.
+3. Mantener C05 hasta disponer de certificación integral.
+4. Diferenciar preparación, auditoría, certificación,
+   autorización y ejecución.
+5. Ningún plan preparado constituye autorización.
+6. La entrada canónica todavía no ejecuta consultas.
+7. Las vistas actuales comparten FINAL en los recorridos
+   auditados, pero la incorporación definitiva de la
+   entrada canónica a la ejecución sigue pendiente.
+8. Las aclaraciones deben conservar identidad, sesión,
+   token, vencimiento y controles de acceso.
+9. Los modelos y reglas de Condocdat no deben codificarse
+   específicamente dentro del núcleo portable ia_local.
+
+### Limitaciones conocidas
+
+- La prueba real de Qwen confirmó un caso concreto.
+- Las pruebas HTTP utilizaron principalmente simulaciones.
+- No se ha demostrado paridad extremo a extremo con
+  middleware, usuarios y sesiones reales.
+- Los permisos de negocio y el expediente D06 todavía
+  no están integrados en la entrada ejecutable común.
+- El auditor preventivo no certifica cobertura integral.
+- La suite de Django no garantiza que todos los scripts
+  históricos independientes hayan sido ejecutados.
+- La función HOST histórica permanece disponible para
+  compatibilidad; revisar cualquier consumidor futuro.
+
+### Estado de las siguientes fases
+
+ARC002: contrato semántico universal — pendiente.
+ARC003: certificación semántica integral — pendiente.
+ARC004: autorización y ejecución FINAL única — pendiente.
+ARC005: regresión histórica extremo a extremo — pendiente.
+ARC006: portabilidad a segundo proyecto Django — pendiente.
+
+### Regla de continuidad
+
+No autorizar consultas porque Qwen devuelva un plan
+estructuralmente válido o una lista vacía de condiciones
+no resueltas.
+
+Toda condición original debe conservarse y verificarse
+antes de ejecutar el ORM.
+
+### Próximo punto de trabajo
+
+Comenzar ARC002-A: inventario y formalización del
+contrato semántico universal, reutilizando los componentes
+de extracción, consolidación, cobertura y trazabilidad
+ya existentes.
