@@ -687,3 +687,33 @@ Fecha de referencia: 23 de octubre de 2026.
 - Vincular posteriormente nodos negativos con evidencias
   textuales originales y sus identificadores.
 - Mantener SEM-NEG-001 como regresión obligatoria.
+
+## ARC002-C06 — Trazabilidad sintactica de NOT
+
+### Validación
+- Suite general ia_local: 129/129 pruebas aprobadas.
+- Django check: sin errores.
+- git diff --check: sin observaciones.
+
+### Implementado
+- Localización de operadores NOT explícitos.
+- Rutas de nodos dentro del AST.
+- Posiciones originales de fragmentos.
+- Conservación del subárbol afectado.
+- Exclusión de NOT dentro de cadenas entrecomilladas.
+- Pruebas de negaciones anidadas, repetidas y combinadas.
+
+### Restricciones
+- Asociaciones sintácticas, no certificación semántica.
+- El emparejamiento actual depende del orden de recorrido.
+- No está demostrada la correspondencia estructural general.
+- No se autoriza ejecución de NOT.
+- HOST, FINAL y C05 permanecen sin cambios.
+
+### Pendiente
+- Sustituir el emparejamiento por orden por una
+  correspondencia estructural verificable.
+- Validar casos adversariales de procedencia.
+- Relacionar los operadores con las evidencias
+  semánticas originales.
+- Conservar SEM-NEG-001 como regresión.
