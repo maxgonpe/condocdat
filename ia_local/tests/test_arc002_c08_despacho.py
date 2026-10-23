@@ -81,7 +81,11 @@ class TestARC002C08Despacho(TestCase):
 
         # Caracterizacion del comportamiento actual:
         # no constituye aprobacion de la politica.
-        despacho.assert_called_once_with(contrato)
+        despacho.assert_not_called()
+        self.assertEqual(
+            resultado["estado"],
+            "revision_semantica_negativa_pendiente",
+        )
         self.assertFalse(resultado["ejecutado"])
         self.assertFalse(
             contrato["certificacion_semantica"]

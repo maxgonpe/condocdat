@@ -281,6 +281,54 @@ def ejecutar_consulta(
             contrato_final=contrato_final,
         )
 
+    # ARC002-C08-B04: barrera negativa previa al despacho.
+    # No autoriza semantica ni modifica los contratos HOST.
+    if contrato_final.get("tipo_contrato") in (
+        "plan_host",
+        "plan_unificado",
+    ):
+        try:
+            from ia_local.services.llm.auditoria_sustituciones import (
+                auditar_sustituciones_semanticas,
+            )
+
+            auditoria_negativa = auditar_sustituciones_semanticas(
+                pregunta,
+                contrato_final.get("contrato"),
+            )
+
+            # ARC002-C08-B05:
+            # Una negacion detectada no puede avanzar sin
+            # certificacion semantica integral independiente.
+            # Los indicadores del propio plan no la certifican.
+            if (
+                auditoria_negativa.get("ok") is not True
+                or auditoria_negativa.get("discrepancias")
+                or auditoria_negativa.get(
+                    "negacion_original_detectada"
+                ) is True
+            ):
+                return _error(
+                    pregunta=pregunta,
+                    estado="revision_semantica_negativa_pendiente",
+                    mensaje=(
+                        "La representacion de las negaciones "
+                        "requiere revision antes de ejecutar."
+                    ),
+                    contrato_final=contrato_final,
+                )
+
+        except Exception:
+            return _error(
+                pregunta=pregunta,
+                estado="auditoria_negativa_no_disponible",
+                mensaje=(
+                    "No fue posible completar la auditoria "
+                    "preventiva antes del despacho."
+                ),
+                contrato_final=contrato_final,
+            )
+
     resultado = _ejecutar_contrato(
         contrato_final
     )
