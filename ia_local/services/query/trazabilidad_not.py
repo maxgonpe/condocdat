@@ -132,6 +132,121 @@ def _ocurrencias(texto):
     return resultado
 
 
+def _verificar_jerarquia_not(asociaciones, texto, arbol=None):
+    """
+    Verifica que el anidamiento de intervalos NOT
+    coincida con las rutas del AST.
+
+    No certifica equivalencia semantica.
+    """
+
+    rutas = set()
+    intervalos = set()
+
+    def obtener_nodo(ruta):
+        actual = arbol
+
+        for indice in ruta:
+            if (
+                not isinstance(actual, dict)
+                or actual.get("tipo") != "GRUPO"
+                or not isinstance(indice, int)
+                or isinstance(indice, bool)
+                or indice < 0
+            ):
+                raise ValueError("ruta_ast_invalida")
+
+            hijos = actual.get("hijos")
+
+            if (
+                not isinstance(hijos, list)
+                or indice >= len(hijos)
+            ):
+                raise ValueError("ruta_ast_inexistente")
+
+            actual = hijos[indice]
+
+        if (
+            not isinstance(actual, dict)
+            or actual.get("tipo") != "GRUPO"
+            or actual.get("operador") != "NOT"
+            or not isinstance(actual.get("hijos"), list)
+            or len(actual["hijos"]) != 1
+        ):
+            raise ValueError("ruta_no_apunta_a_not")
+
+        return actual
+
+    for asociacion in asociaciones:
+        ruta = tuple(asociacion["ruta_ast"])
+        inicio = asociacion["inicio"]
+        fin = asociacion["fin"]
+
+        if (
+            ruta in rutas
+            or (inicio, fin) in intervalos
+            or not isinstance(inicio, int)
+            or not isinstance(fin, int)
+            or isinstance(inicio, bool)
+            or isinstance(fin, bool)
+            or inicio < 0
+            or fin > len(texto)
+            or inicio >= fin
+            or texto[inicio:fin] != asociacion["fragmento_original"]
+        ):
+            raise ValueError("asociacion_not_invalida")
+
+        if arbol is not None:
+            nodo_real = obtener_nodo(ruta)
+
+            if nodo_real["hijos"][0] != asociacion["arbol_afectado"]:
+                raise ValueError("subarbol_not_no_coincide")
+
+        rutas.add(ruta)
+        intervalos.add((inicio, fin))
+
+    for indice, actual in enumerate(asociaciones):
+        ruta_actual = tuple(actual["ruta_ast"])
+        inicio_actual = actual["inicio"]
+        fin_actual = actual["fin"]
+
+        for anterior in asociaciones[:indice]:
+            ruta_anterior = tuple(anterior["ruta_ast"])
+            inicio_anterior = anterior["inicio"]
+            fin_anterior = anterior["fin"]
+
+            # Un NOT anterior es ancestro de otro si su
+            # ruta es prefijo estricto de la ruta posterior.
+            ancestro = (
+                len(ruta_anterior) < len(ruta_actual)
+                and ruta_actual[:len(ruta_anterior)]
+                == ruta_anterior
+            )
+
+            contenido = (
+                inicio_anterior < inicio_actual
+                and fin_actual < fin_anterior
+            )
+
+            if ancestro != contenido:
+                raise ValueError(
+                    "jerarquia_not_no_coincide"
+                )
+
+            if not ancestro:
+                # Los NOT independientes no deben
+                # compartir caracteres del texto.
+                if (
+                    inicio_actual < fin_anterior
+                    and inicio_anterior < fin_actual
+                ):
+                    raise ValueError(
+                        "intervalos_not_superpuestos"
+                    )
+
+    return True
+
+
 def localizar_nodos_not(expresion):
     salida = {
         "ok": False,
@@ -197,6 +312,12 @@ def localizar_nodos_not(expresion):
                 "arbol_afectado": nodo["hijos"][0],
                 "asociacion_certificada": False,
             })
+
+        _verificar_jerarquia_not(
+            asociaciones,
+            texto,
+            diagnostico["arbol_sintactico"],
+        )
 
     except (ValueError, TypeError, KeyError, IndexError):
         return salida
