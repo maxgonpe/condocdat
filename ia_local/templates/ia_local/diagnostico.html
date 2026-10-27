@@ -320,6 +320,50 @@
          DIAGNÓSTICO
          ===================================================== -->
 
+    {% if diagnostico_certificado %}
+    <div class="panel" id="diagnostico-certificado">
+        <h2>Circuito certificado E03</h2>
+
+        <dl>
+            <dt>Circuito</dt>
+            <dd>{{ diagnostico_certificado.circuito }}</dd>
+
+            <dt>Estado</dt>
+            <dd>{{ diagnostico_certificado.estado|default:"-" }}</dd>
+
+            <dt>OK</dt>
+            <dd>{{ diagnostico_certificado.ok }}</dd>
+
+            <dt>Ejecutado</dt>
+            <dd>{{ diagnostico_certificado.ejecutado }}</dd>
+
+            <dt>Versión</dt>
+            <dd>{{ diagnostico_certificado.version|default:"-" }}</dd>
+
+            <dt>Modelo</dt>
+            <dd>{{ diagnostico_certificado.modelo|default:"-" }}</dd>
+
+            <dt>Tipo</dt>
+            <dd>{{ diagnostico_certificado.tipo|default:"-" }}</dd>
+
+            <dt>Total</dt>
+            <dd>
+                {% if diagnostico_certificado.total is not None %}
+                    {{ diagnostico_certificado.total }}
+                {% else %}
+                    No disponible
+                {% endif %}
+            </dd>
+
+            <dt>Respuesta</dt>
+            <dd>{{ diagnostico_certificado.respuesta|default:"-" }}</dd>
+
+            <dt>LLM invocado</dt>
+            <dd>{{ diagnostico_certificado.llm_invocado }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+
     {% if diagnostico %}
 
         <div id="diagnostico-copiable">

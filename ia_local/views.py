@@ -2401,11 +2401,26 @@ def diagnostico_ia(
                 # ÚNICA EJECUCIÓN FUNCIONAL
                 # --------------------------------------------
 
-                resultado_final = (
-                    responder_consulta(
+                from django.conf import settings
+
+                modo_certificado = (
+                    getattr(
+                        settings,
+                        "IA_LOCAL_HTTP_CERTIFICADO_HABILITADO",
+                        False,
+                    ) is True
+                )
+
+                if modo_certificado:
+                    resultado_final = responder_consulta_web(
+                        request,
+                        pregunta,
+                    )
+                else:
+                    # Preservar referencia historica FINAL.
+                    resultado_final = responder_consulta(
                         pregunta
                     )
-                )
 
                 contexto[
                     "resultado_final"
@@ -2414,6 +2429,37 @@ def diagnostico_ia(
                 # --------------------------------------------
                 # TRAZABILIDAD FINAL
                 # --------------------------------------------
+
+                if modo_certificado:
+                    if not isinstance(resultado_final, dict):
+                        raise ValueError(
+                            "Contrato certificado invalido"
+                        )
+
+                    contexto["diagnostico_certificado"] = {
+                        "circuito": "E03",
+                        "estado": resultado_final.get("estado"),
+                        "ok": resultado_final.get("ok") is True,
+                        "ejecutado": (
+                            resultado_final.get("ejecutado")
+                            is True
+                        ),
+                        "version": resultado_final.get("version"),
+                        "modelo": resultado_final.get("modelo"),
+                        "tipo": resultado_final.get("tipo"),
+                        "total": resultado_final.get("total"),
+                        "respuesta": resultado_final.get("respuesta"),
+                        "llm_invocado": (
+                            resultado_final.get("llm_invocado")
+                            is True
+                        ),
+                    }
+
+                    return render(
+                        request,
+                        "ia_local/diagnostico.html",
+                        contexto,
+                    )
 
                 traza = (
                     resultado_final.get(
