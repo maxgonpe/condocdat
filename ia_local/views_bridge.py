@@ -226,9 +226,29 @@ def consulta_bridge_json(
 
     try:
 
-        resultado = responder_consulta(
-            pregunta
+        from django.conf import settings
+
+        modo_certificado = (
+            getattr(
+                settings,
+                "IA_LOCAL_HTTP_CERTIFICADO_HABILITADO",
+                False,
+            ) is True
         )
+
+        if modo_certificado:
+            from .services.final.entrada_web_compartida import (
+                responder_consulta_web,
+            )
+            resultado = responder_consulta_web(
+                request,
+                pregunta,
+            )
+        else:
+            # Conservar la referencia historica del bridge.
+            resultado = responder_consulta(
+                pregunta
+            )
 
         resultado = aplicar_politica_respuesta(
             pregunta=pregunta,
