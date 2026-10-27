@@ -273,8 +273,29 @@ def consulta_ia(request):
 
                 from ia_local.services.final.adaptador_html_arc001 import adaptar_final_html
 
+                from django.conf import settings
+
+                modo_certificado = (
+                    getattr(
+                        settings,
+                        "IA_LOCAL_HTTP_CERTIFICADO_HABILITADO",
+                        False,
+                    ) is True
+                )
+
+                if modo_certificado:
+                    resultado_final = responder_consulta_web(
+                        request,
+                        pregunta,
+                    )
+                else:
+                    # Compatibilidad con la entrada historica.
+                    resultado_final = responder_consulta(
+                        pregunta
+                    )
+
                 salida = adaptar_final_html(
-                    responder_consulta(pregunta)
+                    resultado_final
                 )
 
                 contexto[
