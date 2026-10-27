@@ -57,6 +57,47 @@ def consultar_con_aclaracion(request):
     token = (request.POST.get("token_aclaracion") or "").strip()
     continuar = bool(opcion or token)
 
+    # ARC003-B06-B03-B04-B
+    # En modo certificado, no iniciar ni continuar
+    # desambiguaciones mediante FINAL tradicional.
+    from django.conf import settings
+
+    modo_certificado = (
+        getattr(
+            settings,
+            "IA_LOCAL_HTTP_CERTIFICADO_HABILITADO",
+            False,
+        ) is True
+    )
+
+    if modo_certificado:
+        # Invalidar cualquier aclaracion anterior.
+        request.session.pop(SESSION_KEY, None)
+        request.session.modified = True
+
+        if continuar:
+            return _rechazo(
+                "aclaracion_no_certificada_en_http",
+                "La continuación contextual no está "
+                "habilitada en el circuito certificado.",
+            )
+
+        if not pregunta:
+            return _rechazo(
+                "pregunta_vacia",
+                "Escribe una pregunta.",
+            )
+
+        if len(pregunta) > MAX_PREGUNTA:
+            return _rechazo(
+                "pregunta_demasiado_larga",
+                "La pregunta supera la longitud admitida.",
+            )
+
+        # El circuito JSON ya aplica la certificacion E03.
+        # No llamar a preparar_aclaracion ni a FINAL legado.
+        return consulta_ia_json(request)
+
     if continuar:
         # Consumir antes de invocar Qwen/FINAL, aun cuando la elección falle.
         pendiente = request.session.pop(SESSION_KEY, None)
