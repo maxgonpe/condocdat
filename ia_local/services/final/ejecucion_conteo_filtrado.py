@@ -133,8 +133,14 @@ def ejecutar_conteo_filtrado_certificado(
 
             # En E03-A se sustituye este ejecutor
             # mediante mock en todas las pruebas.
+            # ARC003-B05-E03-B02:
+            # Aislar posibles errores SQL en un savepoint.
+            # Capturar la excepcion DESPUES de salir del
+            # atomic interno evita invalidar la transaccion
+            # que registra el consumo del expediente.
             try:
-                resultado = ejecutar_plan_datos(plan)
+                with transaction.atomic():
+                    resultado = ejecutar_plan_datos(plan)
             except Exception:
                 return _rechazo(
                     "ejecutor_no_disponible"
