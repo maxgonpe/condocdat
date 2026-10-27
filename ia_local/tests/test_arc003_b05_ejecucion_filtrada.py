@@ -227,3 +227,47 @@ class TestARC003B05EjecucionFiltrada(TestCase):
             self.expediente().estado,
             "COMPLETADO",
         )
+
+    def test_08_conteo_real_en_base_de_pruebas(self):
+        from documents.models import Document
+
+        esperado = Document.objects.filter(
+            status="ACTIVO"
+        ).count()
+
+        # Sin Mock: ejecuta el HOST real en test_condocdat_db.
+        primero = self.ejecutar()
+        segundo = self.ejecutar()
+
+        self.assertTrue(primero["ok"], primero)
+        self.assertTrue(primero["ejecutado"])
+        self.assertEqual(primero["total"], esperado)
+
+        self.assertFalse(segundo["ok"])
+        self.assertFalse(segundo["ejecutado"])
+
+        expediente = self.expediente()
+        self.assertEqual(
+            expediente.estado, "COMPLETADO"
+        )
+        self.assertEqual(
+            expediente.version, self.version + 1
+        )
+
+    def test_09_sin_autorizacion_no_llega_al_orm(self):
+        with (
+            override_settings(
+                IA_LOCAL_DOCUMENTOS_CONTEO_GLOBAL_HABILITADO=False
+            ),
+            patch(EJECUTOR) as host,
+        ):
+            resultado = self.ejecutar()
+
+        self.assertFalse(resultado["ok"])
+        self.assertFalse(resultado["ejecutado"])
+        host.assert_not_called()
+
+        self.assertEqual(
+            self.expediente().estado,
+            "ABIERTO",
+        )
