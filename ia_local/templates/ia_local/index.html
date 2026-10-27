@@ -925,6 +925,48 @@
                 }
                 iaOcultarAclaracion();
 
+                // ARC003-B06-B03-B05-D
+                // Un rechazo funcional no es un resultado exportable.
+                const esContratoE03 = (
+                    data &&
+                    typeof data.version === "string" &&
+                    data.version.startsWith("IA-ARC003-B06-B01")
+                );
+
+                const respuestaRechazada = (
+                    !data ||
+                    typeof data !== "object" ||
+                    data.ok === false ||
+                    (
+                        esContratoE03 &&
+                        (data.ok !== true || data.ejecutado !== true)
+                    )
+                );
+
+                if (respuestaRechazada) {
+                    ultimaSalida = null;
+                    ultimaRespuestaTecnica = null;
+                    desactivarExportaciones();
+                    limpiarTablaResultados();
+
+                    document.getElementById(
+                        "bloqueResultado"
+                    ).style.display = "none";
+
+                    mostrarEstado(
+                        "error",
+                        (
+                            data &&
+                            typeof data.respuesta === "string" &&
+                            data.respuesta.trim()
+                        )
+                        ? data.respuesta
+                        : "La consulta no pudo ejecutarse."
+                    );
+
+                    return;
+                }
+
                 ultimaSalida = construirSalidaExportable(data);
 
                 ultimaRespuestaTecnica =
@@ -941,7 +983,8 @@
                     ? data.campos
                     : [];
 
-                document.getElementById("origen").textContent = "FINAL004";
+                document.getElementById("origen").textContent =
+                    esContratoE03 ? "E03 certificado" : "FINAL004";
                 document.getElementById("tema").textContent = data.modelo || "-";
                 document.getElementById("operacion").textContent = data.tipo || "-";
 
