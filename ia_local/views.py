@@ -42,6 +42,9 @@ from .services.host.salida import (
 from .services.final.formateador_respuesta import (
     responder_consulta,
 )
+from .services.final.entrada_web_compartida import (
+    responder_consulta_web,
+)
 from .services.reglas_semanticas import (
     guardar_regla_exacta,
     guardar_regla_patron,
@@ -390,9 +393,25 @@ def consulta_ia_json(
 
     try:
 
-        resultado = responder_consulta(
-            pregunta
-        )
+        from django.conf import settings
+
+        if (
+            getattr(
+                settings,
+                "IA_LOCAL_HTTP_CERTIFICADO_HABILITADO",
+                False,
+            )
+            is True
+        ):
+            resultado = responder_consulta_web(
+                request,
+                pregunta,
+            )
+        else:
+            # Preservar exactamente la delegacion historica.
+            resultado = responder_consulta(
+                pregunta
+            )
 
     except Exception as exc:
 
